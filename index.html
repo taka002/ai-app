@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>美咲AI 完全版</title>
 
 <style>
@@ -41,7 +41,6 @@ body{
   margin:6px 0;
   padding:10px;
   border-radius:12px;
-  word-break:break-word;
 }
 
 .user{
@@ -54,7 +53,7 @@ body{
   background:#eee;
 }
 
-/* 下 */
+/* UI */
 #bottom{
   background:#ddd;
   padding:6px;
@@ -81,9 +80,7 @@ body{
   color:white;
 }
 
-#sendBtn{
-  width:60px;
-}
+#sendBtn{ width:60px; }
 
 /* 設定 */
 #settingBtn{
@@ -99,10 +96,8 @@ body{
 /* モーダル */
 #modal{
   position:fixed;
-  top:0;
-  left:0;
-  width:100%;
-  height:100%;
+  top:0;left:0;
+  width:100%;height:100%;
   background:rgba(0,0,0,0.5);
   display:none;
   justify-content:center;
@@ -123,12 +118,12 @@ body{
   padding:8px;
 }
 
-/* ===== プレゼンUI ===== */
+/* ===== プレゼン ===== */
 .card{
   background:#fff;
-  padding:10px;
+  padding:12px;
   border-radius:10px;
-  box-shadow:0 2px 6px rgba(0,0,0,0.1);
+  margin-bottom:8px;
 }
 
 .block{
@@ -143,12 +138,45 @@ body{
   display:flex;
   flex-wrap:wrap;
   gap:6px;
-  align-items:center;
 }
+
 .flow div{
   background:#fff;
   padding:8px;
   border-radius:8px;
+}
+
+/* ===== スライド ===== */
+#slideViewer{
+  position:fixed;
+  top:0;left:0;
+  width:100%;height:100%;
+  background:#111;
+  z-index:999;
+  display:none;
+}
+
+#slides{
+  display:flex;
+  width:100%;
+  height:100%;
+  overflow-x:auto;
+  scroll-snap-type:x mandatory;
+}
+
+.slide{
+  min-width:100%;
+  height:100%;
+  display:flex;
+  justify-content:center;
+  align-items:center;
+}
+
+.slideCard{
+  background:#fff;
+  padding:20px;
+  border-radius:12px;
+  max-width:90%;
 }
 </style>
 </head>
@@ -163,196 +191,193 @@ body{
 
 <div id="bottom">
   <div id="controls">
-    <input id="input" placeholder="話しかけてください">
+    <input id="input">
     <button id="sendBtn">送信</button>
-    <button>📷</button>
-    <button>📸</button>
   </div>
   <button id="settingBtn">⚙ 設定</button>
 </div>
 
+<!-- スライド -->
+<div id="slideViewer"><div id="slides"></div></div>
+
+<!-- 設定 -->
 <div id="modal">
-  <div id="modalContent">
-    APIキー
-    <input id="apiKey">
+<div id="modalContent">
 
-    プロンプト
-    <textarea id="prompt"></textarea>
+APIキー
+<input id="apiKey">
 
-    モード
-    <select id="mode">
-      <option value="teacher">📚 家庭教師</option>
-      <option value="counselor">💬 カウンセラー</option>
-      <option value="sales">💼 営業</option>
-      <option value="normal">🤖 通常</option>
-    </select>
+プロンプト
+<textarea id="prompt"></textarea>
 
-    音声ON
-    <input type="checkbox" id="voiceToggle">
+モード
+<select id="mode">
+<option value="teacher">家庭教師</option>
+<option value="counselor">カウンセラー</option>
+<option value="sales">営業</option>
+<option value="normal">通常</option>
+</select>
 
-    <br><br>
-    <button onclick="saveSettings()">保存</button>
-    <button onclick="closeModal()">閉じる</button>
-  </div>
+音声
+<input type="checkbox" id="voiceToggle">
+
+<button onclick="saveSettings()">保存</button>
+
+</div>
 </div>
 
 <script>
 const chat = document.getElementById("chat");
 const input = document.getElementById("input");
 
-let voiceOn = localStorage.getItem("voiceOn") === "true";
+let voiceOn = localStorage.getItem("voiceOn")==="true";
 
-/* ===== プレゼン変換 ===== */
+let slideTexts=[];
+let currentSlide=0;
+
+/* ===== 表示整形 ===== */
 function formatMessage(text){
 
-  if(text.includes("■")){
-    return text.split("■").filter(v=>v.trim()).map(b=>
-      `<div class="block">${b}</div>`
-    ).join("");
-  }
-
-  if(text.includes("・")){
-    return text.split("・").filter(v=>v.trim()).map(i=>
-      `<div class="card">${i}</div>`
-    ).join("");
-  }
-
-  if(text.includes("：")){
-    return "<table style='width:100%'>" +
-      text.split("\n").map(r=>{
-        const p = r.split("：");
-        if(p.length>=2){
-          return `<tr>
-            <td style="background:#5aa0e6;color:#fff">${p[0]}</td>
-            <td>${p[1]}</td>
-          </tr>`;
-        }
-      }).join("") + "</table>";
+  if(text.includes("\n")){
+    return text.split("\n").map(t=>`<div class="card">${t}</div>`).join("");
   }
 
   if(text.includes("→")){
-    return `<div class="flow">` +
-      text.split("→").map(s=>`<div>${s}</div>`).join("➡️") +
+    return `<div class="flow">`+
+      text.split("→").map(s=>`<div>${s}</div>`).join("")+
       `</div>`;
   }
 
-  return text;
+  return `<div class="card">${text}</div>`;
 }
 
 /* メッセージ */
-function addMessage(text, cls){
-  const div = document.createElement("div");
-  div.className = "msg " + cls;
-  div.innerHTML = formatMessage(text);
+function addMessage(text,cls){
+  const div=document.createElement("div");
+  div.className="msg "+cls;
+  div.innerHTML=formatMessage(text);
   chat.appendChild(div);
-  chat.scrollTop = chat.scrollHeight;
 
-  if(cls === "ai") speak(text);
+  if(cls==="ai") speak(text);
 }
 
 /* 音声 */
 function speak(text){
   if(!voiceOn) return;
-  const uttr = new SpeechSynthesisUtterance(text);
-  uttr.lang = "ja-JP";
   speechSynthesis.cancel();
-  speechSynthesis.speak(uttr);
+  const u=new SpeechSynthesisUtterance(text);
+  u.lang="ja-JP";
+  speechSynthesis.speak(u);
 }
 
 /* 表情 */
 function changeFace(text){
-  let file = "normal.png";
-
-  if(text.includes("疲")) file="sleepy.png";
-  else if(text.includes("悲")) file="sad.png";
-  else if(text.includes("嬉")) file="happy.png";
-  else if(text.includes("怒")) file="anger.png";
-
-  document.getElementById("avatar").src = file;
+  let f="normal.png";
+  if(text.includes("疲")) f="sleepy.png";
+  if(text.includes("悲")) f="sad.png";
+  document.getElementById("avatar").src=f;
 }
+
+/* ===== スライド ===== */
+function showSlides(text){
+  const viewer=document.getElementById("slideViewer");
+  const slides=document.getElementById("slides");
+
+  slides.innerHTML="";
+  slideTexts=text.split("\n").filter(v=>v.trim());
+  currentSlide=0;
+
+  slideTexts.forEach(t=>{
+    const d=document.createElement("div");
+    d.className="slide";
+    d.innerHTML=`<div class="slideCard">${t}</div>`;
+    slides.appendChild(d);
+  });
+
+  viewer.style.display="block";
+
+  if(voiceOn) playSlides();
+}
+
+function playSlides(){
+  if(currentSlide>=slideTexts.length) return;
+
+  document.getElementById("slides").scrollTo({
+    left:currentSlide*window.innerWidth,
+    behavior:"smooth"
+  });
+
+  const u=new SpeechSynthesisUtterance(slideTexts[currentSlide]);
+  u.lang="ja-JP";
+
+  u.onend=()=>{
+    currentSlide++;
+    setTimeout(playSlides,400);
+  };
+
+  speechSynthesis.speak(u);
+}
+
+document.getElementById("slideViewer").onclick=()=>{
+  document.getElementById("slideViewer").style.display="none";
+  speechSynthesis.cancel();
+};
 
 /* 送信 */
 async function sendMessage(){
-  const text = input.value;
+  const text=input.value;
   if(!text) return;
 
   addMessage(text,"user");
   input.value="";
   document.getElementById("avatar").src="typing.png";
 
-  const apiKey = localStorage.getItem("apiKey");
-  const prompt = localStorage.getItem("prompt") || "";
-  const mode = localStorage.getItem("mode") || "teacher";
+  const apiKey=localStorage.getItem("apiKey");
+  const prompt=localStorage.getItem("prompt")||"";
+  const mode=localStorage.getItem("mode")||"teacher";
 
-  let modePrompt = "";
+  let modePrompt="";
+  if(mode==="teacher") modePrompt="わかりやすく説明";
+  if(mode==="counselor") modePrompt="優しく寄り添う";
+  if(mode==="sales") modePrompt="提案型";
 
-  if(mode === "teacher"){
-    modePrompt = "わかりやすく図や例で説明してください";
-  }
-  else if(mode === "counselor"){
-    modePrompt = "優しく共感して寄り添ってください";
-  }
-  else if(mode === "sales"){
-    modePrompt = "分かりやすく提案してください";
-  }
+  const res=await fetch("https://api.openai.com/v1/chat/completions",{
+    method:"POST",
+    headers:{
+      "Content-Type":"application/json",
+      "Authorization":"Bearer "+apiKey
+    },
+    body:JSON.stringify({
+      model:"gpt-4o-mini",
+      messages:[
+        {role:"system",content:prompt+"\n"+modePrompt},
+        {role:"user",content:text}
+      ]
+    })
+  });
 
-  try{
-    const res = await fetch("https://api.openai.com/v1/chat/completions",{
-      method:"POST",
-      headers:{
-        "Content-Type":"application/json",
-        "Authorization":"Bearer " + apiKey
-      },
-      body:JSON.stringify({
-        model:"gpt-4o-mini",
-        messages:[
-          {role:"system",content:prompt + "\n" + modePrompt},
-          {role:"user",content:text}
-        ]
-      })
-    });
+  const data=await res.json();
+  const reply=data.choices[0].message.content;
 
-    const data = await res.json();
-    const reply = data.choices[0].message.content;
-
-    addMessage(reply,"ai");
-    changeFace(reply);
-
-  }catch(e){
-    addMessage("通信エラー","ai");
-  }
+  addMessage(reply,"ai");
+  changeFace(reply);
+  showSlides(reply);
 }
 
-/* イベント */
-document.getElementById("sendBtn").onclick = sendMessage;
-
-input.addEventListener("keydown",e=>{
-  if(e.key==="Enter") sendMessage();
-});
+document.getElementById("sendBtn").onclick=sendMessage;
 
 /* 設定 */
 document.getElementById("settingBtn").onclick=()=>{
   document.getElementById("modal").style.display="flex";
-
-  document.getElementById("apiKey").value = localStorage.getItem("apiKey") || "";
-  document.getElementById("prompt").value = localStorage.getItem("prompt") || "";
-  document.getElementById("voiceToggle").checked = voiceOn;
-  document.getElementById("mode").value = localStorage.getItem("mode") || "teacher";
 };
 
-function closeModal(){
-  document.getElementById("modal").style.display="none";
-}
-
 function saveSettings(){
-  localStorage.setItem("apiKey",document.getElementById("apiKey").value);
-  localStorage.setItem("prompt",document.getElementById("prompt").value);
-  localStorage.setItem("mode",document.getElementById("mode").value);
-
-  voiceOn = document.getElementById("voiceToggle").checked;
-  localStorage.setItem("voiceOn", voiceOn);
-
-  closeModal();
+  localStorage.setItem("apiKey",apiKey.value);
+  localStorage.setItem("prompt",prompt.value);
+  localStorage.setItem("mode",mode.value);
+  voiceOn=voiceToggle.checked;
+  localStorage.setItem("voiceOn",voiceOn);
+  modal.style.display="none";
 }
 </script>
 
