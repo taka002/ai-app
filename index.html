@@ -17,7 +17,7 @@ body{
   flex-direction:column;
 }
 
-/* ===== モードUI ===== */
+/* モードUI */
 .mode-housework .card{
   background:#fff8e1;
   border-left:5px solid #ff9800;
@@ -42,7 +42,6 @@ body{
   margin:8px 0;
   padding:12px;
   border-radius:16px;
-  animation:fadeIn 0.3s ease;
 }
 
 .user{
@@ -63,31 +62,9 @@ body{
   margin-bottom:8px;
 }
 
-/* 箇条書き */
-.list{
-  background:#eef6ff;
-  padding:10px;
-  border-left:4px solid #4facfe;
-  border-radius:8px;
-  margin-bottom:6px;
-}
-
-/* フロー */
-.flow{
-  display:flex;
-  gap:6px;
-  flex-wrap:wrap;
-}
-.flow div{
-  background:#fff;
-  padding:8px;
-  border-radius:8px;
-}
-
 /* 入力 */
 #bottom{
   background:rgba(255,255,255,0.6);
-  backdrop-filter:blur(10px);
   padding:10px;
 }
 #controls{
@@ -99,14 +76,13 @@ body{
   padding:12px;
   border-radius:20px;
   border:none;
-  outline:none;
 }
 button{
   border:none;
   border-radius:20px;
   background:#667eea;
   color:white;
-  padding:10px 14px;
+  padding:10px;
 }
 
 /* モーダル */
@@ -126,17 +102,6 @@ button{
   border-radius:12px;
   width:90%;
 }
-#modal input,#modal textarea,#modal select{
-  width:100%;
-  margin:6px 0;
-  padding:8px;
-}
-
-/* アニメーション */
-@keyframes fadeIn{
-  from{opacity:0;transform:translateY(10px);}
-  to{opacity:1;transform:translateY(0);}
-}
 </style>
 </head>
 
@@ -152,11 +117,15 @@ button{
   <div id="controls">
     <input id="input" placeholder="話しかけてください">
     <button id="sendBtn">送信</button>
+    <button onclick="openCamera()">📷</button>
     <button onclick="clearMemory()">🧹</button>
   </div>
   <button id="settingBtn">⚙ 設定</button>
 </div>
 
+<input type="file" id="cameraInput" accept="image/*" capture="environment" style="display:none">
+
+<!-- 設定 -->
 <div id="modal">
 <div id="modalContent">
 
@@ -187,45 +156,24 @@ APIキー
 const chat=document.getElementById("chat");
 const input=document.getElementById("input");
 
+/* 状態 */
 let voiceOn=localStorage.getItem("voiceOn")==="true";
-
-/* 会話履歴 */
 let history = JSON.parse(localStorage.getItem("history") || "[]");
-history = history.filter(m => typeof m==="object" && m.role && m.content);
+
+/* 壊れた履歴削除 */
+history = history.filter(m => m && m.role && m.content);
 
 /* モードUI */
-function applyModeUI(mode){
+function applyModeUI(){
+  const mode=localStorage.getItem("mode")||"teacher";
   document.body.className="";
   document.body.classList.add("mode-"+mode);
 }
-applyModeUI(localStorage.getItem("mode")||"teacher");
+applyModeUI();
 
-/* 表示（修正版） */
+/* 表示 */
 function formatMessage(text){
-
-  text = text.replace(/\*/g,"");
-
-  const lines = text.split("\n").filter(t=>t.trim());
-
-  if(lines.length===0){
-    return `<div class="card">${text}</div>`;
-  }
-
-  return lines.map(line=>{
-
-    if(line.includes("→")){
-      return `<div class="flow">
-        ${line.split("→").map(s=>`<div>${s}</div>`).join("")}
-      </div>`;
-    }
-
-    if(line.startsWith("・") || line.startsWith("-")){
-      return `<div class="list">${line}</div>`;
-    }
-
-    return `<div class="card">${line}</div>`;
-
-  }).join("");
+  return `<div class="card">${text.replace(/\n/g,"<br>")}</div>`;
 }
 
 /* メッセージ */
@@ -233,35 +181,8 @@ function addMessage(text,cls){
   const div=document.createElement("div");
   div.className="msg "+cls;
   div.innerHTML=formatMessage(text);
-
   chat.appendChild(div);
   chat.scrollTop=chat.scrollHeight;
-
-  if(cls==="ai") speak(text);
-}
-
-/* 音声 */
-function speak(text){
-  if(!voiceOn) return;
-  const u=new SpeechSynthesisUtterance(text);
-  u.lang="ja-JP";
-  speechSynthesis.speak(u);
-}
-
-/* 表情 */
-function changeFace(text){
-  let f="normal.png";
-  if(text.includes("疲")) f="sleepy.png";
-  if(text.includes("悲")) f="sad.png";
-  document.getElementById("avatar").src=f;
-}
-
-/* 医療 */
-function medicalSafety(text){
-  if(text.includes("死にたい")){
-    return "すぐに医療機関へ相談してください。";
-  }
-  return text;
 }
 
 /* 記憶削除 */
@@ -271,13 +192,13 @@ function clearMemory(){
   addMessage("記憶リセットしました","ai");
 }
 
-/* 送信 */
+/* ===== 送信 ===== */
 async function sendMessage(){
 
   const text=input.value;
   if(!text) return;
 
-  addMessage(text,"user");
+  addMessage(text,"user"); // ←ここが重要修正
   input.value="";
 
   const apiKey=localStorage.getItem("apiKey");
@@ -288,7 +209,6 @@ async function sendMessage(){
 
   history.push({role:"user",content:text});
 
-  const prompt=localStorage.getItem("prompt")||"";
   const mode=localStorage.getItem("mode")||"teacher";
 
   let modePrompt="";
@@ -296,7 +216,7 @@ async function sendMessage(){
   if(mode==="counselor") modePrompt="優しく寄り添う";
   if(mode==="sales") modePrompt="提案型";
   if(mode==="medical") modePrompt="安全に説明";
-  if(mode==="housework") modePrompt="家事のコツを簡単に説明";
+  if(mode==="housework") modePrompt="家事のコツで説明";
 
   try{
     const res=await fetch("https://api.openai.com/v1/chat/completions",{
@@ -308,7 +228,7 @@ async function sendMessage(){
       body:JSON.stringify({
         model:"gpt-4o-mini",
         messages:[
-          {role:"system",content:prompt+"\n"+modePrompt},
+          {role:"system",content:modePrompt},
           ...history
         ]
       })
@@ -321,11 +241,9 @@ async function sendMessage(){
       return;
     }
 
-    let reply=data.choices[0].message.content;
-    if(mode==="medical") reply=medicalSafety(reply);
+    const reply=data.choices[0].message.content;
 
     addMessage(reply,"ai");
-    changeFace(reply);
 
     history.push({role:"assistant",content:reply});
     localStorage.setItem("history",JSON.stringify(history));
@@ -337,25 +255,62 @@ async function sendMessage(){
 
 document.getElementById("sendBtn").onclick=sendMessage;
 
+/* ===== カメラ ===== */
+function openCamera(){
+  document.getElementById("cameraInput").click();
+}
+
+document.getElementById("cameraInput").addEventListener("change", async function(e){
+
+  const file=e.target.files[0];
+  if(!file) return;
+
+  addMessage("📷 解析中...","ai");
+
+  const base64 = await new Promise(res=>{
+    const r=new FileReader();
+    r.onload=()=>res(r.result);
+    r.readAsDataURL(file);
+  });
+
+  const apiKey=localStorage.getItem("apiKey");
+
+  const res=await fetch("https://api.openai.com/v1/chat/completions",{
+    method:"POST",
+    headers:{
+      "Content-Type":"application/json",
+      "Authorization":"Bearer "+apiKey
+    },
+    body:JSON.stringify({
+      model:"gpt-4o-mini",
+      messages:[{
+        role:"user",
+        content:[
+          {type:"text",text:"この画像をわかりやすく説明"},
+          {type:"image_url",image_url:{url:base64}}
+        ]
+      }]
+    })
+  });
+
+  const data=await res.json();
+  const reply=data.choices?.[0]?.message?.content || "解析失敗";
+
+  addMessage(reply,"ai");
+
+});
+
 /* 設定 */
 document.getElementById("settingBtn").onclick=()=>{
   modal.style.display="flex";
-  apiKey.value=localStorage.getItem("apiKey")||"";
-  prompt.value=localStorage.getItem("prompt")||"";
-  mode.value=localStorage.getItem("mode")||"teacher";
-  voiceToggle.checked=voiceOn;
 };
 
 function saveSettings(){
   localStorage.setItem("apiKey",apiKey.value);
-  localStorage.setItem("prompt",prompt.value);
   localStorage.setItem("mode",mode.value);
-
   voiceOn=voiceToggle.checked;
   localStorage.setItem("voiceOn",voiceOn);
-
-  applyModeUI(mode.value);
-
+  applyModeUI();
   modal.style.display="none";
 }
 </script>
