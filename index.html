@@ -14,17 +14,15 @@ html,body{
   overflow:hidden;
 }
 
-/* 全体 */
 #app{
+  height:100vh;
   display:flex;
   flex-direction:column;
-  height:100vh;
 }
 
-/* 上（固定） */
+/* 上 */
 #avatarArea{
   height:22%;
-  flex-shrink:0;
 }
 #avatar{
   width:100%;
@@ -32,19 +30,24 @@ html,body{
   object-fit:cover;
 }
 
-/* 中（スクロール） */
+/* 中 */
 #chatArea{
   flex:1;
   overflow-y:auto;
   padding:10px;
+  padding-bottom:130px; /* ←重要 */
   background:#eef3ff;
 }
 
-/* 下（固定） */
+/* 下（固定🔥） */
 #bottomArea{
-  flex-shrink:0;
+  position:fixed;
+  bottom:0;
+  left:0;
+  width:100%;
   background:#ddd;
-  padding:6px;
+  padding:8px;
+  padding-bottom:env(safe-area-inset-bottom);
 }
 
 /* 入力 */
@@ -63,15 +66,14 @@ input{
 /* ボタン */
 button{
   margin-left:5px;
-  padding:8px;
+  padding:10px;
   border:none;
   border-radius:10px;
   background:#4facfe;
   color:white;
-  font-size:12px;
+  font-size:13px;
 }
 
-/* 設定 */
 #settingsBtn{
   width:100%;
   margin-top:6px;
@@ -86,15 +88,8 @@ button{
   max-width:80%;
 }
 
-.user{
-  background:#4facfe;
-  color:white;
-  margin-left:auto;
-}
-
-.ai{
-  background:white;
-}
+.user{background:#4facfe;color:#fff;margin-left:auto;}
+.ai{background:#fff;}
 
 /* 画像 */
 .chat-img{
@@ -125,7 +120,7 @@ button{
   color:white;
 }
 
-/* 入力欄（広げた🔥） */
+/* 入力 */
 .modalInput{
   width:100%;
   margin:8px 0;
@@ -135,12 +130,11 @@ button{
   font-size:14px;
 }
 
-/* プロンプトは大きく */
 #promptInput{
   height:100px;
 }
 
-/* トグルスイッチ */
+/* スイッチ */
 .switch{
   position:relative;
   display:inline-block;
@@ -151,7 +145,6 @@ button{
 
 .slider{
   position:absolute;
-  cursor:pointer;
   background:#ccc;
   border-radius:25px;
   width:100%;height:100%;
@@ -174,7 +167,6 @@ input:checked + .slider{
 input:checked + .slider:before{
   transform:translateX(24px);
 }
-
 </style>
 </head>
 
@@ -244,11 +236,11 @@ function addMessage(text,type){
   chat.scrollTop=chat.scrollHeight;
 
   if(type==="ai" && voiceMode){
-    speech(text);
+    speak(text);
   }
 }
 
-function speech(text){
+function speak(text){
   const uttr=new SpeechSynthesisUtterance(text);
   uttr.lang="ja-JP";
   speechSynthesis.speak(uttr);
@@ -262,7 +254,6 @@ function addImage(src){
   chat.appendChild(img);
 }
 
-/* GPT */
 async function askGPT(text){
 
   if(!apiKey) return "APIキー未設定";
@@ -286,7 +277,6 @@ async function askGPT(text){
   return data.choices[0].message.content;
 }
 
-/* 送信 */
 async function send(){
   const input=document.getElementById("input");
   const text=input.value;
@@ -310,7 +300,6 @@ async function startCamera(){
   video.srcObject=stream;
 }
 
-/* 撮影 */
 function takePhoto(){
 
   const canvas=document.createElement("canvas");
@@ -323,7 +312,6 @@ function takePhoto(){
   const img=canvas.toDataURL();
 
   addImage(img);
-
   analyzeImage(img);
 }
 
