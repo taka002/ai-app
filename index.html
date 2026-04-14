@@ -17,16 +17,15 @@ body{
   flex-direction:column;
 }
 
+/* ===== モードUI ===== */
+.mode-housework .card{
+  background:#fff8e1;
+  border-left:5px solid #ff9800;
+}
+
 /* キャラ */
-#character{
-  height:26vh;
-  overflow:hidden;
-}
-#character img{
-  width:100%;
-  height:100%;
-  object-fit:cover;
-}
+#character{height:26vh;overflow:hidden;}
+#character img{width:100%;height:100%;object-fit:cover;}
 
 /* チャット */
 #chat{
@@ -153,7 +152,6 @@ button{
   <div id="controls">
     <input id="input" placeholder="話しかけてください">
     <button id="sendBtn">送信</button>
-    <button onclick="toggleSlide()">📊</button>
     <button onclick="clearMemory()">🧹</button>
   </div>
   <button id="settingBtn">⚙ 設定</button>
@@ -174,11 +172,11 @@ APIキー
 <option value="counselor">カウンセラー</option>
 <option value="sales">営業</option>
 <option value="medical">医療</option>
+<option value="housework">家事</option>
 <option value="normal">通常</option>
 </select>
 
 音声 <input type="checkbox" id="voiceToggle">
-スライド <input type="checkbox" id="slideToggle">
 
 <button onclick="saveSettings()">保存</button>
 
@@ -190,17 +188,28 @@ const chat=document.getElementById("chat");
 const input=document.getElementById("input");
 
 let voiceOn=localStorage.getItem("voiceOn")==="true";
-let slideMode=localStorage.getItem("slideMode")==="true";
 
+/* 会話履歴 */
 let history = JSON.parse(localStorage.getItem("history") || "[]");
 history = history.filter(m => typeof m==="object" && m.role && m.content);
 
-/* 表示強化 */
+/* モードUI */
+function applyModeUI(mode){
+  document.body.className="";
+  document.body.classList.add("mode-"+mode);
+}
+applyModeUI(localStorage.getItem("mode")||"teacher");
+
+/* 表示（修正版） */
 function formatMessage(text){
 
   text = text.replace(/\*/g,"");
 
   const lines = text.split("\n").filter(t=>t.trim());
+
+  if(lines.length===0){
+    return `<div class="card">${text}</div>`;
+  }
 
   return lines.map(line=>{
 
@@ -234,7 +243,6 @@ function addMessage(text,cls){
 /* 音声 */
 function speak(text){
   if(!voiceOn) return;
-  speechSynthesis.cancel();
   const u=new SpeechSynthesisUtterance(text);
   u.lang="ja-JP";
   speechSynthesis.speak(u);
@@ -243,24 +251,17 @@ function speak(text){
 /* 表情 */
 function changeFace(text){
   let f="normal.png";
-  if(text.includes("悲")) f="sad.png";
   if(text.includes("疲")) f="sleepy.png";
-  if(text.includes("痛")) f="anxiety.png";
+  if(text.includes("悲")) f="sad.png";
   document.getElementById("avatar").src=f;
 }
 
 /* 医療 */
 function medicalSafety(text){
   if(text.includes("死にたい")){
-    return "すぐに周囲や医療機関へ相談してください。";
+    return "すぐに医療機関へ相談してください。";
   }
   return text;
-}
-
-/* スライド */
-function toggleSlide(){
-  slideMode=!slideMode;
-  localStorage.setItem("slideMode",slideMode);
 }
 
 /* 記憶削除 */
@@ -295,6 +296,7 @@ async function sendMessage(){
   if(mode==="counselor") modePrompt="優しく寄り添う";
   if(mode==="sales") modePrompt="提案型";
   if(mode==="medical") modePrompt="安全に説明";
+  if(mode==="housework") modePrompt="家事のコツを簡単に説明";
 
   try{
     const res=await fetch("https://api.openai.com/v1/chat/completions",{
@@ -342,7 +344,6 @@ document.getElementById("settingBtn").onclick=()=>{
   prompt.value=localStorage.getItem("prompt")||"";
   mode.value=localStorage.getItem("mode")||"teacher";
   voiceToggle.checked=voiceOn;
-  slideToggle.checked=slideMode;
 };
 
 function saveSettings(){
@@ -351,10 +352,9 @@ function saveSettings(){
   localStorage.setItem("mode",mode.value);
 
   voiceOn=voiceToggle.checked;
-  slideMode=slideToggle.checked;
-
   localStorage.setItem("voiceOn",voiceOn);
-  localStorage.setItem("slideMode",slideMode);
+
+  applyModeUI(mode.value);
 
   modal.style.display="none";
 }
