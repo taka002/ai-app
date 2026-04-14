@@ -32,8 +32,9 @@ body{
 .msg{
   max-width:85%;
   margin:6px 0;
-  padding:10px;
+  padding:12px;
   border-radius:12px;
+  white-space:pre-wrap;
 }
 
 .user{background:#5aa0e6;color:#fff;margin-left:auto;}
@@ -84,32 +85,22 @@ button{
   padding:8px;
 }
 
-/* ===== 表示 ===== */
-.card{
-  background:#fff;
-  padding:12px;
-  border-radius:10px;
-  margin-bottom:8px;
-  white-space:pre-wrap;
-}
-
 /* ===== YouTube ===== */
 .ytWrap{
   display:flex;
   gap:8px;
   overflow-x:auto;
+  margin-top:6px;
 }
 
 .ytCard{
-  min-width:160px;
+  min-width:140px;
   background:#fff;
   border-radius:10px;
-  overflow:hidden;
+  padding:6px;
+  text-align:center;
+  font-size:12px;
 }
-
-.ytCard img{width:100%;}
-
-.ytPlayer{margin-top:8px;}
 
 /* ===== スライド ===== */
 #slideViewer{
@@ -184,11 +175,8 @@ APIキー
 <option value="normal">通常</option>
 </select>
 
-音声
-<input type="checkbox" id="voiceToggle">
-
-スライド
-<input type="checkbox" id="slideToggle">
+音声 <input type="checkbox" id="voiceToggle">
+スライド <input type="checkbox" id="slideToggle">
 
 <button onclick="saveSettings()">保存</button>
 
@@ -202,38 +190,35 @@ const input=document.getElementById("input");
 let voiceOn=localStorage.getItem("voiceOn")==="true";
 let slideMode=localStorage.getItem("slideMode")==="true";
 
-/* ===== 表示 ===== */
+/* ===== メッセージ整形 ===== */
 function formatMessage(text){
-  return `<div class="card">${text}</div>`;
+  return text.replace(/\n/g,"<br>");
 }
 
-/* YouTube */
+/* ===== YouTube（安定版） ===== */
 function showYouTube(text,container){
+
   const wrap=document.createElement("div");
   wrap.className="ytWrap";
 
-  const url=`https://www.youtube.com/embed?listType=search&list=${encodeURIComponent(text)}`;
+  const url="https://www.youtube.com/results?search_query="+encodeURIComponent(text);
 
   const card=document.createElement("div");
   card.className="ytCard";
-  card.innerHTML=`<img src="https://img.youtube.com/vi/0/hqdefault.jpg"><div>関連動画</div>`;
+  card.innerHTML="▶ 関連動画";
 
-  card.onclick=()=>{
-    const player=document.createElement("div");
-    player.className="ytPlayer";
-    player.innerHTML=`<iframe width="100%" height="200" src="${url}" frameborder="0"></iframe>`;
-    container.appendChild(player);
-  };
+  card.onclick=()=>window.open(url,"_blank");
 
   wrap.appendChild(card);
   container.appendChild(wrap);
 }
 
-/* メッセージ */
+/* ===== メッセージ ===== */
 function addMessage(text,cls){
   const div=document.createElement("div");
   div.className="msg "+cls;
   div.innerHTML=formatMessage(text);
+
   chat.appendChild(div);
   chat.scrollTop=chat.scrollHeight;
 
@@ -257,10 +242,11 @@ function changeFace(text){
   let f="normal.png";
   if(text.includes("悲")) f="sad.png";
   if(text.includes("疲")) f="sleepy.png";
+  if(text.includes("痛")) f="anxiety.png";
   document.getElementById("avatar").src=f;
 }
 
-/* 医療 */
+/* 医療安全 */
 function medicalSafety(text){
   if(text.includes("死にたい")){
     return "すぐに周囲や医療機関へ相談してください。";
@@ -275,6 +261,7 @@ function showSlides(text){
 
   slides.innerHTML="";
   text.split("\n").forEach(t=>{
+    if(!t.trim()) return;
     const d=document.createElement("div");
     d.className="slide";
     d.innerHTML=`<div class="slideCard">${t}</div>`;
@@ -299,14 +286,16 @@ async function sendMessage(){
   const text=input.value;
   if(!text) return;
 
-  addMessage(text,"user");
+  addMessage(text,"user"); // ← ここで確実表示
   input.value="";
 
+  document.getElementById("avatar").src="typing.png";
+
   const apiKey=localStorage.getItem("apiKey");
+  const prompt=localStorage.getItem("prompt")||"";
   const mode=localStorage.getItem("mode")||"teacher";
 
   let modePrompt="";
-
   if(mode==="teacher") modePrompt="わかりやすく説明";
   if(mode==="counselor") modePrompt="優しく寄り添う";
   if(mode==="sales") modePrompt="提案型";
@@ -321,7 +310,7 @@ async function sendMessage(){
     body:JSON.stringify({
       model:"gpt-4o-mini",
       messages:[
-        {role:"system",content:modePrompt},
+        {role:"system",content:prompt+"\n"+modePrompt},
         {role:"user",content:text}
       ]
     })
@@ -342,7 +331,7 @@ async function sendMessage(){
 
 document.getElementById("sendBtn").onclick=sendMessage;
 
-/* 設定 */
+/* ===== 設定 ===== */
 document.getElementById("settingBtn").onclick=()=>{
   modal.style.display="flex";
   apiKey.value=localStorage.getItem("apiKey")||"";
@@ -356,10 +345,13 @@ function saveSettings(){
   localStorage.setItem("apiKey",apiKey.value);
   localStorage.setItem("prompt",prompt.value);
   localStorage.setItem("mode",mode.value);
+
   voiceOn=voiceToggle.checked;
   slideMode=slideToggle.checked;
+
   localStorage.setItem("voiceOn",voiceOn);
   localStorage.setItem("slideMode",slideMode);
+
   modal.style.display="none";
 }
 </script>
