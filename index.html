@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>新人AIアプリ</title>
+
+<style>
+body{
+  margin:0;
+  font-family:sans-serif;
+  background:#eef3ff;
+}
+
+/* 上：キャラ */
+#avatarArea{
+  height:30vh;
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  background:#dbe9ff;
+}
+
+#avatar{
+  height:100%;
+}
+
+/* 中：メッセージ */
+#chatArea{
+  height:50vh;
+  overflow-y:auto;
+  padding:10px;
+}
+
+.msg{
+  margin:8px 0;
+  padding:10px;
+  border-radius:10px;
+  max-width:80%;
+}
+
+.user{
+  background:#4facfe;
+  color:white;
+  margin-left:auto;
+}
+
+.ai{
+  background:white;
+}
+
+/* YouTube */
+#youtube{
+  width:100%;
+  height:200px;
+  display:none;
+}
+
+/* 下：入力 */
+#inputArea{
+  height:20vh;
+  display:flex;
+  flex-direction:column;
+  background:#ddd;
+  padding:10px;
+}
+
+#controls{
+  display:flex;
+}
+
+input{
+  flex:1;
+  padding:10px;
+  border:none;
+  border-radius:10px;
+}
+
+button{
+  margin-left:5px;
+  padding:10px;
+  border:none;
+  border-radius:10px;
+  background:#4facfe;
+  color:white;
+}
+</style>
+</head>
+
+<body>
+
+<!-- 上：キャラ -->
+<div id="avatarArea">
+  <img id="avatar" src="01.png">
+</div>
+
+<!-- 中：チャット -->
+<div id="chatArea"></div>
+
+<!-- YouTube -->
+<iframe id="youtube"></iframe>
+
+<!-- 下：入力 -->
+<div id="inputArea">
+  <div id="controls">
+    <input id="input" placeholder="話しかけてください">
+    <button onclick="send()">送信</button>
+    <button onclick="openCamera()">📷</button>
+  </div>
+</div>
+
+<script>
+
+// メッセージ追加
+function addMessage(text, type){
+  const chat = document.getElementById("chatArea");
+  const div = document.createElement("div");
+  div.className = "msg " + type;
+  div.innerText = text;
+  chat.appendChild(div);
+  chat.scrollTop = chat.scrollHeight;
+}
+
+// 画像切替
+function changeAvatar(name){
+  document.getElementById("avatar").src = name;
+}
+
+// 仮AIロジック
+function aiReply(text){
+
+  // デフォルト
+  let reply = "はい！承知しました！";
+  let img = "01.png";
+
+  if(text.includes("おはよう")){
+    reply = "おはようございます！本日もよろしくお願いします！";
+    img = "02.png";
+  }
+
+  if(text.includes("おつかれ")){
+    reply = "お疲れ様です！本日もありがとうございました！";
+    img = "03.png";
+  }
+
+  if(text.includes("ありがとう")){
+    reply = "ありがとうございます！とても嬉しいです！";
+    img = "01.png";
+  }
+
+  if(text.includes("OK")){
+    reply = "了解いたしました！";
+    img = "04.png";
+  }
+
+  if(text.includes("ごめん")){
+    reply = "大丈夫です！気にしないでください！";
+    img = "05.png";
+  }
+
+  // YouTube表示例
+  if(text.includes("研修")){
+    document.getElementById("youtube").style.display = "block";
+    document.getElementById("youtube").src =
+      "https://www.youtube.com/embed/ysz5S6PUM-U";
+  }
+
+  changeAvatar(img);
+
+  return reply;
+}
+
+// 送信
+function send(){
+  const input = document.getElementById("input");
+  const text = input.value;
+  if(!text) return;
+
+  addMessage(text, "user");
+
+  setTimeout(()=>{
+    addMessage(aiReply(text), "ai");
+  }, 500);
+
+  input.value = "";
+}
+
+// カメラ（仮）
+function openCamera(){
+  alert("カメラ機能は次で実装🔥");
+}
+
+</script>
+
+</body>
+</html>
