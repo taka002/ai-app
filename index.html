@@ -2,359 +2,308 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+
+<title>美咲AI 完全版</title>
 
 <style>
-*{box-sizing:border-box;}
-
-html,body{
-  margin:0;
-  height:100%;
-  font-family:sans-serif;
-  overflow:hidden;
+*{
+  box-sizing:border-box;
 }
 
-#app{
+body{
+  margin:0;
+  font-family:sans-serif;
+  background:#cfd6e0;
   height:100vh;
   display:flex;
   flex-direction:column;
 }
 
-/* 上 */
-#avatarArea{
-  height:22%;
+/* 上：キャラ */
+#character{
+  height:28vh;
+  flex-shrink:0;
+  overflow:hidden;
 }
-#avatar{
+#character img{
   width:100%;
   height:100%;
   object-fit:cover;
 }
 
-/* 中 */
-#chatArea{
+/* メッセージ */
+#chat{
   flex:1;
   overflow-y:auto;
   padding:10px;
-  padding-bottom:130px; /* ←重要 */
-  background:#eef3ff;
 }
 
-/* 下（固定🔥） */
-#bottomArea{
-  position:fixed;
-  bottom:0;
-  left:0;
-  width:100%;
+/* 吹き出し */
+.msg{
+  max-width:80%;
+  margin:6px 0;
+  padding:10px;
+  border-radius:12px;
+  word-break:break-word;
+}
+
+.user{
+  background:#5aa0e6;
+  color:#fff;
+  margin-left:auto;
+}
+
+.ai{
+  background:#eee;
+}
+
+/* 下固定 */
+#bottom{
+  flex-shrink:0;
   background:#ddd;
-  padding:8px;
-  padding-bottom:env(safe-area-inset-bottom);
+  padding:6px;
 }
 
-/* 入力 */
+/* 入力行 */
 #controls{
   display:flex;
+  gap:6px;
   align-items:center;
 }
 
-input{
+/* 入力 */
+#input{
   flex:1;
+  min-width:0;
   padding:10px;
-  border:none;
   border-radius:10px;
+  border:none;
+  font-size:16px;
 }
 
 /* ボタン */
-button{
-  margin-left:5px;
+#controls button{
+  flex:0 0 44px;
+  height:44px;
+  border:none;
+  border-radius:10px;
+  background:#5aa0e6;
+  color:white;
+  font-size:16px;
+}
+
+/* 送信だけ広く */
+#sendBtn{
+  flex:0 0 60px;
+}
+
+/* 設定ボタン */
+#settingBtn{
+  margin-top:6px;
+  width:100%;
   padding:10px;
   border:none;
   border-radius:10px;
-  background:#4facfe;
-  color:white;
-  font-size:13px;
-}
-
-#settingsBtn{
-  width:100%;
-  margin-top:6px;
   background:#333;
-}
-
-/* メッセージ */
-.msg{
-  margin:8px 0;
-  padding:12px;
-  border-radius:12px;
-  max-width:80%;
-}
-
-.user{background:#4facfe;color:#fff;margin-left:auto;}
-.ai{background:#fff;}
-
-/* 画像 */
-.chat-img{
-  max-width:65%;
-  border-radius:10px;
-  display:block;
-  margin-left:auto;
+  color:#fff;
+  font-size:16px;
 }
 
 /* モーダル */
 #modal{
   position:fixed;
-  top:0;left:0;
-  width:100%;height:100%;
-  background:rgba(0,0,0,0.6);
+  top:0;
+  left:0;
+  width:100%;
+  height:100%;
+  background:rgba(0,0,0,0.5);
   display:none;
-  justify-content:center;
   align-items:center;
+  justify-content:center;
 }
 
 #modalContent{
   background:#222;
+  color:#fff;
   padding:20px;
-  border-radius:15px;
+  border-radius:12px;
   width:90%;
   max-height:80%;
-  overflow-y:auto;
-  color:white;
+  overflow:auto;
 }
 
-/* 入力 */
-.modalInput{
+#modal input, #modal textarea{
   width:100%;
-  margin:8px 0;
-  padding:12px;
-  border-radius:10px;
+  margin:6px 0;
+  padding:8px;
+  border-radius:8px;
   border:none;
-  font-size:14px;
 }
 
-#promptInput{
-  height:100px;
-}
-
-/* スイッチ */
+/* トグル */
 .switch{
-  position:relative;
-  display:inline-block;
-  width:50px;
-  height:25px;
-}
-.switch input{display:none;}
-
-.slider{
-  position:absolute;
-  background:#ccc;
-  border-radius:25px;
-  width:100%;height:100%;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  margin:10px 0;
 }
 
-.slider:before{
-  content:"";
-  position:absolute;
-  height:18px;width:18px;
-  left:4px;top:3px;
-  background:white;
-  border-radius:50%;
-  transition:0.3s;
-}
-
-input:checked + .slider{
-  background:#4facfe;
-}
-
-input:checked + .slider:before{
-  transform:translateX(24px);
+.switch input{
+  transform:scale(1.3);
 }
 </style>
 </head>
 
 <body>
 
-<div id="app">
-
-<div id="avatarArea">
-  <img id="avatar" src="normal.png">
+<!-- キャラ -->
+<div id="character">
+  <img src="normal.png">
 </div>
 
-<div id="chatArea"></div>
+<!-- チャット -->
+<div id="chat"></div>
 
-<div id="bottomArea">
+<!-- 下 -->
+<div id="bottom">
+
   <div id="controls">
     <input id="input" placeholder="話しかけてください">
-    <button onclick="send()">送信</button>
-    <button onclick="startCamera()">📷</button>
-    <button onclick="takePhoto()">📸</button>
+
+    <button id="sendBtn">送信</button>
+    <button id="cameraBtn">📷</button>
+    <button id="shutterBtn">📸</button>
   </div>
-  <button id="settingsBtn" onclick="openModal()">⚙️設定</button>
+
+  <button id="settingBtn">⚙ 設定</button>
 </div>
 
-</div>
-
-<!-- 設定 -->
+<!-- 設定モーダル -->
 <div id="modal">
   <div id="modalContent">
 
-    <div>APIキー</div>
-    <input id="apiInput" class="modalInput">
+    <h3>設定</h3>
 
-    <div>プロンプト（性格）</div>
-    <textarea id="promptInput" class="modalInput"></textarea>
+    APIキー
+    <input id="apiKey">
 
-    <div>音声</div>
-    <label class="switch">
+    プロンプト（性格）
+    <textarea id="prompt" rows="4"></textarea>
+
+    <div class="switch">
+      音声ON/OFF
       <input type="checkbox" id="voiceToggle">
-      <span class="slider"></span>
-    </label>
+    </div>
 
-    <br><br>
     <button onclick="saveSettings()">保存</button>
+    <button onclick="closeModal()">閉じる</button>
 
   </div>
 </div>
 
-<video id="video" autoplay playsinline style="display:none;"></video>
-
 <script>
+const chat = document.getElementById("chat");
+const input = document.getElementById("input");
 
-let apiKey="";
-let voiceMode=false;
+let voiceOn = false;
 
-let basePrompt=`
-あなたは優しい先生です。
-小学生でも分かるように説明してください。
-短く・簡単・例えあり。
-`;
-
-function addMessage(text,type){
-  const chat=document.getElementById("chatArea");
-  const div=document.createElement("div");
-  div.className="msg "+type;
-  div.innerText=text;
+/* メッセージ追加 */
+function addMessage(text, cls){
+  const div = document.createElement("div");
+  div.className = "msg " + cls;
+  div.textContent = text;
   chat.appendChild(div);
-  chat.scrollTop=chat.scrollHeight;
+  chat.scrollTop = chat.scrollHeight;
 
-  if(type==="ai" && voiceMode){
+  if(cls === "ai" && voiceOn){
     speak(text);
   }
 }
 
+/* 送信 */
+document.getElementById("sendBtn").onclick = async ()=>{
+  const text = input.value;
+  if(!text) return;
+
+  addMessage(text,"user");
+  input.value="";
+
+  const apiKey = localStorage.getItem("apiKey");
+  const prompt = localStorage.getItem("prompt") || "";
+
+  if(!apiKey){
+    addMessage("APIキー未設定","ai");
+    return;
+  }
+
+  try{
+    const res = await fetch("https://api.openai.com/v1/chat/completions",{
+      method:"POST",
+      headers:{
+        "Content-Type":"application/json",
+        "Authorization":"Bearer " + apiKey
+      },
+      body:JSON.stringify({
+        model:"gpt-4o-mini",
+        messages:[
+          {role:"system",content:prompt},
+          {role:"user",content:text}
+        ]
+      })
+    });
+
+    const data = await res.json();
+    const reply = data.choices[0].message.content;
+
+    addMessage(reply,"ai");
+
+  }catch(e){
+    addMessage("エラー","ai");
+  }
+};
+
+/* Enter送信 */
+input.addEventListener("keydown",e=>{
+  if(e.key==="Enter"){
+    document.getElementById("sendBtn").click();
+  }
+});
+
+/* 音声 */
 function speak(text){
-  const uttr=new SpeechSynthesisUtterance(text);
-  uttr.lang="ja-JP";
+  const uttr = new SpeechSynthesisUtterance(text);
+  uttr.lang = "ja-JP";
   speechSynthesis.speak(uttr);
 }
 
-function addImage(src){
-  const chat=document.getElementById("chatArea");
-  const img=document.createElement("img");
-  img.src=src;
-  img.className="chat-img";
-  chat.appendChild(img);
-}
-
-async function askGPT(text){
-
-  if(!apiKey) return "APIキー未設定";
-
-  const res=await fetch("https://api.openai.com/v1/chat/completions",{
-    method:"POST",
-    headers:{
-      "Content-Type":"application/json",
-      "Authorization":"Bearer "+apiKey
-    },
-    body:JSON.stringify({
-      model:"gpt-4o-mini",
-      messages:[
-        {role:"system",content:basePrompt},
-        {role:"user",content:text}
-      ]
-    })
-  });
-
-  const data=await res.json();
-  return data.choices[0].message.content;
-}
-
-async function send(){
-  const input=document.getElementById("input");
-  const text=input.value;
-  if(!text)return;
-
-  addMessage(text,"user");
-
-  const reply=await askGPT(text);
-  addMessage(reply,"ai");
-
-  input.value="";
-}
-
-/* カメラ */
-let stream;
-
-async function startCamera(){
-  stream=await navigator.mediaDevices.getUserMedia({
-    video:{facingMode:"environment"}
-  });
-  video.srcObject=stream;
-}
-
-function takePhoto(){
-
-  const canvas=document.createElement("canvas");
-  canvas.width=video.videoWidth;
-  canvas.height=video.videoHeight;
-
-  const ctx=canvas.getContext("2d");
-  ctx.drawImage(video,0,0);
-
-  const img=canvas.toDataURL();
-
-  addImage(img);
-  analyzeImage(img);
-}
-
-/* 画像解析 */
-async function analyzeImage(img){
-
-  const res=await fetch("https://api.openai.com/v1/chat/completions",{
-    method:"POST",
-    headers:{
-      "Content-Type":"application/json",
-      "Authorization":"Bearer "+apiKey
-    },
-    body:JSON.stringify({
-      model:"gpt-4o-mini",
-      messages:[
-        {role:"system",content:basePrompt},
-        {
-          role:"user",
-          content:[
-            {type:"text",text:"この画像を分かりやすく説明して"},
-            {type:"image_url",image_url:{url:img}}
-          ]
-        }
-      ]
-    })
-  });
-
-  const data=await res.json();
-  addMessage(data.choices[0].message.content,"ai");
-}
-
 /* 設定 */
-function openModal(){
+document.getElementById("settingBtn").onclick = ()=>{
   document.getElementById("modal").style.display="flex";
-}
+};
 
-function saveSettings(){
-  apiKey=document.getElementById("apiInput").value;
-  basePrompt=document.getElementById("promptInput").value || basePrompt;
-  voiceMode=document.getElementById("voiceToggle").checked;
+function closeModal(){
   document.getElementById("modal").style.display="none";
 }
 
+function saveSettings(){
+  localStorage.setItem("apiKey",document.getElementById("apiKey").value);
+  localStorage.setItem("prompt",document.getElementById("prompt").value);
+
+  voiceOn = document.getElementById("voiceToggle").checked;
+
+  closeModal();
+}
+
+/* カメラ */
+document.getElementById("cameraBtn").onclick = ()=>{
+  alert("カメラ起動（次で実装）");
+};
+
+/* シャッター */
+document.getElementById("shutterBtn").onclick = ()=>{
+  alert("撮影（次で画像解析🔥）");
+};
 </script>
 
 </body>
