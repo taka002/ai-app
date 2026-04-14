@@ -12,7 +12,6 @@ html,body{
   height:100%;
   overflow:hidden;
   font-family:sans-serif;
-  background:#eef3ff;
 }
 
 #app{
@@ -23,7 +22,7 @@ html,body{
 
 /* 上 */
 #avatarArea{
-  height:22%;
+  height:20%;
 }
 #avatar{
   width:100%;
@@ -33,29 +32,38 @@ html,body{
 
 /* 中 */
 #chatArea{
-  height:60%;
+  flex:1;
   overflow-y:auto;
-  padding:6px;
+  padding:8px;
+  background:#eef3ff;
 }
 
 .msg{
-  margin:4px 0;
+  margin:6px 0;
   padding:8px;
   border-radius:10px;
-  max-width:85%;
+  max-width:80%;
   font-size:13px;
 }
+
 .user{background:#4facfe;color:#fff;margin-left:auto;}
 .ai{background:#fff;}
+
+/* 画像 */
+.chat-img{
+  max-width:70%;
+  border-radius:10px;
+  display:block;
+  margin:5px 0 5px auto;
+}
 
 /* 下 */
 #inputArea{
   height:18%;
   background:#ddd;
-  padding:5px;
+  padding:6px;
   display:flex;
   flex-direction:column;
-  gap:4px;
 }
 
 #controls{
@@ -69,9 +77,8 @@ input{
   border-radius:10px;
 }
 
-/* ボタン */
 button{
-  margin-left:3px;
+  margin-left:4px;
   padding:6px;
   border:none;
   border-radius:10px;
@@ -82,20 +89,48 @@ button{
 
 #settingsBtn{
   background:#333;
+  margin-top:4px;
 }
 
 /* カメラ */
-#cameraBox{
+#camera{
   position:fixed;
   bottom:90px;
   right:10px;
-  width:140px;
+  width:120px;
   display:none;
 }
 
-video,canvas{
+video{
   width:100%;
   border-radius:10px;
+}
+
+/* 設定モーダル */
+#modal{
+  position:fixed;
+  top:0;left:0;
+  width:100%;height:100%;
+  background:rgba(0,0,0,0.6);
+  display:none;
+  justify-content:center;
+  align-items:center;
+}
+
+#modalContent{
+  background:#222;
+  padding:20px;
+  border-radius:15px;
+  width:85%;
+  color:white;
+}
+
+.modalInput{
+  width:100%;
+  margin:5px 0;
+  padding:10px;
+  border-radius:10px;
+  border:none;
 }
 </style>
 </head>
@@ -104,15 +139,12 @@ video,canvas{
 
 <div id="app">
 
-<!-- 上 -->
 <div id="avatarArea">
   <img id="avatar" src="normal.png">
 </div>
 
-<!-- 中 -->
 <div id="chatArea"></div>
 
-<!-- 下 -->
 <div id="inputArea">
 
   <div id="controls">
@@ -122,24 +154,34 @@ video,canvas{
     <button onclick="takePhoto()">📸</button>
   </div>
 
-  <button id="settingsBtn" onclick="openSettings()">⚙️設定</button>
+  <button id="settingsBtn" onclick="openModal()">⚙️設定</button>
 
 </div>
 
 </div>
 
 <!-- カメラ -->
-<div id="cameraBox">
+<div id="camera">
   <video id="video" autoplay playsinline></video>
-  <canvas id="canvas"></canvas>
+</div>
+
+<!-- 設定 -->
+<div id="modal">
+  <div id="modalContent">
+    <div>APIキー</div>
+    <input id="apiInput" class="modalInput">
+
+    <div>プロンプト</div>
+    <input id="promptInput" class="modalInput">
+
+    <button onclick="saveSettings()">保存</button>
+  </div>
 </div>
 
 <script>
 
-let voiceOn=false;
 let apiKey="";
-let systemPrompt="優しいAIとして話す";
-
+let promptText="優しいAI";
 let stream=null;
 
 /* メッセージ */
@@ -152,64 +194,38 @@ function addMessage(text,type){
   chat.scrollTop=chat.scrollHeight;
 }
 
-/* 画像 */
-function changeAvatar(name){
-  document.getElementById("avatar").src=name;
+/* 画像追加 */
+function addImage(src){
+  const chat=document.getElementById("chatArea");
+  const img=document.createElement("img");
+  img.src=src;
+  img.className="chat-img";
+  chat.appendChild(img);
+  chat.scrollTop=chat.scrollHeight;
 }
 
-/* ChatGPT */
+/* GPT */
 async function askGPT(text){
 
-  if(!apiKey){
-    return "APIキー未設定";
-  }
+  if(!apiKey) return "APIキー未設定";
 
-  try{
-    const res=await fetch("https://api.openai.com/v1/chat/completions",{
-      method:"POST",
-      headers:{
-        "Content-Type":"application/json",
-        "Authorization":"Bearer "+apiKey
-      },
-      body:JSON.stringify({
-        model:"gpt-4o-mini",
-        messages:[
-          {role:"system",content:systemPrompt},
-          {role:"user",content:text}
-        ]
-      })
-    });
+  const res=await fetch("https://api.openai.com/v1/chat/completions",{
+    method:"POST",
+    headers:{
+      "Content-Type":"application/json",
+      "Authorization":"Bearer "+apiKey
+    },
+    body:JSON.stringify({
+      model:"gpt-4o-mini",
+      messages:[
+        {role:"system",content:promptText},
+        {role:"user",content:text}
+      ]
+    })
+  });
 
-    const data=await res.json();
-    return data.choices[0].message.content;
-
-  }catch(e){
-    return "エラー";
-  }
-}
-
-/* AI返答 */
-async function aiReply(text){
-
-  let reply=await askGPT(text);
-
-  // 表情
-  if(text.includes("疲れ")){
-    changeAvatar("relieved.png");
-  }else if(text.includes("悲しい")){
-    changeAvatar("sad.png");
-  }else{
-    changeAvatar("normal.png");
-  }
-
-  // 音声
-  if(voiceOn){
-    const uttr=new SpeechSynthesisUtterance(reply);
-    uttr.lang="ja-JP";
-    speechSynthesis.speak(uttr);
-  }
-
-  return reply;
+  const data=await res.json();
+  return data.choices[0].message.content;
 }
 
 /* 送信 */
@@ -220,35 +236,31 @@ async function send(){
 
   addMessage(text,"user");
 
-  const reply=await aiReply(text);
+  const reply=await askGPT(text);
   addMessage(reply,"ai");
 
   input.value="";
 }
 
-/* カメラ起動（バック） */
+/* カメラ */
 async function startCamera(){
-
-  const box=document.getElementById("cameraBox");
   const video=document.getElementById("video");
+  const cam=document.getElementById("camera");
 
-  try{
-    stream=await navigator.mediaDevices.getUserMedia({
-      video:{facingMode:"environment"}
-    });
-    video.srcObject=stream;
-    box.style.display="block";
-  }catch(e){
-    alert("カメラ許可して");
-  }
+  stream=await navigator.mediaDevices.getUserMedia({
+    video:{facingMode:"environment"}
+  });
+
+  video.srcObject=stream;
+  cam.style.display="block";
 }
 
-/* 撮影 */
+/* 撮影 → AI解析 */
 function takePhoto(){
 
   const video=document.getElementById("video");
-  const canvas=document.getElementById("canvas");
 
+  const canvas=document.createElement("canvas");
   canvas.width=video.videoWidth;
   canvas.height=video.videoHeight;
 
@@ -257,28 +269,53 @@ function takePhoto(){
 
   const img=canvas.toDataURL();
 
-  const chat=document.getElementById("chatArea");
-  const image=document.createElement("img");
-  image.src=img;
-  image.style.maxWidth="60%";
-  image.style.borderRadius="10px";
-  image.style.display="block";
-  image.style.marginLeft="auto";
+  addImage(img);
 
-  chat.appendChild(image);
-  chat.scrollTop=chat.scrollHeight;
+  // 🔥 AI解析
+  analyzeImage(img);
+}
+
+/* 画像解析 */
+async function analyzeImage(img){
+
+  if(!apiKey){
+    addMessage("APIキー未設定","ai");
+    return;
+  }
+
+  const res=await fetch("https://api.openai.com/v1/chat/completions",{
+    method:"POST",
+    headers:{
+      "Content-Type":"application/json",
+      "Authorization":"Bearer "+apiKey
+    },
+    body:JSON.stringify({
+      model:"gpt-4o-mini",
+      messages:[
+        {
+          role:"user",
+          content:[
+            {type:"text",text:"この画像を説明して"},
+            {type:"image_url",image_url:{url:img}}
+          ]
+        }
+      ]
+    })
+  });
+
+  const data=await res.json();
+  addMessage(data.choices[0].message.content,"ai");
 }
 
 /* 設定 */
-function openSettings(){
+function openModal(){
+  document.getElementById("modal").style.display="flex";
+}
 
-  const key=prompt("APIキー入力");
-  if(key) apiKey=key;
-
-  const p=prompt("AIの性格（プロンプト）");
-  if(p) systemPrompt=p;
-
-  voiceOn=confirm("音声ONにする？");
+function saveSettings(){
+  apiKey=document.getElementById("apiInput").value;
+  promptText=document.getElementById("promptInput").value;
+  document.getElementById("modal").style.display="none";
 }
 
 </script>
