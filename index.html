@@ -25,7 +25,7 @@ body{
   height:100%;
 }
 
-/* 中：メッセージ */
+/* 中：チャット */
 #chatArea{
   height:50vh;
   overflow-y:auto;
@@ -91,7 +91,7 @@ button{
 
 <!-- 上：キャラ -->
 <div id="avatarArea">
-  <img id="avatar" src="01.png">
+  <img id="avatar" src="normal.png">
 </div>
 
 <!-- 中：チャット -->
@@ -126,43 +126,64 @@ function changeAvatar(name){
   document.getElementById("avatar").src = name;
 }
 
-// 仮AIロジック
+// AIロジック（表情付き）
 function aiReply(text){
 
-  // デフォルト
   let reply = "はい！承知しました！";
-  let img = "01.png";
+  let img = "normal.png";
 
   if(text.includes("おはよう")){
     reply = "おはようございます！本日もよろしくお願いします！";
-    img = "02.png";
+    img = "smile.png";
   }
 
-  if(text.includes("おつかれ")){
-    reply = "お疲れ様です！本日もありがとうございました！";
-    img = "03.png";
+  if(text.includes("疲れた") || text.includes("おつかれ")){
+    reply = "お疲れ様です！無理しないでくださいね！";
+    img = "relieved.png";
   }
 
   if(text.includes("ありがとう")){
     reply = "ありがとうございます！とても嬉しいです！";
-    img = "01.png";
+    img = "happy.png";
   }
 
   if(text.includes("OK")){
     reply = "了解いたしました！";
-    img = "04.png";
+    img = "focused.png";
   }
 
   if(text.includes("ごめん")){
     reply = "大丈夫です！気にしないでください！";
-    img = "05.png";
+    img = "apologize.png";
   }
 
-  // YouTube表示例
+  if(text.includes("嫌") || text.includes("無理")){
+    reply = "無理は禁物です。別の方法も考えましょう！";
+    img = "sad.png";
+  }
+
+  if(text.includes("すごい")){
+    reply = "ありがとうございます！もっと頑張ります！";
+    img = "impressed.png";
+  }
+
+  if(text.includes("何") || text.includes("なに")){
+    reply = "詳しく教えていただけますか？";
+    img = "curious.png";
+  }
+
+  if(text.includes("焦")){
+    reply = "落ち着いて大丈夫ですよ！";
+    img = "panic.png";
+  }
+
+  // YouTube表示（例）
   if(text.includes("研修")){
     document.getElementById("youtube").style.display = "block";
     document.getElementById("youtube").src =
       "https://www.youtube.com/embed/ysz5S6PUM-U";
+  } else {
+    document.getElementById("youtube").style.display = "none";
   }
 
   changeAvatar(img);
@@ -185,9 +206,9 @@ function send(){
   input.value = "";
 }
 
-// カメラ（仮）
+// カメラ（次で実装）
 function openCamera(){
-  alert("カメラ機能は次で実装🔥");
+  alert("次でカメラ解析を実装します🔥");
 }
 
 </script>
