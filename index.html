@@ -2,12 +2,10 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 
 <style>
-*{
-  box-sizing:border-box;
-}
+*{box-sizing:border-box;}
 
 html,body{
   margin:0;
@@ -17,17 +15,17 @@ html,body{
   background:#eef3ff;
 }
 
-/* 全体 */
 #app{
   display:flex;
   flex-direction:column;
   height:100%;
 }
 
-/* 上（少しコンパクト） */
+/* 上 */
 #avatarArea{
   height:22%;
   background:#dbe9ff;
+  position:relative;
 }
 
 #avatar{
@@ -36,14 +34,13 @@ html,body{
   object-fit:cover;
 }
 
-/* 中（広げる） */
+/* 中 */
 #chatArea{
   height:58%;
   overflow-y:auto;
   padding:6px;
 }
 
-/* 吹き出し */
 .msg{
   margin:5px 0;
   padding:8px;
@@ -62,17 +59,16 @@ html,body{
   background:white;
 }
 
-/* 下（コンパクト） */
+/* 下 */
 #inputArea{
   height:20%;
   background:#ddd;
   padding:6px;
   display:flex;
   flex-direction:column;
-  justify-content:space-between;
+  gap:5px;
 }
 
-/* 入力行 */
 #controls{
   display:flex;
 }
@@ -82,10 +78,9 @@ input{
   padding:8px;
   border:none;
   border-radius:10px;
-  font-size:13px;
 }
 
-/* ボタン小さく */
+/* ボタン */
 button{
   margin-left:4px;
   padding:8px;
@@ -96,12 +91,28 @@ button{
   font-size:12px;
 }
 
-/* 設定ボタン */
+/* 設定 */
 #settingsBtn{
   background:#333;
   width:100%;
-  padding:7px;
-  font-size:12px;
+}
+
+/* カメラ表示 */
+#camera{
+  position:fixed;
+  bottom:80px;
+  right:10px;
+  width:120px;
+  height:160px;
+  display:none;
+  border-radius:10px;
+  overflow:hidden;
+}
+
+#camera video{
+  width:100%;
+  height:100%;
+  object-fit:cover;
 }
 </style>
 </head>
@@ -124,7 +135,7 @@ button{
   <div id="controls">
     <input id="input" placeholder="話しかけてください">
     <button onclick="send()">送信</button>
-    <button onclick="openCamera()">📷</button>
+    <button onclick="toggleCamera()">📷</button>
   </div>
 
   <button id="settingsBtn" onclick="openSettings()">⚙️ 設定</button>
@@ -133,9 +144,19 @@ button{
 
 </div>
 
+<!-- カメラ -->
+<div id="camera">
+  <video id="video" autoplay playsinline></video>
+</div>
+
 <script>
 
-// メッセージ表示
+// 状態
+let cameraOn=false;
+let voiceOn=false;
+let aiMode=true;
+
+// メッセージ
 function addMessage(text,type){
   const chat=document.getElementById("chatArea");
   const div=document.createElement("div");
@@ -166,17 +187,20 @@ function aiReply(text){
     img="anxiety.png";
   }
 
-  if(text.includes("楽しい")){
-    reply="いいですね！楽しみましょう！";
-    img="smile.png";
-  }
-
   if(text.includes("悲しい")){
-    reply="無理しないでくださいね";
+    reply="そばにいますよ";
     img="sad.png";
   }
 
   changeAvatar(img);
+
+  // 音声ONならしゃべる
+  if(voiceOn){
+    const uttr=new SpeechSynthesisUtterance(reply);
+    uttr.lang="ja-JP";
+    speechSynthesis.speak(uttr);
+  }
+
   return reply;
 }
 
@@ -189,20 +213,59 @@ function send(){
   addMessage(text,"user");
 
   setTimeout(()=>{
-    addMessage(aiReply(text),"ai");
+    if(aiMode){
+      addMessage(aiReply(text),"ai");
+    }else{
+      addMessage("AIオフです","ai");
+    }
   },300);
 
   input.value="";
 }
 
-// カメラ
-function openCamera(){
-  alert("次でカメラ解析🔥");
+// カメラON/OFF
+async function toggleCamera(){
+
+  const cam=document.getElementById("camera");
+  const video=document.getElementById("video");
+
+  if(!cameraOn){
+    try{
+      const stream=await navigator.mediaDevices.getUserMedia({
+        video:true
+      });
+      video.srcObject=stream;
+      cam.style.display="block";
+      cameraOn=true;
+    }catch(e){
+      alert("カメラ許可して🔥");
+    }
+  }else{
+    video.srcObject.getTracks().forEach(track=>track.stop());
+    cam.style.display="none";
+    cameraOn=false;
+  }
 }
 
 // 設定
 function openSettings(){
-  alert("音声・AI切替などここ🔥");
+
+  const choice=prompt(
+`設定
+1: 音声 ON/OFF
+2: AI ON/OFF
+入力してね`
+  );
+
+  if(choice==="1"){
+    voiceOn=!voiceOn;
+    alert("音声："+(voiceOn?"ON":"OFF"));
+  }
+
+  if(choice==="2"){
+    aiMode=!aiMode;
+    alert("AI："+(aiMode?"ON":"OFF"));
+  }
 }
 
 </script>
