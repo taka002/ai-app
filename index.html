@@ -117,7 +117,6 @@ button{
   width:100%;
   height:100%;
   overflow-x:auto;
-  scroll-snap-type:x mandatory;
 }
 
 .slide{
@@ -149,6 +148,7 @@ button{
     <input id="input" placeholder="話しかけてください">
     <button id="sendBtn">送信</button>
     <button onclick="toggleSlide()">📊</button>
+    <button onclick="clearMemory()">🧹</button>
   </div>
   <button id="settingBtn">⚙ 設定</button>
 </div>
@@ -190,30 +190,37 @@ const input=document.getElementById("input");
 let voiceOn=localStorage.getItem("voiceOn")==="true";
 let slideMode=localStorage.getItem("slideMode")==="true";
 
-/* ===== メッセージ整形 ===== */
+/* 🧠 会話履歴 */
+let history = JSON.parse(localStorage.getItem("history") || "[]");
+
+/* 表示 */
 function formatMessage(text){
   return text.replace(/\n/g,"<br>");
 }
 
-/* ===== YouTube（安定版） ===== */
+/* YouTube */
 function showYouTube(text,container){
-
   const wrap=document.createElement("div");
   wrap.className="ytWrap";
 
-  const url="https://www.youtube.com/results?search_query="+encodeURIComponent(text);
+  const queries=[text, text+" 解説", text+" 初心者"];
 
-  const card=document.createElement("div");
-  card.className="ytCard";
-  card.innerHTML="▶ 関連動画";
+  queries.forEach(q=>{
+    const card=document.createElement("div");
+    card.className="ytCard";
+    card.innerHTML="▶ "+q.slice(0,20);
 
-  card.onclick=()=>window.open(url,"_blank");
+    card.onclick=()=>{
+      window.open("https://www.youtube.com/results?search_query="+encodeURIComponent(q));
+    };
 
-  wrap.appendChild(card);
+    wrap.appendChild(card);
+  });
+
   container.appendChild(wrap);
 }
 
-/* ===== メッセージ ===== */
+/* メッセージ */
 function addMessage(text,cls){
   const div=document.createElement("div");
   div.className="msg "+cls;
@@ -254,7 +261,7 @@ function medicalSafety(text){
   return text;
 }
 
-/* ===== スライド ===== */
+/* スライド */
 function showSlides(text){
   const viewer=document.getElementById("slideViewer");
   const slides=document.getElementById("slides");
@@ -281,15 +288,23 @@ function toggleSlide(){
   localStorage.setItem("slideMode",slideMode);
 }
 
-/* ===== 送信 ===== */
+/* 記憶リセット */
+function clearMemory(){
+  history=[];
+  localStorage.removeItem("history");
+  addMessage("記憶をリセットしました","ai");
+}
+
+/* 送信 */
 async function sendMessage(){
+
   const text=input.value;
   if(!text) return;
 
-  addMessage(text,"user"); // ← ここで確実表示
+  addMessage(text,"user");
   input.value="";
 
-  document.getElementById("avatar").src="typing.png";
+  history.push({role:"user",content:text});
 
   const apiKey=localStorage.getItem("apiKey");
   const prompt=localStorage.getItem("prompt")||"";
@@ -311,7 +326,7 @@ async function sendMessage(){
       model:"gpt-4o-mini",
       messages:[
         {role:"system",content:prompt+"\n"+modePrompt},
-        {role:"user",content:text}
+        ...history
       ]
     })
   });
@@ -324,6 +339,9 @@ async function sendMessage(){
   addMessage(reply,"ai");
   changeFace(reply);
 
+  history.push({role:"assistant",content:reply});
+  localStorage.setItem("history",JSON.stringify(history));
+
   if(slideMode){
     showSlides(reply);
   }
@@ -331,7 +349,7 @@ async function sendMessage(){
 
 document.getElementById("sendBtn").onclick=sendMessage;
 
-/* ===== 設定 ===== */
+/* 設定 */
 document.getElementById("settingBtn").onclick=()=>{
   modal.style.display="flex";
   apiKey.value=localStorage.getItem("apiKey")||"";
