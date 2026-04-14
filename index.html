@@ -117,7 +117,7 @@ body{
   width:90%;
 }
 
-#modal input,#modal textarea{
+#modal input,#modal textarea,#modal select{
   width:100%;
   margin:6px 0;
   padding:8px;
@@ -150,19 +150,6 @@ body{
   padding:8px;
   border-radius:8px;
 }
-
-/* ★グリッド追加 */
-.grid{
-  display:grid;
-  grid-template-columns:1fr 1fr;
-  gap:8px;
-  margin:8px 0;
-}
-
-.grid .card{
-  text-align:center;
-  font-size:14px;
-}
 </style>
 </head>
 
@@ -192,6 +179,14 @@ body{
     プロンプト
     <textarea id="prompt"></textarea>
 
+    モード
+    <select id="mode">
+      <option value="teacher">📚 家庭教師</option>
+      <option value="counselor">💬 カウンセラー</option>
+      <option value="sales">💼 営業</option>
+      <option value="normal">🤖 通常</option>
+    </select>
+
     音声ON
     <input type="checkbox" id="voiceToggle">
 
@@ -207,16 +202,8 @@ const input = document.getElementById("input");
 
 let voiceOn = localStorage.getItem("voiceOn") === "true";
 
-/* ===== プレゼン変換（完全版） */
+/* ===== プレゼン変換 ===== */
 function formatMessage(text){
-
-  // ★グリッド（最優先）
-  if(text.includes("■■")){
-    const items = text.split("■■").filter(v=>v.trim());
-    return `<div class="grid">` +
-      items.map(i=>`<div class="card">${i}</div>`).join("") +
-      `</div>`;
-  }
 
   if(text.includes("■")){
     return text.split("■").filter(v=>v.trim()).map(b=>
@@ -280,9 +267,6 @@ function changeFace(text){
   else if(text.includes("悲")) file="sad.png";
   else if(text.includes("嬉")) file="happy.png";
   else if(text.includes("怒")) file="anger.png";
-  else if(text.includes("不安")) file="anxiety.png";
-  else if(text.includes("ごめん")) file="apologize.png";
-  else if(text.includes("すごい")) file="applause.png";
 
   document.getElementById("avatar").src = file;
 }
@@ -298,10 +282,18 @@ async function sendMessage(){
 
   const apiKey = localStorage.getItem("apiKey");
   const prompt = localStorage.getItem("prompt") || "";
+  const mode = localStorage.getItem("mode") || "teacher";
 
-  if(!apiKey){
-    addMessage("APIキー未設定","ai");
-    return;
+  let modePrompt = "";
+
+  if(mode === "teacher"){
+    modePrompt = "わかりやすく図や例で説明してください";
+  }
+  else if(mode === "counselor"){
+    modePrompt = "優しく共感して寄り添ってください";
+  }
+  else if(mode === "sales"){
+    modePrompt = "分かりやすく提案してください";
   }
 
   try{
@@ -314,7 +306,7 @@ async function sendMessage(){
       body:JSON.stringify({
         model:"gpt-4o-mini",
         messages:[
-          {role:"system",content:prompt},
+          {role:"system",content:prompt + "\n" + modePrompt},
           {role:"user",content:text}
         ]
       })
@@ -328,12 +320,12 @@ async function sendMessage(){
 
   }catch(e){
     addMessage("通信エラー","ai");
-    document.getElementById("avatar").src="glitch.png";
   }
 }
 
 /* イベント */
 document.getElementById("sendBtn").onclick = sendMessage;
+
 input.addEventListener("keydown",e=>{
   if(e.key==="Enter") sendMessage();
 });
@@ -345,6 +337,7 @@ document.getElementById("settingBtn").onclick=()=>{
   document.getElementById("apiKey").value = localStorage.getItem("apiKey") || "";
   document.getElementById("prompt").value = localStorage.getItem("prompt") || "";
   document.getElementById("voiceToggle").checked = voiceOn;
+  document.getElementById("mode").value = localStorage.getItem("mode") || "teacher";
 };
 
 function closeModal(){
@@ -354,6 +347,7 @@ function closeModal(){
 function saveSettings(){
   localStorage.setItem("apiKey",document.getElementById("apiKey").value);
   localStorage.setItem("prompt",document.getElementById("prompt").value);
+  localStorage.setItem("mode",document.getElementById("mode").value);
 
   voiceOn = document.getElementById("voiceToggle").checked;
   localStorage.setItem("voiceOn", voiceOn);
