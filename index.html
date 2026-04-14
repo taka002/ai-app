@@ -7,6 +7,7 @@
 
 <style>
 *{box-sizing:border-box;}
+
 body{
   margin:0;
   font-family:sans-serif;
@@ -16,10 +17,17 @@ body{
   flex-direction:column;
 }
 
-/* UI */
+/* モードUI */
+.mode-housework .card{
+  background:#fff8e1;
+  border-left:5px solid #ff9800;
+}
+
+/* キャラ */
 #character{height:26vh;overflow:hidden;}
 #character img{width:100%;height:100%;object-fit:cover;}
 
+/* チャット */
 #chat{
   flex:1;
   overflow-y:auto;
@@ -27,6 +35,7 @@ body{
   background:rgba(255,255,255,0.25);
 }
 
+/* 吹き出し */
 .msg{
   max-width:85%;
   margin:8px 0;
@@ -34,20 +43,15 @@ body{
   border-radius:16px;
 }
 
-.user{
-  background:#4facfe;
-  color:#fff;
-  margin-left:auto;
-}
-
-.ai{
-  background:#fff;
-}
+.user{background:#4facfe;color:#fff;margin-left:auto;}
+.ai{background:#fff;}
 
 .card{
   padding:10px;
+  border-radius:10px;
 }
 
+/* 入力 */
 #bottom{padding:10px;}
 #controls{display:flex;gap:6px;}
 #input{
@@ -61,7 +65,7 @@ button{
   border:none;
   border-radius:20px;
   background:#667eea;
-  color:#fff;
+  color:white;
   padding:10px;
 }
 
@@ -97,13 +101,10 @@ button{
   <div id="controls">
     <input id="input" placeholder="話しかけてください">
     <button id="sendBtn">送信</button>
-    <button onclick="openCamera()">📷</button>
     <button onclick="clearMemory()">🧹</button>
   </div>
   <button id="settingBtn">⚙ 設定</button>
 </div>
-
-<input type="file" id="cameraInput" accept="image/*" capture="environment" style="display:none">
 
 <!-- 設定 -->
 <div id="modal">
@@ -111,6 +112,9 @@ button{
 
 APIキー
 <input id="apiKey">
+
+プロンプト
+<textarea id="prompt"></textarea>
 
 モード
 <select id="mode">
@@ -133,25 +137,45 @@ APIキー
 const chat=document.getElementById("chat");
 const input=document.getElementById("input");
 
+/* 状態 */
 let voiceOn=localStorage.getItem("voiceOn")==="true";
 let history=JSON.parse(localStorage.getItem("history")||"[]");
 
-/* ===== 表示 ===== */
+/* 壊れた履歴削除 */
+history = history.filter(m => m && m.role && m.content);
+
+/* モードUI */
+function applyModeUI(mode){
+  document.body.className="";
+  document.body.classList.add("mode-"+mode);
+}
+applyModeUI(localStorage.getItem("mode")||"teacher");
+
+/* 表示 */
 function addMessage(text,cls){
   const div=document.createElement("div");
   div.className="msg "+cls;
   div.innerHTML=`<div class="card">${text}</div>`;
   chat.appendChild(div);
   chat.scrollTop=chat.scrollHeight;
+
+  if(cls==="ai") speak(text);
 }
 
-/* ===== 音声 ===== */
+/* 音声 */
 function speak(text){
   if(!voiceOn) return;
   speechSynthesis.cancel();
   const u=new SpeechSynthesisUtterance(text);
   u.lang="ja-JP";
   speechSynthesis.speak(u);
+}
+
+/* 記憶削除 */
+function clearMemory(){
+  history=[];
+  localStorage.removeItem("history");
+  addMessage("記憶リセットしました","ai");
 }
 
 /* ===== 送信 ===== */
@@ -171,6 +195,16 @@ async function sendMessage(){
 
   history.push({role:"user",content:text});
 
+  const prompt=localStorage.getItem("prompt")||"";
+  const mode=localStorage.getItem("mode")||"teacher";
+
+  let modePrompt="";
+  if(mode==="teacher") modePrompt="わかりやすく説明";
+  if(mode==="counselor") modePrompt="優しく寄り添う";
+  if(mode==="sales") modePrompt="提案型";
+  if(mode==="medical") modePrompt="安全に説明";
+  if(mode==="housework") modePrompt="家事のコツで説明";
+
   try{
 
     const res=await fetch("https://api.openai.com/v1/chat/completions",{
@@ -181,104 +215,61 @@ async function sendMessage(){
       },
       body:JSON.stringify({
         model:"gpt-4o-mini",
-        messages:history
+        messages:[
+          {role:"system",content:prompt+"\n"+modePrompt},
+          ...history
+        ]
       })
     });
 
     const data=await res.json();
 
+    /* ===== エラー強化 ===== */
+    if(!res.ok){
+      addMessage("⚠ APIエラー\n"+JSON.stringify(data,null,2),"ai");
+      return;
+    }
+
     if(!data.choices){
-      addMessage("⚠エラー\n"+JSON.stringify(data,null,2),"ai");
+      addMessage("⚠ 不明エラー\n"+JSON.stringify(data,null,2),"ai");
       return;
     }
 
     const reply=data.choices[0].message.content;
 
     addMessage(reply,"ai");
-    speak(reply);
 
     history.push({role:"assistant",content:reply});
     localStorage.setItem("history",JSON.stringify(history));
 
   }catch(e){
-    addMessage("⚠通信エラー","ai");
+    addMessage("⚠ 通信エラー\n"+e.message,"ai");
   }
 }
 
 sendBtn.onclick=sendMessage;
 
-/* ===== カメラ ===== */
-function openCamera(){
-  cameraInput.click();
-}
-
-cameraInput.addEventListener("change", async e=>{
-
-  const file=e.target.files[0];
-  if(!file) return;
-
-  const apiKey=localStorage.getItem("apiKey");
-  if(!apiKey){
-    addMessage("APIキー未設定","ai");
-    return;
-  }
-
-  addMessage("📷解析中...","ai");
-
-  const base64=await new Promise(res=>{
-    const r=new FileReader();
-    r.onload=()=>res(r.result);
-    r.readAsDataURL(file);
-  });
-
-  const res=await fetch("https://api.openai.com/v1/chat/completions",{
-    method:"POST",
-    headers:{
-      "Content-Type":"application/json",
-      "Authorization":"Bearer "+apiKey
-    },
-    body:JSON.stringify({
-      model:"gpt-4o-mini",
-      messages:[{
-        role:"user",
-        content:[
-          {type:"text",text:"この画像を説明"},
-          {type:"image_url",image_url:{url:base64}}
-        ]
-      }]
-    })
-  });
-
-  const data=await res.json();
-  const reply=data.choices?.[0]?.message?.content || "解析失敗";
-
-  addMessage(reply,"ai");
-});
-
-/* ===== 設定 ===== */
+/* 設定 */
 settingBtn.onclick=()=>{
   modal.style.display="flex";
   apiKey.value=localStorage.getItem("apiKey")||"";
+  prompt.value=localStorage.getItem("prompt")||"";
   mode.value=localStorage.getItem("mode")||"teacher";
   voiceToggle.checked=voiceOn;
 };
 
 function saveSettings(){
   localStorage.setItem("apiKey",document.getElementById("apiKey").value);
+  localStorage.setItem("prompt",document.getElementById("prompt").value);
   localStorage.setItem("mode",document.getElementById("mode").value);
 
   voiceOn=document.getElementById("voiceToggle").checked;
   localStorage.setItem("voiceOn",voiceOn);
 
+  applyModeUI(mode.value);
+
   modal.style.display="none";
   addMessage("設定保存しました","ai");
-}
-
-/* 記憶削除 */
-function clearMemory(){
-  history=[];
-  localStorage.removeItem("history");
-  addMessage("記憶リセット","ai");
 }
 </script>
 
