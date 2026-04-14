@@ -2,24 +2,36 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>新人AIアプリ</title>
 
 <style>
-body{
+*{
+  box-sizing:border-box;
+}
+
+/* 画面固定 */
+html,body{
   margin:0;
+  height:100%;
+  overflow:hidden;
   font-family:sans-serif;
   background:#eef3ff;
-  height:100vh;
+}
+
+/* 全体 */
+#app{
+  height:100%;
   display:flex;
   flex-direction:column;
 }
 
-/* 上：キャラ（固定） */
+/* 上：画像（固定） */
 #avatarArea{
-  height:30vh;
+  height:28%;
   flex-shrink:0;
   background:#dbe9ff;
+  position:relative;
 }
 
 #avatar{
@@ -28,7 +40,12 @@ body{
   object-fit:cover;
 }
 
-/* 中：チャット（ここだけスクロール） */
+/* ← ここで右上ボタン完全削除 */
+#avatarArea button{
+  display:none !important;
+}
+
+/* 中：チャット（スクロール） */
 #chatArea{
   flex:1;
   overflow-y:auto;
@@ -38,9 +55,10 @@ body{
 /* 吹き出し */
 .msg{
   margin:8px 0;
-  padding:10px;
-  border-radius:10px;
+  padding:12px;
+  border-radius:12px;
   max-width:80%;
+  font-size:16px;
 }
 
 .user{
@@ -53,14 +71,18 @@ body{
   background:white;
 }
 
-/* 下：固定エリア */
+/* 下：固定 */
 #inputArea{
+  height:22%;
   flex-shrink:0;
   background:#ddd;
-  padding:10px;
+  display:flex;
+  flex-direction:column;
+  justify-content:space-between;
+  padding:8px;
 }
 
-/* 入力行 */
+/* 入力 */
 #controls{
   display:flex;
   align-items:center;
@@ -68,46 +90,49 @@ body{
 
 input{
   flex:1;
-  padding:10px;
+  padding:12px;
   border:none;
-  border-radius:10px;
+  border-radius:12px;
+  font-size:16px;
 }
 
 button{
-  margin-left:5px;
-  padding:10px;
+  margin-left:6px;
+  padding:12px;
   border:none;
-  border-radius:10px;
+  border-radius:12px;
   background:#4facfe;
   color:white;
+  font-size:14px;
 }
 
-/* 下の設定バー */
+/* 設定バー（ここが下） */
 #bottomBar{
   display:flex;
-  justify-content:space-between;
-  margin-top:5px;
+  justify-content:center;
+  margin-top:6px;
 }
 
-/* 設定ボタン */
 #settingsBtn{
   background:#333;
-  color:white;
+  width:100%;
 }
 </style>
 </head>
 
 <body>
 
-<!-- 上：キャラ -->
+<div id="app">
+
+<!-- 上 -->
 <div id="avatarArea">
   <img id="avatar" src="normal.png">
 </div>
 
-<!-- 中：チャット -->
+<!-- 中 -->
 <div id="chatArea"></div>
 
-<!-- 下：入力＋設定 -->
+<!-- 下 -->
 <div id="inputArea">
 
   <div id="controls">
@@ -122,47 +147,49 @@ button{
 
 </div>
 
+</div>
+
 <script>
 
-// メッセージ追加
-function addMessage(text, type){
-  const chat = document.getElementById("chatArea");
-  const div = document.createElement("div");
-  div.className = "msg " + type;
-  div.innerText = text;
+// メッセージ
+function addMessage(text,type){
+  const chat=document.getElementById("chatArea");
+  const div=document.createElement("div");
+  div.className="msg "+type;
+  div.innerText=text;
   chat.appendChild(div);
-  chat.scrollTop = chat.scrollHeight;
+  chat.scrollTop=chat.scrollHeight;
 }
 
 // 画像変更
 function changeAvatar(name){
-  document.getElementById("avatar").src = name;
+  document.getElementById("avatar").src=name;
 }
 
 // AI
 function aiReply(text){
 
-  let reply = "はい！承知しました！";
-  let img = "normal.png";
+  let reply="はい！承知しました！";
+  let img="normal.png";
 
   if(text.includes("疲れた")){
-    reply = "お疲れ様です！無理しないでください！";
-    img = "relieved.png";
+    reply="お疲れ様です！無理しないでください！";
+    img="relieved.png";
   }
 
   if(text.includes("楽しい")){
-    reply = "いいですね！楽しみましょう！";
-    img = "smile.png";
+    reply="いいですね！楽しみましょう！";
+    img="smile.png";
   }
 
   if(text.includes("悲しい")){
-    reply = "大丈夫です、そばにいますよ";
-    img = "sad.png";
+    reply="大丈夫です、そばにいますよ";
+    img="sad.png";
   }
 
   if(text.includes("ありがとう")){
-    reply = "ありがとうございます！嬉しいです！";
-    img = "happy.png";
+    reply="ありがとうございます！嬉しいです！";
+    img="happy.png";
   }
 
   changeAvatar(img);
@@ -171,17 +198,17 @@ function aiReply(text){
 
 // 送信
 function send(){
-  const input = document.getElementById("input");
-  const text = input.value;
-  if(!text) return;
+  const input=document.getElementById("input");
+  const text=input.value;
+  if(!text)return;
 
-  addMessage(text, "user");
+  addMessage(text,"user");
 
   setTimeout(()=>{
-    addMessage(aiReply(text), "ai");
-  }, 300);
+    addMessage(aiReply(text),"ai");
+  },300);
 
-  input.value = "";
+  input.value="";
 }
 
 // カメラ
@@ -191,7 +218,7 @@ function openCamera(){
 
 // 設定
 function openSettings(){
-  alert("音声・AI切替ここに追加🔥");
+  alert("音声・AI切替ここに入れる🔥");
 }
 
 </script>
