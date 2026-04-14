@@ -22,7 +22,7 @@ html,body{
 
 /* 上 */
 #avatarArea{
-  height:20%;
+  height:18%;
 }
 #avatar{
   width:100%;
@@ -30,7 +30,7 @@ html,body{
   object-fit:cover;
 }
 
-/* 中 */
+/* 中（最大化🔥） */
 #chatArea{
   flex:1;
   overflow-y:auto;
@@ -38,12 +38,14 @@ html,body{
   background:#eef3ff;
 }
 
+/* メッセージ */
 .msg{
   margin:6px 0;
-  padding:8px;
-  border-radius:10px;
+  padding:10px;
+  border-radius:12px;
   max-width:80%;
-  font-size:13px;
+  font-size:14px;
+  line-height:1.4;
 }
 
 .user{background:#4facfe;color:#fff;margin-left:auto;}
@@ -51,17 +53,17 @@ html,body{
 
 /* 画像 */
 .chat-img{
-  max-width:70%;
+  max-width:65%;
   border-radius:10px;
   display:block;
-  margin:5px 0 5px auto;
+  margin-left:auto;
 }
 
-/* 下 */
+/* 下（小さく） */
 #inputArea{
-  height:18%;
+  height:14%;
   background:#ddd;
-  padding:6px;
+  padding:5px;
   display:flex;
   flex-direction:column;
 }
@@ -92,21 +94,7 @@ button{
   margin-top:4px;
 }
 
-/* カメラ */
-#camera{
-  position:fixed;
-  bottom:90px;
-  right:10px;
-  width:120px;
-  display:none;
-}
-
-video{
-  width:100%;
-  border-radius:10px;
-}
-
-/* 設定モーダル */
+/* モーダル */
 #modal{
   position:fixed;
   top:0;left:0;
@@ -146,23 +134,15 @@ video{
 <div id="chatArea"></div>
 
 <div id="inputArea">
-
   <div id="controls">
     <input id="input" placeholder="話しかけてください">
     <button onclick="send()">送信</button>
     <button onclick="startCamera()">📷</button>
     <button onclick="takePhoto()">📸</button>
   </div>
-
   <button id="settingsBtn" onclick="openModal()">⚙️設定</button>
-
 </div>
 
-</div>
-
-<!-- カメラ -->
-<div id="camera">
-  <video id="video" autoplay playsinline></video>
 </div>
 
 <!-- 設定 -->
@@ -171,18 +151,32 @@ video{
     <div>APIキー</div>
     <input id="apiInput" class="modalInput">
 
-    <div>プロンプト</div>
+    <div>プロンプト（性格）</div>
     <input id="promptInput" class="modalInput">
+
+    <div>音声ON/OFF（on/off）</div>
+    <input id="voiceInput" class="modalInput">
 
     <button onclick="saveSettings()">保存</button>
   </div>
 </div>
 
+<!-- カメラ -->
+<video id="video" autoplay playsinline style="display:none;"></video>
+
 <script>
 
 let apiKey="";
-let promptText="優しいAI";
-let stream=null;
+let voiceMode="off";
+
+/* 🔥 超重要：分かりやすくするプロンプト */
+let basePrompt = `
+あなたは優しい先生です。
+小学生でも分かるように説明してください。
+・難しい言葉は禁止
+・短く簡単に
+・例えを使う
+`;
 
 /* メッセージ */
 function addMessage(text,type){
@@ -192,16 +186,27 @@ function addMessage(text,type){
   div.innerText=text;
   chat.appendChild(div);
   chat.scrollTop=chat.scrollHeight;
+
+  /* 🔊 音声 */
+  if(type==="ai" && voiceMode==="on"){
+    speak(text);
+  }
 }
 
-/* 画像追加 */
+/* 音声 */
+function speak(text){
+  const uttr=new SpeechSynthesisUtterance(text);
+  uttr.lang="ja-JP";
+  speechSynthesis.speak(uttr);
+}
+
+/* 画像 */
 function addImage(src){
   const chat=document.getElementById("chatArea");
   const img=document.createElement("img");
   img.src=src;
   img.className="chat-img";
   chat.appendChild(img);
-  chat.scrollTop=chat.scrollHeight;
 }
 
 /* GPT */
@@ -218,7 +223,7 @@ async function askGPT(text){
     body:JSON.stringify({
       model:"gpt-4o-mini",
       messages:[
-        {role:"system",content:promptText},
+        {role:"system",content:basePrompt},
         {role:"user",content:text}
       ]
     })
@@ -243,22 +248,17 @@ async function send(){
 }
 
 /* カメラ */
-async function startCamera(){
-  const video=document.getElementById("video");
-  const cam=document.getElementById("camera");
+let stream;
 
+async function startCamera(){
   stream=await navigator.mediaDevices.getUserMedia({
     video:{facingMode:"environment"}
   });
-
   video.srcObject=stream;
-  cam.style.display="block";
 }
 
-/* 撮影 → AI解析 */
+/* 撮影 */
 function takePhoto(){
-
-  const video=document.getElementById("video");
 
   const canvas=document.createElement("canvas");
   canvas.width=video.videoWidth;
@@ -271,17 +271,11 @@ function takePhoto(){
 
   addImage(img);
 
-  // 🔥 AI解析
   analyzeImage(img);
 }
 
-/* 画像解析 */
+/* 画像解析（分かりやすく🔥） */
 async function analyzeImage(img){
-
-  if(!apiKey){
-    addMessage("APIキー未設定","ai");
-    return;
-  }
 
   const res=await fetch("https://api.openai.com/v1/chat/completions",{
     method:"POST",
@@ -293,9 +287,13 @@ async function analyzeImage(img){
       model:"gpt-4o-mini",
       messages:[
         {
+          role:"system",
+          content:basePrompt
+        },
+        {
           role:"user",
           content:[
-            {type:"text",text:"この画像を説明して"},
+            {type:"text",text:"この画像をわかりやすく説明して"},
             {type:"image_url",image_url:{url:img}}
           ]
         }
@@ -314,7 +312,8 @@ function openModal(){
 
 function saveSettings(){
   apiKey=document.getElementById("apiInput").value;
-  promptText=document.getElementById("promptInput").value;
+  basePrompt=document.getElementById("promptInput").value || basePrompt;
+  voiceMode=document.getElementById("voiceInput").value;
   document.getElementById("modal").style.display="none";
 }
 
