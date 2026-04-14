@@ -11,48 +11,103 @@
 body{
   margin:0;
   font-family:sans-serif;
-  background:#cfd6e0;
+  background:linear-gradient(135deg,#6ec6ff,#a0e0ff);
   height:100vh;
   display:flex;
   flex-direction:column;
 }
 
-#character{height:28vh;overflow:hidden;}
-#character img{width:100%;height:100%;object-fit:cover;}
+/* キャラ */
+#character{
+  height:26vh;
+  overflow:hidden;
+}
+#character img{
+  width:100%;
+  height:100%;
+  object-fit:cover;
+}
 
+/* チャット */
 #chat{
   flex:1;
   overflow-y:auto;
-  padding:10px;
+  padding:12px;
+  background:rgba(255,255,255,0.25);
+  backdrop-filter:blur(10px);
 }
 
+/* 吹き出し */
 .msg{
   max-width:85%;
-  margin:6px 0;
+  margin:8px 0;
+  padding:12px;
+  border-radius:16px;
+  animation:fadeIn 0.3s ease;
+}
+
+.user{
+  background:linear-gradient(135deg,#4facfe,#00c6ff);
+  color:#fff;
+  margin-left:auto;
+}
+
+.ai{
+  background:rgba(255,255,255,0.9);
+}
+
+/* カード */
+.card{
+  background:#fff;
   padding:12px;
   border-radius:12px;
-  white-space:pre-wrap;
+  margin-bottom:8px;
 }
 
-.user{background:#5aa0e6;color:#fff;margin-left:auto;}
-.ai{background:#eee;}
+/* 箇条書き */
+.list{
+  background:#eef6ff;
+  padding:10px;
+  border-left:4px solid #4facfe;
+  border-radius:8px;
+  margin-bottom:6px;
+}
 
-#bottom{background:#ddd;padding:6px;}
-#controls{display:flex;gap:6px;}
-#input{flex:1;padding:10px;border-radius:10px;border:none;}
+/* フロー */
+.flow{
+  display:flex;
+  gap:6px;
+  flex-wrap:wrap;
+}
+.flow div{
+  background:#fff;
+  padding:8px;
+  border-radius:8px;
+}
 
+/* 入力 */
+#bottom{
+  background:rgba(255,255,255,0.6);
+  backdrop-filter:blur(10px);
+  padding:10px;
+}
+#controls{
+  display:flex;
+  gap:8px;
+}
+#input{
+  flex:1;
+  padding:12px;
+  border-radius:20px;
+  border:none;
+  outline:none;
+}
 button{
   border:none;
-  border-radius:10px;
-  background:#5aa0e6;
+  border-radius:20px;
+  background:#667eea;
   color:white;
-  padding:8px;
-}
-
-#settingBtn{
-  margin-top:6px;
-  width:100%;
-  background:#333;
+  padding:10px 14px;
 }
 
 /* モーダル */
@@ -65,7 +120,6 @@ button{
   justify-content:center;
   align-items:center;
 }
-
 #modalContent{
   background:#222;
   color:#fff;
@@ -73,59 +127,16 @@ button{
   border-radius:12px;
   width:90%;
 }
-
 #modal input,#modal textarea,#modal select{
   width:100%;
   margin:6px 0;
   padding:8px;
 }
 
-/* YouTube */
-.ytWrap{
-  display:flex;
-  gap:8px;
-  overflow-x:auto;
-  margin-top:6px;
-}
-
-.ytCard{
-  min-width:140px;
-  background:#fff;
-  border-radius:10px;
-  padding:6px;
-  text-align:center;
-  font-size:12px;
-}
-
-/* スライド */
-#slideViewer{
-  position:fixed;
-  top:0;left:0;
-  width:100%;height:100%;
-  background:#111;
-  z-index:999;
-  display:none;
-}
-
-#slides{
-  display:flex;
-  width:100%;
-  height:100%;
-  overflow-x:auto;
-}
-
-.slide{
-  min-width:100%;
-  display:flex;
-  justify-content:center;
-  align-items:center;
-}
-
-.slideCard{
-  background:#fff;
-  padding:20px;
-  border-radius:12px;
-  max-width:90%;
+/* アニメーション */
+@keyframes fadeIn{
+  from{opacity:0;transform:translateY(10px);}
+  to{opacity:1;transform:translateY(0);}
 }
 </style>
 </head>
@@ -148,10 +159,6 @@ button{
   <button id="settingBtn">⚙ 設定</button>
 </div>
 
-<!-- スライド -->
-<div id="slideViewer"><div id="slides"></div></div>
-
-<!-- 設定 -->
 <div id="modal">
 <div id="modalContent">
 
@@ -185,37 +192,31 @@ const input=document.getElementById("input");
 let voiceOn=localStorage.getItem("voiceOn")==="true";
 let slideMode=localStorage.getItem("slideMode")==="true";
 
-/* ===== 会話履歴（修正済） ===== */
 let history = JSON.parse(localStorage.getItem("history") || "[]");
-
-// ❗壊れた履歴を除去
 history = history.filter(m => typeof m==="object" && m.role && m.content);
 
-/* 表示 */
+/* 表示強化 */
 function formatMessage(text){
-  return text.replace(/\n/g,"<br>");
-}
 
-/* YouTube */
-function showYouTube(text,container){
-  const wrap=document.createElement("div");
-  wrap.className="ytWrap";
+  text = text.replace(/\*/g,"");
 
-  const queries=[text, text+" 解説", text+" 初心者"];
+  const lines = text.split("\n").filter(t=>t.trim());
 
-  queries.forEach(q=>{
-    const card=document.createElement("div");
-    card.className="ytCard";
-    card.innerHTML="▶ "+q.slice(0,20);
+  return lines.map(line=>{
 
-    card.onclick=()=>{
-      window.open("https://www.youtube.com/results?search_query="+encodeURIComponent(q));
-    };
+    if(line.includes("→")){
+      return `<div class="flow">
+        ${line.split("→").map(s=>`<div>${s}</div>`).join("")}
+      </div>`;
+    }
 
-    wrap.appendChild(card);
-  });
+    if(line.startsWith("・") || line.startsWith("-")){
+      return `<div class="list">${line}</div>`;
+    }
 
-  container.appendChild(wrap);
+    return `<div class="card">${line}</div>`;
+
+  }).join("");
 }
 
 /* メッセージ */
@@ -227,10 +228,7 @@ function addMessage(text,cls){
   chat.appendChild(div);
   chat.scrollTop=chat.scrollHeight;
 
-  if(cls==="ai"){
-    speak(text);
-    showYouTube(text,div);
-  }
+  if(cls==="ai") speak(text);
 }
 
 /* 音声 */
@@ -251,7 +249,7 @@ function changeFace(text){
   document.getElementById("avatar").src=f;
 }
 
-/* 医療安全 */
+/* 医療 */
 function medicalSafety(text){
   if(text.includes("死にたい")){
     return "すぐに周囲や医療機関へ相談してください。";
@@ -260,40 +258,19 @@ function medicalSafety(text){
 }
 
 /* スライド */
-function showSlides(text){
-  const viewer=document.getElementById("slideViewer");
-  const slides=document.getElementById("slides");
-
-  slides.innerHTML="";
-  text.split("\n").forEach(t=>{
-    if(!t.trim()) return;
-    const d=document.createElement("div");
-    d.className="slide";
-    d.innerHTML=`<div class="slideCard">${t}</div>`;
-    slides.appendChild(d);
-  });
-
-  viewer.style.display="block";
-}
-
-document.getElementById("slideViewer").onclick=()=>{
-  document.getElementById("slideViewer").style.display="none";
-};
-
-/* トグル */
 function toggleSlide(){
   slideMode=!slideMode;
   localStorage.setItem("slideMode",slideMode);
 }
 
-/* 記憶リセット */
+/* 記憶削除 */
 function clearMemory(){
   history=[];
   localStorage.removeItem("history");
-  addMessage("記憶をリセットしました","ai");
+  addMessage("記憶リセットしました","ai");
 }
 
-/* ===== 送信（完全修正版） ===== */
+/* 送信 */
 async function sendMessage(){
 
   const text=input.value;
@@ -303,14 +280,10 @@ async function sendMessage(){
   input.value="";
 
   const apiKey=localStorage.getItem("apiKey");
-
   if(!apiKey){
-    addMessage("⚠ APIキー未設定","ai");
+    addMessage("APIキー未設定","ai");
     return;
   }
-
-  // ❗履歴再チェック
-  history = history.filter(m => typeof m==="object" && m.role && m.content);
 
   history.push({role:"user",content:text});
 
@@ -324,7 +297,6 @@ async function sendMessage(){
   if(mode==="medical") modePrompt="安全に説明";
 
   try{
-
     const res=await fetch("https://api.openai.com/v1/chat/completions",{
       method:"POST",
       headers:{
@@ -343,12 +315,11 @@ async function sendMessage(){
     const data=await res.json();
 
     if(!data.choices){
-      addMessage("⚠ エラー\n"+JSON.stringify(data,null,2),"ai");
+      addMessage("エラー\n"+JSON.stringify(data,null,2),"ai");
       return;
     }
 
     let reply=data.choices[0].message.content;
-
     if(mode==="medical") reply=medicalSafety(reply);
 
     addMessage(reply,"ai");
@@ -357,12 +328,8 @@ async function sendMessage(){
     history.push({role:"assistant",content:reply});
     localStorage.setItem("history",JSON.stringify(history));
 
-    if(slideMode){
-      showSlides(reply);
-    }
-
   }catch(e){
-    addMessage("⚠ 通信エラー","ai");
+    addMessage("通信エラー","ai");
   }
 }
 
