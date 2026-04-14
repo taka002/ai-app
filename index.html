@@ -10,28 +10,31 @@ body{
   margin:0;
   font-family:sans-serif;
   background:#eef3ff;
+  display:flex;
+  flex-direction:column;
+  height:100vh;
 }
 
 /* 上：キャラ */
 #avatarArea{
-  height:30vh;
-  display:flex;
-  justify-content:center;
-  align-items:center;
+  height:30%;
   background:#dbe9ff;
 }
 
 #avatar{
+  width:100%;
   height:100%;
+  object-fit:cover;
 }
 
-/* 中：チャット */
+/* 中：チャット（ここだけスクロール） */
 #chatArea{
-  height:50vh;
+  flex:1;
   overflow-y:auto;
   padding:10px;
 }
 
+/* 吹き出し */
 .msg{
   margin:8px 0;
   padding:10px;
@@ -56,17 +59,19 @@ body{
   display:none;
 }
 
-/* 下：入力 */
+/* 下：固定バー */
 #inputArea{
-  height:20vh;
-  display:flex;
-  flex-direction:column;
+  position:fixed;
+  bottom:0;
+  width:100%;
   background:#ddd;
   padding:10px;
 }
 
+/* ボタン横並び */
 #controls{
   display:flex;
+  align-items:center;
 }
 
 input{
@@ -84,10 +89,25 @@ button{
   background:#4facfe;
   color:white;
 }
+
+/* 設定ボタン */
+#settings{
+  position:fixed;
+  top:10px;
+  right:10px;
+  background:#333;
+  color:white;
+  border-radius:50%;
+  width:40px;
+  height:40px;
+}
 </style>
 </head>
 
 <body>
+
+<!-- 設定 -->
+<button id="settings" onclick="openSettings()">⚙️</button>
 
 <!-- 上：キャラ -->
 <div id="avatarArea">
@@ -126,68 +146,38 @@ function changeAvatar(name){
   document.getElementById("avatar").src = name;
 }
 
-// AIロジック（表情付き）
+// AIロジック
 function aiReply(text){
 
   let reply = "はい！承知しました！";
   let img = "normal.png";
 
   if(text.includes("おはよう")){
-    reply = "おはようございます！本日もよろしくお願いします！";
+    reply = "おはようございます！";
     img = "smile.png";
   }
 
-  if(text.includes("疲れた") || text.includes("おつかれ")){
-    reply = "お疲れ様です！無理しないでくださいね！";
+  if(text.includes("疲れた")){
+    reply = "お疲れ様です！無理しないでください！";
     img = "relieved.png";
   }
 
   if(text.includes("ありがとう")){
-    reply = "ありがとうございます！とても嬉しいです！";
+    reply = "嬉しいです！ありがとうございます！";
     img = "happy.png";
   }
 
-  if(text.includes("OK")){
-    reply = "了解いたしました！";
-    img = "focused.png";
-  }
-
-  if(text.includes("ごめん")){
-    reply = "大丈夫です！気にしないでください！";
-    img = "apologize.png";
-  }
-
-  if(text.includes("嫌") || text.includes("無理")){
-    reply = "無理は禁物です。別の方法も考えましょう！";
+  if(text.includes("悲しい")){
+    reply = "大丈夫です、そばにいますよ。";
     img = "sad.png";
   }
 
-  if(text.includes("すごい")){
-    reply = "ありがとうございます！もっと頑張ります！";
-    img = "impressed.png";
-  }
-
-  if(text.includes("何") || text.includes("なに")){
-    reply = "詳しく教えていただけますか？";
-    img = "curious.png";
-  }
-
-  if(text.includes("焦")){
-    reply = "落ち着いて大丈夫ですよ！";
-    img = "panic.png";
-  }
-
-  // YouTube表示（例）
-  if(text.includes("研修")){
-    document.getElementById("youtube").style.display = "block";
-    document.getElementById("youtube").src =
-      "https://www.youtube.com/embed/ysz5S6PUM-U";
-  } else {
-    document.getElementById("youtube").style.display = "none";
+  if(text.includes("楽しい")){
+    reply = "いいですね！楽しみましょう！";
+    img = "smile.png";
   }
 
   changeAvatar(img);
-
   return reply;
 }
 
@@ -201,14 +191,19 @@ function send(){
 
   setTimeout(()=>{
     addMessage(aiReply(text), "ai");
-  }, 500);
+  }, 300);
 
   input.value = "";
 }
 
-// カメラ（次で実装）
+// カメラ
 function openCamera(){
-  alert("次でカメラ解析を実装します🔥");
+  alert("次でカメラ解析入れる🔥");
+}
+
+// 設定
+function openSettings(){
+  alert("ここに設定（音声・AI切替など）追加予定🔥");
 }
 
 </script>
