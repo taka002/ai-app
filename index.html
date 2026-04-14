@@ -134,8 +134,8 @@ body{
   <div id="controls">
     <input id="input" placeholder="話しかけてください">
     <button id="sendBtn">送信</button>
-    <button id="cameraBtn">📷</button>
-    <button id="shutterBtn">📸</button>
+    <button>📷</button>
+    <button>📸</button>
   </div>
   <button id="settingBtn">⚙ 設定</button>
 </div>
@@ -145,8 +145,14 @@ body{
   <div id="modalContent">
     APIキー
     <input id="apiKey">
+
     プロンプト
     <textarea id="prompt"></textarea>
+
+    音声ON
+    <input type="checkbox" id="voiceToggle">
+
+    <br><br>
     <button onclick="saveSettings()">保存</button>
     <button onclick="closeModal()">閉じる</button>
   </div>
@@ -156,6 +162,8 @@ body{
 const chat = document.getElementById("chat");
 const input = document.getElementById("input");
 
+let voiceOn = localStorage.getItem("voiceOn") === "true";
+
 /* メッセージ */
 function addMessage(text, cls){
   const div = document.createElement("div");
@@ -163,9 +171,24 @@ function addMessage(text, cls){
   div.textContent = text;
   chat.appendChild(div);
   chat.scrollTop = chat.scrollHeight;
+
+  if(cls === "ai") speak(text);
 }
 
-/* 表情切り替え */
+/* 音声 */
+function speak(text){
+  if(!voiceOn) return;
+
+  const uttr = new SpeechSynthesisUtterance(text);
+  uttr.lang = "ja-JP";
+  uttr.rate = 1.0;
+  uttr.pitch = 1.1;
+
+  speechSynthesis.cancel();
+  speechSynthesis.speak(uttr);
+}
+
+/* 表情 */
 function changeFace(text){
   let file = "normal.png";
 
@@ -180,7 +203,7 @@ function changeFace(text){
   document.getElementById("avatar").src = file;
 }
 
-/* 送信（統一版） */
+/* 送信 */
 async function sendMessage(){
   const text = input.value;
   if(!text) return;
@@ -226,7 +249,7 @@ async function sendMessage(){
   }
 }
 
-/* ボタン */
+/* イベント */
 document.getElementById("sendBtn").onclick = sendMessage;
 
 input.addEventListener("keydown",e=>{
@@ -236,6 +259,10 @@ input.addEventListener("keydown",e=>{
 /* 設定 */
 document.getElementById("settingBtn").onclick=()=>{
   document.getElementById("modal").style.display="flex";
+
+  document.getElementById("apiKey").value = localStorage.getItem("apiKey") || "";
+  document.getElementById("prompt").value = localStorage.getItem("prompt") || "";
+  document.getElementById("voiceToggle").checked = voiceOn;
 };
 
 function closeModal(){
@@ -245,6 +272,10 @@ function closeModal(){
 function saveSettings(){
   localStorage.setItem("apiKey",document.getElementById("apiKey").value);
   localStorage.setItem("prompt",document.getElementById("prompt").value);
+
+  voiceOn = document.getElementById("voiceToggle").checked;
+  localStorage.setItem("voiceOn", voiceOn);
+
   closeModal();
 }
 </script>
