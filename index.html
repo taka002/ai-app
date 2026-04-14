@@ -10,14 +10,15 @@ body{
   margin:0;
   font-family:sans-serif;
   background:#eef3ff;
+  height:100vh;
   display:flex;
   flex-direction:column;
-  height:100vh;
 }
 
-/* 上：キャラ */
+/* 上：キャラ（固定） */
 #avatarArea{
-  height:30%;
+  height:30vh;
+  flex-shrink:0;
   background:#dbe9ff;
 }
 
@@ -52,23 +53,14 @@ body{
   background:white;
 }
 
-/* YouTube */
-#youtube{
-  width:100%;
-  height:200px;
-  display:none;
-}
-
-/* 下：固定バー */
+/* 下：固定エリア */
 #inputArea{
-  position:fixed;
-  bottom:0;
-  width:100%;
+  flex-shrink:0;
   background:#ddd;
   padding:10px;
 }
 
-/* ボタン横並び */
+/* 入力行 */
 #controls{
   display:flex;
   align-items:center;
@@ -90,24 +82,22 @@ button{
   color:white;
 }
 
+/* 下の設定バー */
+#bottomBar{
+  display:flex;
+  justify-content:space-between;
+  margin-top:5px;
+}
+
 /* 設定ボタン */
-#settings{
-  position:fixed;
-  top:10px;
-  right:10px;
+#settingsBtn{
   background:#333;
   color:white;
-  border-radius:50%;
-  width:40px;
-  height:40px;
 }
 </style>
 </head>
 
 <body>
-
-<!-- 設定 -->
-<button id="settings" onclick="openSettings()">⚙️</button>
 
 <!-- 上：キャラ -->
 <div id="avatarArea">
@@ -117,16 +107,19 @@ button{
 <!-- 中：チャット -->
 <div id="chatArea"></div>
 
-<!-- YouTube -->
-<iframe id="youtube"></iframe>
-
-<!-- 下：入力 -->
+<!-- 下：入力＋設定 -->
 <div id="inputArea">
+
   <div id="controls">
     <input id="input" placeholder="話しかけてください">
     <button onclick="send()">送信</button>
     <button onclick="openCamera()">📷</button>
   </div>
+
+  <div id="bottomBar">
+    <button id="settingsBtn" onclick="openSettings()">⚙️ 設定</button>
+  </div>
+
 </div>
 
 <script>
@@ -141,40 +134,35 @@ function addMessage(text, type){
   chat.scrollTop = chat.scrollHeight;
 }
 
-// 画像切替
+// 画像変更
 function changeAvatar(name){
   document.getElementById("avatar").src = name;
 }
 
-// AIロジック
+// AI
 function aiReply(text){
 
   let reply = "はい！承知しました！";
   let img = "normal.png";
-
-  if(text.includes("おはよう")){
-    reply = "おはようございます！";
-    img = "smile.png";
-  }
 
   if(text.includes("疲れた")){
     reply = "お疲れ様です！無理しないでください！";
     img = "relieved.png";
   }
 
-  if(text.includes("ありがとう")){
-    reply = "嬉しいです！ありがとうございます！";
-    img = "happy.png";
-  }
-
-  if(text.includes("悲しい")){
-    reply = "大丈夫です、そばにいますよ。";
-    img = "sad.png";
-  }
-
   if(text.includes("楽しい")){
     reply = "いいですね！楽しみましょう！";
     img = "smile.png";
+  }
+
+  if(text.includes("悲しい")){
+    reply = "大丈夫です、そばにいますよ";
+    img = "sad.png";
+  }
+
+  if(text.includes("ありがとう")){
+    reply = "ありがとうございます！嬉しいです！";
+    img = "happy.png";
   }
 
   changeAvatar(img);
@@ -198,12 +186,12 @@ function send(){
 
 // カメラ
 function openCamera(){
-  alert("次でカメラ解析入れる🔥");
+  alert("次でカメラ解析🔥");
 }
 
 // 設定
 function openSettings(){
-  alert("ここに設定（音声・AI切替など）追加予定🔥");
+  alert("音声・AI切替ここに追加🔥");
 }
 
 </script>
