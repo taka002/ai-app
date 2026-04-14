@@ -18,15 +18,8 @@ body{
 }
 
 /* キャラ */
-#character{
-  height:28vh;
-  overflow:hidden;
-}
-#character img{
-  width:100%;
-  height:100%;
-  object-fit:cover;
-}
+#character{height:28vh;overflow:hidden;}
+#character img{width:100%;height:100%;object-fit:cover;}
 
 /* チャット */
 #chat{
@@ -43,44 +36,21 @@ body{
   border-radius:12px;
 }
 
-.user{
-  background:#5aa0e6;
-  color:#fff;
-  margin-left:auto;
-}
-
-.ai{
-  background:#eee;
-}
+.user{background:#5aa0e6;color:#fff;margin-left:auto;}
+.ai{background:#eee;}
 
 /* UI */
-#bottom{
-  background:#ddd;
-  padding:6px;
-}
-
-#controls{
-  display:flex;
-  gap:6px;
-}
-
-#input{
-  flex:1;
-  padding:10px;
-  border-radius:10px;
-  border:none;
-}
+#bottom{background:#ddd;padding:6px;}
+#controls{display:flex;gap:6px;}
+#input{flex:1;padding:10px;border-radius:10px;border:none;}
 
 #controls button{
-  width:44px;
-  height:44px;
+  width:60px;
   border:none;
   border-radius:10px;
   background:#5aa0e6;
   color:white;
 }
-
-#sendBtn{ width:60px; }
 
 /* 設定 */
 #settingBtn{
@@ -118,32 +88,13 @@ body{
   padding:8px;
 }
 
-/* ===== プレゼン ===== */
+/* ===== 表示 ===== */
 .card{
   background:#fff;
   padding:12px;
   border-radius:10px;
   margin-bottom:8px;
-}
-
-.block{
-  background:#fff;
-  padding:12px;
-  border-left:6px solid #5aa0e6;
-  border-radius:10px;
-  margin-bottom:8px;
-}
-
-.flow{
-  display:flex;
-  flex-wrap:wrap;
-  gap:6px;
-}
-
-.flow div{
-  background:#fff;
-  padding:8px;
-  border-radius:8px;
+  white-space:pre-wrap;
 }
 
 /* ===== スライド ===== */
@@ -191,7 +142,7 @@ body{
 
 <div id="bottom">
   <div id="controls">
-    <input id="input">
+    <input id="input" placeholder="話しかけてください">
     <button id="sendBtn">送信</button>
   </div>
   <button id="settingBtn">⚙ 設定</button>
@@ -215,6 +166,7 @@ APIキー
 <option value="teacher">家庭教師</option>
 <option value="counselor">カウンセラー</option>
 <option value="sales">営業</option>
+<option value="medical">医療</option>
 <option value="normal">通常</option>
 </select>
 
@@ -227,36 +179,24 @@ APIキー
 </div>
 
 <script>
-const chat = document.getElementById("chat");
-const input = document.getElementById("input");
+const chat=document.getElementById("chat");
+const input=document.getElementById("input");
 
-let voiceOn = localStorage.getItem("voiceOn")==="true";
-
+let voiceOn=localStorage.getItem("voiceOn")==="true";
 let slideTexts=[];
 let currentSlide=0;
 
-/* ===== 表示整形 ===== */
+/* ===== 表示 ===== */
 function formatMessage(text){
-
-  if(text.includes("\n")){
-    return text.split("\n").map(t=>`<div class="card">${t}</div>`).join("");
-  }
-
-  if(text.includes("→")){
-    return `<div class="flow">`+
-      text.split("→").map(s=>`<div>${s}</div>`).join("")+
-      `</div>`;
-  }
-
   return `<div class="card">${text}</div>`;
 }
 
-/* メッセージ */
 function addMessage(text,cls){
   const div=document.createElement("div");
   div.className="msg "+cls;
   div.innerHTML=formatMessage(text);
   chat.appendChild(div);
+  chat.scrollTop=chat.scrollHeight;
 
   if(cls==="ai") speak(text);
 }
@@ -275,7 +215,16 @@ function changeFace(text){
   let f="normal.png";
   if(text.includes("疲")) f="sleepy.png";
   if(text.includes("悲")) f="sad.png";
+  if(text.includes("痛")) f="anxiety.png";
   document.getElementById("avatar").src=f;
+}
+
+/* 医療安全 */
+function medicalSafety(text){
+  if(text.includes("死にたい")||text.includes("危ない")){
+    return "とても心配です。すぐに周囲の人や医療機関に相談してください。";
+  }
+  return text;
 }
 
 /* ===== スライド ===== */
@@ -323,7 +272,7 @@ document.getElementById("slideViewer").onclick=()=>{
   speechSynthesis.cancel();
 };
 
-/* 送信 */
+/* ===== 送信 ===== */
 async function sendMessage(){
   const text=input.value;
   if(!text) return;
@@ -337,9 +286,13 @@ async function sendMessage(){
   const mode=localStorage.getItem("mode")||"teacher";
 
   let modePrompt="";
+
   if(mode==="teacher") modePrompt="わかりやすく説明";
   if(mode==="counselor") modePrompt="優しく寄り添う";
   if(mode==="sales") modePrompt="提案型";
+  if(mode==="medical"){
+    modePrompt="診断せず優しく説明し必要なら受診をすすめる";
+  }
 
   const res=await fetch("https://api.openai.com/v1/chat/completions",{
     method:"POST",
@@ -356,8 +309,10 @@ async function sendMessage(){
     })
   });
 
-  const data=await res.json();
-  const reply=data.choices[0].message.content;
+  let data=await res.json();
+  let reply=data.choices[0].message.content;
+
+  if(mode==="medical") reply=medicalSafety(reply);
 
   addMessage(reply,"ai");
   changeFace(reply);
