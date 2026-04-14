@@ -44,23 +44,19 @@ body{
 #controls{display:flex;gap:6px;}
 #input{flex:1;padding:10px;border-radius:10px;border:none;}
 
-#controls button{
-  width:60px;
+button{
   border:none;
   border-radius:10px;
   background:#5aa0e6;
   color:white;
+  padding:8px;
 }
 
 /* 設定 */
 #settingBtn{
   margin-top:6px;
   width:100%;
-  padding:10px;
   background:#333;
-  color:#fff;
-  border:none;
-  border-radius:10px;
 }
 
 /* モーダル */
@@ -97,6 +93,24 @@ body{
   white-space:pre-wrap;
 }
 
+/* ===== YouTube ===== */
+.ytWrap{
+  display:flex;
+  gap:8px;
+  overflow-x:auto;
+}
+
+.ytCard{
+  min-width:160px;
+  background:#fff;
+  border-radius:10px;
+  overflow:hidden;
+}
+
+.ytCard img{width:100%;}
+
+.ytPlayer{margin-top:8px;}
+
 /* ===== スライド ===== */
 #slideViewer{
   position:fixed;
@@ -117,7 +131,6 @@ body{
 
 .slide{
   min-width:100%;
-  height:100%;
   display:flex;
   justify-content:center;
   align-items:center;
@@ -144,6 +157,7 @@ body{
   <div id="controls">
     <input id="input" placeholder="話しかけてください">
     <button id="sendBtn">送信</button>
+    <button onclick="toggleSlide()">📊</button>
   </div>
   <button id="settingBtn">⚙ 設定</button>
 </div>
@@ -173,6 +187,9 @@ APIキー
 音声
 <input type="checkbox" id="voiceToggle">
 
+スライド
+<input type="checkbox" id="slideToggle">
+
 <button onclick="saveSettings()">保存</button>
 
 </div>
@@ -183,14 +200,36 @@ const chat=document.getElementById("chat");
 const input=document.getElementById("input");
 
 let voiceOn=localStorage.getItem("voiceOn")==="true";
-let slideTexts=[];
-let currentSlide=0;
+let slideMode=localStorage.getItem("slideMode")==="true";
 
 /* ===== 表示 ===== */
 function formatMessage(text){
   return `<div class="card">${text}</div>`;
 }
 
+/* YouTube */
+function showYouTube(text,container){
+  const wrap=document.createElement("div");
+  wrap.className="ytWrap";
+
+  const url=`https://www.youtube.com/embed?listType=search&list=${encodeURIComponent(text)}`;
+
+  const card=document.createElement("div");
+  card.className="ytCard";
+  card.innerHTML=`<img src="https://img.youtube.com/vi/0/hqdefault.jpg"><div>関連動画</div>`;
+
+  card.onclick=()=>{
+    const player=document.createElement("div");
+    player.className="ytPlayer";
+    player.innerHTML=`<iframe width="100%" height="200" src="${url}" frameborder="0"></iframe>`;
+    container.appendChild(player);
+  };
+
+  wrap.appendChild(card);
+  container.appendChild(wrap);
+}
+
+/* メッセージ */
 function addMessage(text,cls){
   const div=document.createElement("div");
   div.className="msg "+cls;
@@ -198,7 +237,10 @@ function addMessage(text,cls){
   chat.appendChild(div);
   chat.scrollTop=chat.scrollHeight;
 
-  if(cls==="ai") speak(text);
+  if(cls==="ai"){
+    speak(text);
+    showYouTube(text,div);
+  }
 }
 
 /* 音声 */
@@ -213,16 +255,15 @@ function speak(text){
 /* 表情 */
 function changeFace(text){
   let f="normal.png";
-  if(text.includes("疲")) f="sleepy.png";
   if(text.includes("悲")) f="sad.png";
-  if(text.includes("痛")) f="anxiety.png";
+  if(text.includes("疲")) f="sleepy.png";
   document.getElementById("avatar").src=f;
 }
 
-/* 医療安全 */
+/* 医療 */
 function medicalSafety(text){
-  if(text.includes("死にたい")||text.includes("危ない")){
-    return "とても心配です。すぐに周囲の人や医療機関に相談してください。";
+  if(text.includes("死にたい")){
+    return "すぐに周囲や医療機関へ相談してください。";
   }
   return text;
 }
@@ -233,10 +274,7 @@ function showSlides(text){
   const slides=document.getElementById("slides");
 
   slides.innerHTML="";
-  slideTexts=text.split("\n").filter(v=>v.trim());
-  currentSlide=0;
-
-  slideTexts.forEach(t=>{
+  text.split("\n").forEach(t=>{
     const d=document.createElement("div");
     d.className="slide";
     d.innerHTML=`<div class="slideCard">${t}</div>`;
@@ -244,33 +282,17 @@ function showSlides(text){
   });
 
   viewer.style.display="block";
-
-  if(voiceOn) playSlides();
-}
-
-function playSlides(){
-  if(currentSlide>=slideTexts.length) return;
-
-  document.getElementById("slides").scrollTo({
-    left:currentSlide*window.innerWidth,
-    behavior:"smooth"
-  });
-
-  const u=new SpeechSynthesisUtterance(slideTexts[currentSlide]);
-  u.lang="ja-JP";
-
-  u.onend=()=>{
-    currentSlide++;
-    setTimeout(playSlides,400);
-  };
-
-  speechSynthesis.speak(u);
 }
 
 document.getElementById("slideViewer").onclick=()=>{
   document.getElementById("slideViewer").style.display="none";
-  speechSynthesis.cancel();
 };
+
+/* トグル */
+function toggleSlide(){
+  slideMode=!slideMode;
+  localStorage.setItem("slideMode",slideMode);
+}
 
 /* ===== 送信 ===== */
 async function sendMessage(){
@@ -279,10 +301,8 @@ async function sendMessage(){
 
   addMessage(text,"user");
   input.value="";
-  document.getElementById("avatar").src="typing.png";
 
   const apiKey=localStorage.getItem("apiKey");
-  const prompt=localStorage.getItem("prompt")||"";
   const mode=localStorage.getItem("mode")||"teacher";
 
   let modePrompt="";
@@ -290,9 +310,7 @@ async function sendMessage(){
   if(mode==="teacher") modePrompt="わかりやすく説明";
   if(mode==="counselor") modePrompt="優しく寄り添う";
   if(mode==="sales") modePrompt="提案型";
-  if(mode==="medical"){
-    modePrompt="診断せず優しく説明し必要なら受診をすすめる";
-  }
+  if(mode==="medical") modePrompt="安全に説明";
 
   const res=await fetch("https://api.openai.com/v1/chat/completions",{
     method:"POST",
@@ -303,27 +321,35 @@ async function sendMessage(){
     body:JSON.stringify({
       model:"gpt-4o-mini",
       messages:[
-        {role:"system",content:prompt+"\n"+modePrompt},
+        {role:"system",content:modePrompt},
         {role:"user",content:text}
       ]
     })
   });
 
-  let data=await res.json();
+  const data=await res.json();
   let reply=data.choices[0].message.content;
 
   if(mode==="medical") reply=medicalSafety(reply);
 
   addMessage(reply,"ai");
   changeFace(reply);
-  showSlides(reply);
+
+  if(slideMode){
+    showSlides(reply);
+  }
 }
 
 document.getElementById("sendBtn").onclick=sendMessage;
 
 /* 設定 */
 document.getElementById("settingBtn").onclick=()=>{
-  document.getElementById("modal").style.display="flex";
+  modal.style.display="flex";
+  apiKey.value=localStorage.getItem("apiKey")||"";
+  prompt.value=localStorage.getItem("prompt")||"";
+  mode.value=localStorage.getItem("mode")||"teacher";
+  voiceToggle.checked=voiceOn;
+  slideToggle.checked=slideMode;
 };
 
 function saveSettings(){
@@ -331,7 +357,9 @@ function saveSettings(){
   localStorage.setItem("prompt",prompt.value);
   localStorage.setItem("mode",mode.value);
   voiceOn=voiceToggle.checked;
+  slideMode=slideToggle.checked;
   localStorage.setItem("voiceOn",voiceOn);
+  localStorage.setItem("slideMode",slideMode);
   modal.style.display="none";
 }
 </script>
