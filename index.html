@@ -150,20 +150,30 @@ body{
   padding:8px;
   border-radius:8px;
 }
+
+/* ★グリッド追加 */
+.grid{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:8px;
+  margin:8px 0;
+}
+
+.grid .card{
+  text-align:center;
+  font-size:14px;
+}
 </style>
 </head>
 
 <body>
 
-<!-- キャラ -->
 <div id="character">
   <img id="avatar" src="normal.png">
 </div>
 
-<!-- チャット -->
 <div id="chat"></div>
 
-<!-- 下 -->
 <div id="bottom">
   <div id="controls">
     <input id="input" placeholder="話しかけてください">
@@ -174,7 +184,6 @@ body{
   <button id="settingBtn">⚙ 設定</button>
 </div>
 
-<!-- 設定 -->
 <div id="modal">
   <div id="modalContent">
     APIキー
@@ -198,24 +207,29 @@ const input = document.getElementById("input");
 
 let voiceOn = localStorage.getItem("voiceOn") === "true";
 
-/* ===== プレゼン変換 ===== */
+/* ===== プレゼン変換（完全版） */
 function formatMessage(text){
 
-  // ■ブロック
+  // ★グリッド（最優先）
+  if(text.includes("■■")){
+    const items = text.split("■■").filter(v=>v.trim());
+    return `<div class="grid">` +
+      items.map(i=>`<div class="card">${i}</div>`).join("") +
+      `</div>`;
+  }
+
   if(text.includes("■")){
     return text.split("■").filter(v=>v.trim()).map(b=>
       `<div class="block">${b}</div>`
     ).join("");
   }
 
-  // ・カード
   if(text.includes("・")){
     return text.split("・").filter(v=>v.trim()).map(i=>
       `<div class="card">${i}</div>`
     ).join("");
   }
 
-  // 表
   if(text.includes("：")){
     return "<table style='width:100%'>" +
       text.split("\n").map(r=>{
@@ -229,7 +243,6 @@ function formatMessage(text){
       }).join("") + "</table>";
   }
 
-  // フロー
   if(text.includes("→")){
     return `<div class="flow">` +
       text.split("→").map(s=>`<div>${s}</div>`).join("➡️") +
@@ -243,9 +256,7 @@ function formatMessage(text){
 function addMessage(text, cls){
   const div = document.createElement("div");
   div.className = "msg " + cls;
-
   div.innerHTML = formatMessage(text);
-
   chat.appendChild(div);
   chat.scrollTop = chat.scrollHeight;
 
@@ -255,7 +266,6 @@ function addMessage(text, cls){
 /* 音声 */
 function speak(text){
   if(!voiceOn) return;
-
   const uttr = new SpeechSynthesisUtterance(text);
   uttr.lang = "ja-JP";
   speechSynthesis.cancel();
@@ -284,7 +294,6 @@ async function sendMessage(){
 
   addMessage(text,"user");
   input.value="";
-
   document.getElementById("avatar").src="typing.png";
 
   const apiKey = localStorage.getItem("apiKey");
@@ -325,7 +334,6 @@ async function sendMessage(){
 
 /* イベント */
 document.getElementById("sendBtn").onclick = sendMessage;
-
 input.addEventListener("keydown",e=>{
   if(e.key==="Enter") sendMessage();
 });
