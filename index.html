@@ -85,7 +85,7 @@ button{
   padding:8px;
 }
 
-/* ===== YouTube ===== */
+/* YouTube */
 .ytWrap{
   display:flex;
   gap:8px;
@@ -102,7 +102,7 @@ button{
   font-size:12px;
 }
 
-/* ===== スライド ===== */
+/* スライド */
 #slideViewer{
   position:fixed;
   top:0;left:0;
@@ -190,7 +190,7 @@ const input=document.getElementById("input");
 let voiceOn=localStorage.getItem("voiceOn")==="true";
 let slideMode=localStorage.getItem("slideMode")==="true";
 
-/* 🧠 会話履歴 */
+/* 会話履歴 */
 let history = JSON.parse(localStorage.getItem("history") || "[]");
 
 /* 表示 */
@@ -295,7 +295,7 @@ function clearMemory(){
   addMessage("記憶をリセットしました","ai");
 }
 
-/* 送信 */
+/* ===== 送信（完全版） ===== */
 async function sendMessage(){
 
   const text=input.value;
@@ -304,9 +304,15 @@ async function sendMessage(){
   addMessage(text,"user");
   input.value="";
 
+  const apiKey=localStorage.getItem("apiKey");
+
+  if(!apiKey){
+    addMessage("⚠ APIキーが未設定","ai");
+    return;
+  }
+
   history.push({role:"user",content:text});
 
-  const apiKey=localStorage.getItem("apiKey");
   const prompt=localStorage.getItem("prompt")||"";
   const mode=localStorage.getItem("mode")||"teacher";
 
@@ -316,34 +322,48 @@ async function sendMessage(){
   if(mode==="sales") modePrompt="提案型";
   if(mode==="medical") modePrompt="安全に説明";
 
-  const res=await fetch("https://api.openai.com/v1/chat/completions",{
-    method:"POST",
-    headers:{
-      "Content-Type":"application/json",
-      "Authorization":"Bearer "+apiKey
-    },
-    body:JSON.stringify({
-      model:"gpt-4o-mini",
-      messages:[
-        {role:"system",content:prompt+"\n"+modePrompt},
-        ...history
-      ]
-    })
-  });
+  try{
 
-  const data=await res.json();
-  let reply=data.choices[0].message.content;
+    const res=await fetch("https://api.openai.com/v1/chat/completions",{
+      method:"POST",
+      headers:{
+        "Content-Type":"application/json",
+        "Authorization":"Bearer "+apiKey
+      },
+      body:JSON.stringify({
+        model:"gpt-4o-mini",
+        messages:[
+          {role:"system",content:prompt+"\n"+modePrompt},
+          ...history
+        ]
+      })
+    });
 
-  if(mode==="medical") reply=medicalSafety(reply);
+    const data=await res.json();
 
-  addMessage(reply,"ai");
-  changeFace(reply);
+    if(!data.choices){
+      console.log(data);
+      addMessage("⚠ エラー\n"+JSON.stringify(data,null,2),"ai");
+      return;
+    }
 
-  history.push({role:"assistant",content:reply});
-  localStorage.setItem("history",JSON.stringify(history));
+    let reply=data.choices[0].message.content;
 
-  if(slideMode){
-    showSlides(reply);
+    if(mode==="medical") reply=medicalSafety(reply);
+
+    addMessage(reply,"ai");
+    changeFace(reply);
+
+    history.push({role:"assistant",content:reply});
+    localStorage.setItem("history",JSON.stringify(history));
+
+    if(slideMode){
+      showSlides(reply);
+    }
+
+  }catch(e){
+    console.error(e);
+    addMessage("⚠ 通信エラー","ai");
   }
 }
 
