@@ -1,4 +1,3 @@
-<!-- 完全統合版 -->
 <!DOCTYPE html>
 <html lang="ja">
 <head>
@@ -24,9 +23,9 @@ body{margin:0;font-family:sans-serif;background:linear-gradient(135deg,#6ec6ff,#
 #setBtn{width:50px;height:50px;border-radius:50%;background:#333;color:#fff;border:none;}
 #modal{position:fixed;width:100%;height:100%;display:none;background:rgba(0,0,0,0.5);justify-content:center;align-items:center;}
 #modalContent{background:#222;color:#fff;padding:20px;border-radius:12px;width:90%;}
+textarea{width:100%;}
 img.preview{max-width:200px;border-radius:10px;margin-top:10px;}
 video{width:90%;border-radius:10px;margin-top:10px;}
-textarea{width:100%;}
 </style>
 </head>
 
@@ -54,32 +53,16 @@ textarea{width:100%;}
 ChatGPTキー<input id="openaiKey">
 Geminiキー<input id="geminiKey">
 
-<h3>モード</h3>
 <select id="mode">
 <option value="child">子供</option>
 <option value="teacher">家庭教師</option>
-<option value="parent">親</option>
-<option value="work">仕事</option>
-<option value="research">研究</option>
 <option value="counselor">カウンセラー</option>
-<option value="hostess">ホステス</option>
-<option value="elder">年配</option>
-<option value="medical">医療</option>
-<option value="consult">相談</option>
 </select>
 
-カスタムプロンプト
-<textarea id="customPrompt"></textarea>
-
-<hr>
+<textarea id="customPrompt" placeholder="カスタム設定"></textarea>
 
 <button onclick="openCamera()">📷カメラ</button>
 <button onclick="openGallery()">🖼画像</button>
-<button onclick="getLocation()">📍位置+天気</button>
-<button onclick="openCalendar()">📅カレンダー</button>
-
-<button onclick="showMemory()">📖記憶</button>
-<button onclick="clearMemory()">🧹リセット</button>
 
 <button onclick="saveSettings()">閉じる</button>
 
@@ -87,192 +70,83 @@ Geminiキー<input id="geminiKey">
 </div>
 
 <script>
+
+/* 安全に取得する関数 */
+function getValue(id){
+  const el=document.getElementById(id);
+  return el ? el.value : "";
+}
+
 const chat=document.getElementById("chat");
 const input=document.getElementById("input");
 
-let history = JSON.parse(localStorage.getItem("history")||"[]");
-let memory = JSON.parse(localStorage.getItem("memory")||"[]");
-
-let lastImageBase64="";
-let currentStream;
-
-/* UI */
+/* メッセージ */
 function addMessage(text,cls){
   const div=document.createElement("div");
   div.className="msg "+cls;
   div.innerHTML=`<div class="bubble">${text}</div>`;
   chat.appendChild(div);
-  chat.scrollTop=chat.scrollHeight;
 }
 
-/* 音声 */
-function speak(text){
-  const u=new SpeechSynthesisUtterance(text);
-  u.lang="ja-JP";
-  speechSynthesis.speak(u);
-}
-
-/* モード */
-function getModePrompt(mode){
-  return {
-    child:"子供に優しく",
-    teacher:"わかりやすく教える",
-    parent:"親のように",
-    work:"仕事として正確に",
-    research:"専門的に",
-    counselor:"寄り添う",
-    hostess:"楽しく会話",
-    elder:"落ち着いて",
-    medical:"医療的に慎重に",
-    consult:"相談に乗る"
-  }[mode]||"";
-}
-
-/* ChatGPT */
-sendBtn.onclick=sendMessage;
+/* 送信 */
+document.getElementById("sendBtn").onclick=sendMessage;
 
 async function sendMessage(){
   const text=input.value.trim();
-  if(!text)return;
+  if(!text) return;
 
   addMessage(text,"user");
   input.value="";
 
-  const key=openaiKey.value;
-  const mode=mode.value;
-  const custom=customPrompt.value;
+  const key=getValue("openaiKey");
+  const mode=getValue("mode");
+  const custom=getValue("customPrompt");
 
-  history.push({role:"user",content:text});
-  if(history.length>20) history=history.slice(-20);
+  if(!key){
+    addMessage("APIキー未入力","ai");
+    return;
+  }
 
-  const system = getModePrompt(mode)+"\n"+custom+"\n記憶:\n"+memory.join("\n");
+  try{
+    const res=await fetch("https://api.openai.com/v1/chat/completions",{
+      method:"POST",
+      headers:{
+        "Content-Type":"application/json",
+        "Authorization":"Bearer "+key
+      },
+      body:JSON.stringify({
+        model:"gpt-4o-mini",
+        messages:[
+          {role:"system",content:mode+"\n"+custom},
+          {role:"user",content:text}
+        ]
+      })
+    });
 
-  const res=await fetch("https://api.openai.com/v1/chat/completions",{
-    method:"POST",
-    headers:{
-      "Content-Type":"application/json",
-      "Authorization":"Bearer "+key
-    },
-    body:JSON.stringify({
-      model:"gpt-4o-mini",
-      messages:[{role:"system",content:system},...history]
-    })
-  });
+    const data=await res.json();
+    const reply=data.choices?.[0]?.message?.content || "エラー";
 
-  const data=await res.json();
-  const reply=data.choices?.[0]?.message?.content||"エラー";
+    addMessage(reply,"ai");
 
-  addMessage(reply,"ai");
-  speak(reply);
-
-  history.push({role:"assistant",content:reply});
-  localStorage.setItem("history",JSON.stringify(history));
-
-  extractMemory(text);
-  extractMemory(reply);
-}
-
-/* 長期記憶 */
-function extractMemory(text){
-  if(["好き","嫌い","体調","名前","仕事","家族"].some(k=>text.includes(k))){
-    memory.push(text);
-    if(memory.length>10) memory=memory.slice(-10);
-    localStorage.setItem("memory",JSON.stringify(memory));
+  }catch(e){
+    addMessage("通信エラー","ai");
+    console.error(e);
   }
 }
 
-function showMemory(){
-  addMessage(memory.join("<br>"),"ai");
+/* 設定 */
+function openSettings(){
+  document.getElementById("modal").style.display="flex";
+}
+function saveSettings(){
+  document.getElementById("modal").style.display="none";
 }
 
-function clearMemory(){
-  memory=[];
-  history=[];
-  localStorage.clear();
-  chat.innerHTML="";
+/* 画像 */
+function openGallery(){
+  document.getElementById("imageInput").click();
 }
 
-/* カメラ→即解析 */
-async function openCamera(){
-  currentStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:"environment"}});
-  const video=document.createElement("video");
-  video.autoplay=true;
-  video.srcObject=currentStream;
-
-  const btn=document.createElement("button");
-  btn.innerText="📸";
-
-  btn.onclick=async()=>{
-    const canvas=document.createElement("canvas");
-    canvas.width=video.videoWidth;
-    canvas.height=video.videoHeight;
-    canvas.getContext("2d").drawImage(video,0,0);
-
-    const img=canvas.toDataURL("image/jpeg");
-    lastImageBase64=img.split(",")[1];
-    addMessage(`<img src="${img}" class="preview">`,"ai");
-
-    currentStream.getTracks().forEach(t=>t.stop());
-    await analyzeImage();
-  };
-
-  chat.appendChild(video);
-  chat.appendChild(btn);
-}
-
-/* Gemini */
-async function analyzeImage(){
-  const key=geminiKey.value;
-
-  const res=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${key}`,{
-    method:"POST",
-    headers:{"Content-Type":"application/json"},
-    body:JSON.stringify({
-      contents:[{parts:[
-        {text:"これは何か説明して"},
-        {inline_data:{mime_type:"image/jpeg",data:lastImageBase64}}
-      ]}]
-    })
-  });
-
-  const data=await res.json();
-  const text=data.candidates?.[0]?.content?.parts?.[0]?.text;
-  addMessage(text,"ai");
-  speak(text);
-}
-
-/* その他 */
-function openGallery(){imageInput.click();}
-imageInput.onchange=e=>{
-  const r=new FileReader();
-  r.onload=ev=>{
-    lastImageBase64=ev.target.result.split(",")[1];
-    addMessage(`<img src="${ev.target.result}" class="preview">`,"ai");
-  };
-  r.readAsDataURL(e.target.files[0]);
-};
-
-function getLocation(){
-  navigator.geolocation.getCurrentPosition(async pos=>{
-    const w=await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${pos.coords.latitude}&longitude=${pos.coords.longitude}&current_weather=true`);
-    const d=await w.json();
-    addMessage(`🌤 ${d.current_weather.temperature}℃`,"ai");
-  });
-}
-
-function openCalendar(){
-  const iframe=document.createElement("iframe");
-  iframe.src="https://calendar.google.com";
-  iframe.style.width="100%";
-  iframe.style.height="400px";
-  chat.appendChild(iframe);
-}
-
-function openSettings(){modal.style.display="flex";}
-function saveSettings(){modal.style.display="none";}
-
-/* 復元 */
-history.forEach(m=>addMessage(m.content,m.role==="user"?"user":"ai"));
 </script>
 
 </body>
