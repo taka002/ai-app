@@ -1,4 +1,3 @@
-<!-- 省略なしフル -->
 <!DOCTYPE html>
 <html lang="ja">
 <head>
@@ -7,7 +6,6 @@
 <title>美咲AI 完全版</title>
 
 <style>
-/* そのまま */
 *{box-sizing:border-box;}
 body{margin:0;font-family:sans-serif;background:linear-gradient(135deg,#6ec6ff,#a0e0ff);height:100vh;display:flex;flex-direction:column;}
 #character{height:30vh;}
@@ -15,18 +13,17 @@ body{margin:0;font-family:sans-serif;background:linear-gradient(135deg,#6ec6ff,#
 #infoBar{text-align:center;font-size:13px;padding:6px;background:rgba(255,255,255,0.7);}
 #chat{flex:1;overflow-y:auto;padding:10px;padding-bottom:100px;}
 .msg{max-width:85%;margin:8px;}
-.user{margin-left:auto;text-align:right;}
-.ai{text-align:left;}
+.user{text-align:right;}
 .bubble{display:inline-block;padding:12px;border-radius:16px;background:#fff;}
-.user .bubble{background:linear-gradient(135deg,#4facfe,#00c6ff);color:#fff;}
+.user .bubble{background:#0072ff;color:#fff;}
 #bottom{position:fixed;bottom:0;width:100%;background:#fff;padding:8px;}
-#controls{display:flex;gap:6px;max-width:600px;margin:auto;}
+#controls{display:flex;gap:6px;}
 #input{flex:1;padding:10px;border-radius:20px;border:none;}
 #sendBtn,#micBtn{width:44px;height:44px;border-radius:50%;border:none;color:#fff;}
 #sendBtn{background:#0072ff;}
 #micBtn{background:#ff4081;}
 #fab{position:fixed;right:10px;bottom:90px;}
-#setBtn{width:50px;height:50px;border-radius:50%;border:none;background:#333;color:#fff;}
+#setBtn{width:50px;height:50px;border-radius:50%;background:#333;color:#fff;}
 #modal{position:fixed;width:100%;height:100%;display:none;background:rgba(0,0,0,0.5);justify-content:center;align-items:center;}
 #modalContent{background:#222;color:#fff;padding:20px;border-radius:12px;width:90%;}
 img.preview{max-width:200px;border-radius:10px;margin-top:10px;}
@@ -59,16 +56,16 @@ video{width:90%;border-radius:10px;margin-top:10px;}
 Geminiキー<input id="geminiKey">
 <button onclick="openCamera()">📷カメラ</button>
 <button onclick="openGallery()">🖼画像</button>
-<button onclick="analyzeImage()">🤖画像解析</button>
-<button onclick="saveSettings()">保存</button>
+<button onclick="getLocation()">📍位置+天気</button>
+<button onclick="openCalendar()">📅カレンダー</button>
+<button onclick="saveSettings()">閉じる</button>
 </div>
 </div>
 
 <script>
 const chat=document.getElementById("chat");
-const input=document.getElementById("input");
-
 let lastImageBase64="";
+let currentStream;
 
 /* メッセージ */
 function addMessage(text,cls){
@@ -76,25 +73,63 @@ function addMessage(text,cls){
   div.className="msg "+cls;
   div.innerHTML=`<div class="bubble">${text}</div>`;
   chat.appendChild(div);
+  chat.scrollTop=chat.scrollHeight;
 }
 
-/* カメラ（背面） */
+/* 音声 */
+function speak(text){
+  const u=new SpeechSynthesisUtterance(text);
+  u.lang="ja-JP";
+  speechSynthesis.speak(u);
+}
+
+/* 📷 カメラ＋即AI */
 async function openCamera(){
   try{
-    const stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:"environment"}});
+    currentStream = await navigator.mediaDevices.getUserMedia({
+      video:{facingMode:"environment"}
+    });
+
     const video=document.createElement("video");
     video.autoplay=true;
-    video.srcObject=stream;
+    video.srcObject=currentStream;
+
+    const btn=document.createElement("button");
+    btn.innerText="📸撮影";
+
+    btn.onclick=async()=>{
+      const canvas=document.createElement("canvas");
+      canvas.width=video.videoWidth;
+      canvas.height=video.videoHeight;
+      const ctx=canvas.getContext("2d");
+      ctx.drawImage(video,0,0);
+
+      const img=canvas.toDataURL("image/jpeg");
+      lastImageBase64=img.split(",")[1];
+
+      addMessage(`<img src="${img}" class="preview">`,"ai");
+
+      currentStream.getTracks().forEach(t=>t.stop());
+      video.remove();
+      btn.remove();
+
+      await analyzeImage(true); // ←即解析＋音声
+    };
+
     chat.appendChild(video);
-  }catch{alert("カメラ許可");}
+    chat.appendChild(btn);
+
+  }catch{
+    alert("カメラ許可して");
+  }
 }
 
-/* 画像 */
+/* 🖼 画像 */
 function openGallery(){
   imageInput.click();
 }
 
-imageInput.addEventListener("change",e=>{
+imageInput.onchange=(e)=>{
   const file=e.target.files[0];
   const reader=new FileReader();
   reader.onload=ev=>{
@@ -102,12 +137,13 @@ imageInput.addEventListener("change",e=>{
     addMessage(`<img src="${ev.target.result}" class="preview">`,"ai");
   };
   reader.readAsDataURL(file);
-});
+};
 
-/* Gemini解析 */
-async function analyzeImage(){
+/* 🤖 Gemini解析 */
+async function analyzeImage(auto=false){
   if(!lastImageBase64){addMessage("画像選択して","ai");return;}
-  const key=localStorage.getItem("geminiKey");
+
+  const key=document.getElementById("geminiKey").value;
 
   const res=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${key}`,{
     method:"POST",
@@ -115,7 +151,7 @@ async function analyzeImage(){
     body:JSON.stringify({
       contents:[{
         parts:[
-          {text:"この画像を詳しく説明して"},
+          {text:"これは何か説明して"},
           {inline_data:{mime_type:"image/jpeg",data:lastImageBase64}}
         ]
       }]
@@ -124,16 +160,40 @@ async function analyzeImage(){
 
   const data=await res.json();
   const text=data.candidates?.[0]?.content?.parts?.[0]?.text||"失敗";
+
   addMessage(text,"ai");
+  speak(text); // 🔥 音声
 }
 
-/* 保存 */
-function saveSettings(){
-  localStorage.setItem("geminiKey",geminiKey.value);
-  modal.style.display="none";
+/* 📍 位置 */
+function getLocation(){
+  navigator.geolocation.getCurrentPosition(async pos=>{
+    const lat=pos.coords.latitude;
+    const lon=pos.coords.longitude;
+
+    const w=await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true`);
+    const wd=await w.json();
+
+    addMessage(`📍現在地\n🌤 ${wd.current_weather.temperature}℃`,"ai");
+
+  },()=>alert("位置許可して"));
 }
+
+/* 📅 カレンダー */
+function openCalendar(){
+  const iframe=document.createElement("iframe");
+  iframe.src="https://calendar.google.com";
+  iframe.style.width="100%";
+  iframe.style.height="400px";
+  chat.appendChild(iframe);
+}
+
+/* 設定 */
 function openSettings(){
   modal.style.display="flex";
+}
+function saveSettings(){
+  modal.style.display="none";
 }
 </script>
 
