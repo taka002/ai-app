@@ -3,40 +3,78 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>美咲AI フル完全版</title>
+<title>美咲AI 神フル版</title>
 
 <style>
-body{margin:0;font-family:sans-serif;background:#6ec6ff;display:flex;flex-direction:column;height:100vh;}
-#chat{flex:1;overflow:auto;padding:10px;}
+body{margin:0;font-family:sans-serif;background:#6ec6ff;height:100vh;display:flex;flex-direction:column;}
+#chat{flex:1;overflow:auto;padding:10px;padding-bottom:100px;}
 .msg{margin:6px;max-width:85%;}
 .user{text-align:right;margin-left:auto;}
 .ai{text-align:left;}
 .bubble{padding:10px;border-radius:12px;background:#fff;}
 .user .bubble{background:#0072ff;color:#fff;}
 
-#bottom{display:flex;padding:5px;background:#fff;}
+#bottom{position:fixed;bottom:0;width:100%;display:flex;background:#fff;padding:5px;}
 #input{flex:1;padding:10px;border:none;}
 
 button{padding:8px;border:none;border-radius:8px;}
 button:active{transform:scale(0.9);opacity:0.7;}
 
-#modal{position:fixed;width:100%;height:100%;display:none;background:#0008;justify-content:center;align-items:center;}
+#modal,#homeScreen{
+position:fixed;top:0;left:0;width:100%;height:100%;
+display:none;justify-content:center;align-items:center;
+flex-direction:column;z-index:9999;
+}
+
+#modal{background:#0008;}
 #modalContent{background:#222;color:#fff;padding:15px;width:90%;max-height:80%;overflow:auto;border-radius:10px;}
 
-#presentation{position:fixed;top:0;left:0;width:100%;height:100%;background:#000;color:#fff;display:none;justify-content:center;align-items:center;font-size:24px;text-align:center;}
+#homeScreen{
+background:linear-gradient(135deg,#4facfe,#00f2fe);
+color:#fff;
+}
+
+#homeAI{
+margin-top:20px;
+background:#ffffff33;
+padding:15px;
+border-radius:12px;
+max-width:80%;
+text-align:center;
+}
+
+#presentation{
+position:fixed;top:0;left:0;width:100%;height:100%;
+background:#000;color:#fff;
+display:none;justify-content:center;align-items:center;
+font-size:24px;text-align:center;
+}
 </style>
 </head>
 
 <body>
 
+<!-- ホーム -->
+<div id="homeScreen">
+<h1>美咲AI</h1>
+
+<button onclick="enterChat()">💬 チャット</button>
+<button onclick="startListening()">🎤 音声開始</button>
+<button onclick="openYahooNews()">📰 ニュース</button>
+<button onclick="openMap()">🗺 マップ</button>
+<button onclick="openSettings()">⚙ 設定</button>
+
+<div id="homeAI">準備中...</div>
+</div>
+
 <div id="chat"></div>
 
 <div id="bottom">
-<input id="input" placeholder="話しかけてください">
-<button onclick="startVoice()">🎤</button>
+<input id="input">
+<button onclick="startListening()">🎤</button>
 <button onclick="send()">➤</button>
 <button onclick="togglePresentation()">🎬</button>
-<button onclick="openSettings()">⚙</button>
+<button onclick="showHome()">🏠</button>
 </div>
 
 <!-- 設定 -->
@@ -49,13 +87,7 @@ button:active{transform:scale(0.9);opacity:0.7;}
 <h3>プロンプト</h3>
 <textarea id="prompt"></textarea>
 
-<h3>モード</h3>
-<select id="mode">
-<option value="normal">通常</option>
-<option value="teacher">家庭教師</option>
-<option value="counselor">カウンセラー</option>
-<option value="medical">医療</option>
-</select>
+<button onclick="saveSettings()">保存</button>
 
 <hr>
 
@@ -64,7 +96,7 @@ button:active{transform:scale(0.9);opacity:0.7;}
 <button onclick="openLine()">LINE</button>
 <button onclick="sendToLine()">LINE送信</button>
 
-<button onclick="openYahooNews()">Yahooニュース</button>
+<button onclick="openYahooNews()">ニュース</button>
 <button onclick="openNewsPicks()">NewsPicks</button>
 
 <button onclick="openMap()">マップ</button>
@@ -75,8 +107,6 @@ button:active{transform:scale(0.9);opacity:0.7;}
 
 <button onclick="googleSearch()">検索</button>
 
-<button onclick="saveSettings()">保存</button>
-
 </div>
 </div>
 
@@ -85,25 +115,51 @@ button:active{transform:scale(0.9);opacity:0.7;}
 <script>
 const chat=document.getElementById("chat");
 const input=document.getElementById("input");
-let state={memory:[],lastTalk:Date.now(),slides:[],i:0};
 
-/* 表示 */
+let state={
+memory:JSON.parse(localStorage.getItem("memory")||"[]"),
+lastTalk:Date.now(),
+slides:[],
+i:0
+};
+
+/* ===== 表示 ===== */
 function add(t,c){
 const d=document.createElement("div");
 d.className="msg "+c;
 d.innerHTML=`<div class="bubble">${t}</div>`;
 chat.appendChild(d);
 chat.scrollTop=chat.scrollHeight;
+
 if(c==="ai") speak(t);
 }
 
-/* 音声 */
+/* ===== 音声 ===== */
 function speak(t){
 speechSynthesis.cancel();
 speechSynthesis.speak(new SpeechSynthesisUtterance(t));
 }
 
-/* AI */
+/* ===== 記憶 ===== */
+function saveMemory(u,a){
+state.memory.push({u,a});
+if(state.memory.length>20) state.memory.shift();
+localStorage.setItem("memory",JSON.stringify(state.memory));
+}
+
+/* ===== AIコマンド ===== */
+function handleCommand(t){
+
+if(t.includes("ニュース")) return openYahooNews();
+if(t.includes("地図")) return openMap();
+if(t.includes("乗換")) return openTransit();
+if(t.includes("LINE")) return openLine();
+if(t.includes("天気")) return googleSearch("天気");
+
+return false;
+}
+
+/* ===== AI ===== */
 async function send(){
 let t=input.value.trim();
 if(!t)return;
@@ -112,15 +168,15 @@ add(t,"user");
 input.value="";
 state.lastTalk=Date.now();
 
-add("考え中...","ai");
-
 /* コマンド */
-if(t.includes("ニュース")) return openYahooNews();
-if(t.includes("地図")) return openMap();
-if(t.includes("乗換")) return openTransit();
+if(handleCommand(t)) return;
+
+add("考え中...","ai");
 
 const key=localStorage.getItem("apiKey");
 if(!key)return add("APIキー未設定","ai");
+
+const mem=state.memory.map(m=>m.u+m.a).join("\n");
 
 const res=await fetch("https://api.openai.com/v1/chat/completions",{
 method:"POST",
@@ -131,7 +187,7 @@ headers:{
 body:JSON.stringify({
 model:"gpt-4o-mini",
 messages:[
-{role:"system",content:(localStorage.getItem("prompt")||"")},
+{role:"system",content:"自然に会話\n"+mem},
 {role:"user",content:t}
 ]
 })
@@ -141,13 +197,14 @@ const d=await res.json();
 const reply=d.choices?.[0]?.message?.content||"エラー";
 
 add(reply,"ai");
+saveMemory(t,reply);
 
 /* スライド */
 state.slides=reply.split(/[。！？\n]/);
 state.i=0;
 }
 
-/* プレゼン */
+/* ===== プレゼン ===== */
 function togglePresentation(){
 presentation.style.display=
 presentation.style.display==="flex"?"none":"flex";
@@ -158,15 +215,8 @@ state.i=(state.i+1)%state.slides.length;
 presentation.innerText=state.slides[state.i];
 }
 
-/* 自動AI */
-setInterval(()=>{
-if(Date.now()-state.lastTalk>300000){
-add("ニュース見る？","ai");
-}
-},60000);
-
-/* 音声入力（ウェイクワード） */
-function startVoice(){
+/* ===== 音声（常時） ===== */
+function startListening(){
 const R=window.SpeechRecognition||window.webkitSpeechRecognition;
 if(!R)return;
 
@@ -180,55 +230,87 @@ if(t.includes("美咲")){
 t=t.replace("美咲","").trim();
 input.value=t;
 send();
-}else{
-add("『美咲』って呼んでね","ai");
 }
 };
 
+rec.onend=()=>startListening();
 rec.start();
 }
+
+/* ===== 自動AI ===== */
+setInterval(()=>{
+if(Date.now()-state.lastTalk>300000){
+add("何かする？ニュース見る？","ai");
+}
+},60000);
+
+/* ===== ホームAI ===== */
+function generateHomeAI(){
+const h=new Date().getHours();
+let msg=h<10?"おはよう":h<18?"元気？":"お疲れ様";
+
+if(state.memory.length>0){
+msg+=" 続き話す？";
+}
+
+homeAI.innerText="美咲："+msg;
+speak(msg);
+}
+
+/* ===== ホーム ===== */
+function enterChat(){
+homeScreen.style.display="none";
+}
+function showHome(){
+homeScreen.style.display="flex";
+generateHomeAI();
+}
+
+/* ===== 外部 ===== */
+function open(url){window.open(url);}
+function openGmail(){open("https://mail.google.com");}
+function openCalendar(){open("https://calendar.google.com");}
+function openLine(){open("https://line.me");}
+function sendToLine(){
+const t=document.querySelector(".bubble:last-child")?.innerText;
+open("https://line.me/R/msg/text/?"+encodeURIComponent(t));
+}
+function openYahooNews(){open("https://news.yahoo.co.jp");}
+function openNewsPicks(){open("https://newspicks.com");}
+function openMap(){open("https://maps.google.com");}
+function searchMap(){
+const q=prompt("場所");
+open("https://www.google.com/maps/search/"+q);
+}
+function openTransit(){open("https://transit.yahoo.co.jp");}
+function openJorudan(){open("https://www.jorudan.co.jp");}
+function googleSearch(q){
+if(!q) q=prompt("検索");
+open("https://google.com/search?q="+q);
+}
+
+/* ===== 設定 ===== */
+function openSettings(){
+modal.style.display="flex";
+apiKey.value=localStorage.getItem("apiKey")||"";
+prompt.value=localStorage.getItem("prompt")||"";
+}
+function saveSettings(){
+localStorage.setItem("apiKey",apiKey.value);
+localStorage.setItem("prompt",prompt.value);
+modal.style.display="none";
+add("保存OK","ai");
+}
+
+/* ===== 初期 ===== */
+window.onload=()=>{
+showHome();
+};
 
 /* Enter */
 input.addEventListener("keydown",e=>{
 if(e.key==="Enter") send();
 });
-
-/* 外部 */
-function openGmail(){window.open("https://mail.google.com");}
-function openCalendar(){window.open("https://calendar.google.com");}
-function openLine(){window.open("https://line.me");}
-function sendToLine(){
-const t=document.querySelector(".bubble:last-child")?.innerText;
-window.open("https://line.me/R/msg/text/?"+encodeURIComponent(t));
-}
-function openYahooNews(){window.open("https://news.yahoo.co.jp");}
-function openNewsPicks(){window.open("https://newspicks.com");}
-function openMap(){window.open("https://maps.google.com");}
-function searchMap(){
-const q=prompt("場所");
-window.open("https://www.google.com/maps/search/"+q);
-}
-function openTransit(){window.open("https://transit.yahoo.co.jp");}
-function openJorudan(){window.open("https://www.jorudan.co.jp");}
-function googleSearch(){
-const q=prompt("検索");
-window.open("https://google.com/search?q="+q);
-}
-
-/* 設定 */
-function openSettings(){
-modal.style.display="flex";
-apiKey.value=localStorage.getItem("apiKey")||"";
-prompt.value=localStorage.getItem("prompt")||"";
-mode.value=localStorage.getItem("mode")||"normal";
-}
-function saveSettings(){
-localStorage.setItem("apiKey",apiKey.value);
-localStorage.setItem("prompt",prompt.value);
-localStorage.setItem("mode",mode.value);
-modal.style.display="none";
-add("保存OK","ai");
-}
 </script>
 
 </body>
