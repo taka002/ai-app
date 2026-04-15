@@ -7,6 +7,7 @@
 
 <style>
 *{box-sizing:border-box;}
+
 body{
   margin:0;
   font-family:sans-serif;
@@ -100,7 +101,7 @@ body{
   background:#222;color:#fff;padding:20px;
   border-radius:12px;width:90%;
 }
-#modal input,#modal textarea,#modal select{
+#modal input,#modal select{
   width:100%;margin:6px 0;padding:8px;
 }
 </style>
@@ -135,7 +136,6 @@ body{
 
 <div id="modal">
 <div id="modalContent">
-APIキー<input id="apiKey">
 Geminiキー<input id="geminiKey">
 
 モード
@@ -155,7 +155,6 @@ Geminiキー<input id="geminiKey">
 <script>
 const chat=document.getElementById("chat");
 const input=document.getElementById("input");
-const avatar=document.getElementById("avatar");
 
 let voiceOn=localStorage.getItem("voiceOn")==="true";
 let history=JSON.parse(localStorage.getItem("history")||"[]");
@@ -191,7 +190,7 @@ speechSynthesis.speak(new SpeechSynthesisUtterance(text));
 }
 }
 
-/* ===== 送信 ===== */
+/* ===== 送信（安全版） ===== */
 document.getElementById("sendBtn").onclick=sendMessage;
 input.addEventListener("keydown",e=>{if(e.key==="Enter")sendMessage();});
 
@@ -203,9 +202,6 @@ if(!text)return;
 addMessage(text,"user");
 input.value="";
 
-const apiKey=localStorage.getItem("apiKey");
-if(!apiKey){addMessage("APIキー未設定","ai");return;}
-
 history.push({role:"user",content:text});
 
 const mode=localStorage.getItem("mode")||"normal";
@@ -215,19 +211,17 @@ if(mode==="counselor") modePrompt="優しく寄り添う";
 if(mode==="secretary") modePrompt="秘書として整理";
 
 try{
-const res=await fetch("https://api.openai.com/v1/chat/completions",{
+const res=await fetch("/api/chat",{
 method:"POST",
-headers:{
-"Content-Type":"application/json",
-"Authorization":"Bearer "+apiKey
-},
+headers:{ "Content-Type":"application/json" },
 body:JSON.stringify({
-model:"gpt-4o-mini",
 messages:[{role:"system",content:modePrompt},...history.slice(-10)]
 })
 });
+
 const data=await res.json();
 const reply=data.choices?.[0]?.message?.content||"エラー";
+
 addMessage(reply,"ai");
 
 history.push({role:"assistant",content:reply});
@@ -238,7 +232,7 @@ addMessage("通信エラー","ai");
 }
 }
 
-/* ===== 画像 ===== */
+/* ===== 画像（Gemini） ===== */
 document.querySelector(".cam").onclick=()=>{imageInput.setAttribute("capture","environment");imageInput.click();}
 document.querySelector(".img").onclick=()=>{imageInput.removeAttribute("capture");imageInput.click();}
 
@@ -254,10 +248,11 @@ fr.onload=()=>r(fr.result);
 fr.readAsDataURL(file);
 });
 
-const geminiKey=localStorage.getItem("geminiKey");
+const key=localStorage.getItem("geminiKey");
 
-if(geminiKey){
-const res=await fetch(`https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${geminiKey}`,{
+if(!key){addMessage("Geminiキー未設定","ai");return;}
+
+const res=await fetch(`https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${key}`,{
 method:"POST",
 headers:{ "Content-Type":"application/json" },
 body:JSON.stringify({
@@ -267,28 +262,24 @@ contents:[{parts:[
 ]}]
 })
 });
+
 const data=await res.json();
-addMessage(data.candidates?.[0]?.content?.parts?.[0]?.text||"Gemini失敗","ai");
-}else{
-addMessage("Geminiキー未設定","ai");
-}
-e.target.value="";
+addMessage(data.candidates?.[0]?.content?.parts?.[0]?.text||"失敗","ai");
 };
 
 /* ===== 位置＋天気 ===== */
-document.querySelector(".loc").onclick=async ()=>{
+document.querySelector(".loc").onclick=()=>{
 navigator.geolocation.getCurrentPosition(async pos=>{
 const lat=pos.coords.latitude;
 const lon=pos.coords.longitude;
 
 const geo=await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json`);
 const geoData=await geo.json();
-locationText="📍"+(geoData.address.city||geoData.address.town||"");
+locationText="📍"+(geoData.address.city||geoData.address.town||geoData.address.village||"");
 
 const w=await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true`);
 const wData=await w.json();
 weatherText=`🌤${wData.current_weather.temperature}℃`;
-
 });
 };
 
@@ -298,16 +289,14 @@ document.querySelector(".cal").onclick=()=>window.open("https://calendar.google.
 /* ===== 設定 ===== */
 document.querySelector(".set").onclick=()=>{
 modal.style.display="flex";
-apiKey.value=localStorage.getItem("apiKey")||"";
-geminiKey.value=localStorage.getItem("geminiKey")||"";
 mode.value=localStorage.getItem("mode")||"normal";
 voiceToggle.checked=voiceOn;
+geminiKey.value=localStorage.getItem("geminiKey")||"";
 };
 
 function saveSettings(){
-localStorage.setItem("apiKey",apiKey.value);
-localStorage.setItem("geminiKey",geminiKey.value);
 localStorage.setItem("mode",mode.value);
+localStorage.setItem("geminiKey",geminiKey.value);
 voiceOn=voiceToggle.checked;
 localStorage.setItem("voiceOn",voiceOn);
 modal.style.display="none";
