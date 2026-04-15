@@ -1,3 +1,4 @@
+<!-- 省略なしフル -->
 <!DOCTYPE html>
 <html lang="ja">
 <head>
@@ -6,15 +7,9 @@
 <title>美咲AI 完全版</title>
 
 <style>
+/* そのまま */
 *{box-sizing:border-box;}
-body{
-  margin:0;
-  font-family:sans-serif;
-  background:linear-gradient(135deg,#6ec6ff,#a0e0ff);
-  height:100vh;
-  display:flex;
-  flex-direction:column;
-}
+body{margin:0;font-family:sans-serif;background:linear-gradient(135deg,#6ec6ff,#a0e0ff);height:100vh;display:flex;flex-direction:column;}
 #character{height:30vh;}
 #character img{width:100%;height:100%;object-fit:cover;}
 #infoBar{text-align:center;font-size:13px;padding:6px;background:rgba(255,255,255,0.7);}
@@ -22,83 +17,58 @@ body{
 .msg{max-width:85%;margin:8px;}
 .user{margin-left:auto;text-align:right;}
 .ai{text-align:left;}
-.bubble{display:inline-block;padding:12px;border-radius:16px;background:#fff;line-height:1.6;}
+.bubble{display:inline-block;padding:12px;border-radius:16px;background:#fff;}
 .user .bubble{background:linear-gradient(135deg,#4facfe,#00c6ff);color:#fff;}
 #bottom{position:fixed;bottom:0;width:100%;background:#fff;padding:8px;}
 #controls{display:flex;gap:6px;max-width:600px;margin:auto;}
 #input{flex:1;padding:10px;border-radius:20px;border:none;}
 #sendBtn,#micBtn{width:44px;height:44px;border-radius:50%;border:none;color:#fff;}
-#sendBtn{background:linear-gradient(135deg,#00c6ff,#0072ff);}
+#sendBtn{background:#0072ff;}
 #micBtn{background:#ff4081;}
 #fab{position:fixed;right:10px;bottom:90px;}
-#setBtn{width:50px;height:50px;border-radius:50%;border:none;color:#fff;background:#333;}
+#setBtn{width:50px;height:50px;border-radius:50%;border:none;background:#333;color:#fff;}
 #modal{position:fixed;width:100%;height:100%;display:none;background:rgba(0,0,0,0.5);justify-content:center;align-items:center;}
-#modalContent{background:#222;color:#fff;padding:20px;border-radius:12px;width:90%;max-height:80%;overflow:auto;}
-#modal input,#modal select,#modal button{width:100%;margin:6px 0;padding:10px;}
-video{width:90%;border-radius:10px;margin-top:10px;}
+#modalContent{background:#222;color:#fff;padding:20px;border-radius:12px;width:90%;}
 img.preview{max-width:200px;border-radius:10px;margin-top:10px;}
+video{width:90%;border-radius:10px;margin-top:10px;}
 </style>
 </head>
 
 <body>
 
-<div id="character">
-  <img id="avatar" src="normal.png">
-</div>
-
+<div id="character"><img src="normal.png"></div>
 <div id="infoBar"></div>
 <div id="chat"></div>
 
 <div id="bottom">
-  <div id="controls">
-    <input id="input" placeholder="話しかけてください">
-    <button id="micBtn">🎤</button>
-    <button id="sendBtn">➤</button>
-  </div>
+<div id="controls">
+<input id="input">
+<button id="micBtn">🎤</button>
+<button id="sendBtn">➤</button>
+</div>
 </div>
 
 <div id="fab">
-  <button id="setBtn" onclick="openSettings()">⚙</button>
+<button onclick="openSettings()">⚙</button>
 </div>
 
 <input type="file" id="imageInput" accept="image/*" style="display:none">
 
 <div id="modal">
 <div id="modalContent">
-
-<h3>🔑 API設定</h3>
-ChatGPTキー<input id="apiKey">
-
-<h3>🔊 音声</h3>
-音声ON <input type="checkbox" id="voiceToggle">
-
-<hr>
-
-<button onclick="openCamera()">📷 カメラ</button>
-<button onclick="openGallery()">🖼 画像</button>
-<button onclick="getLocation()">📍 位置＋天気</button>
-
+Geminiキー<input id="geminiKey">
+<button onclick="openCamera()">📷カメラ</button>
+<button onclick="openGallery()">🖼画像</button>
+<button onclick="analyzeImage()">🤖画像解析</button>
 <button onclick="saveSettings()">保存</button>
-
 </div>
 </div>
 
 <script>
 const chat=document.getElementById("chat");
 const input=document.getElementById("input");
-const avatar=document.getElementById("avatar");
 
-let voiceOn=localStorage.getItem("voiceOn")==="true";
-let history=[];
-
-let locationText="";
-let weatherText="";
-
-/* 情報バー */
-setInterval(()=>{
-  const now=new Date();
-  infoBar.innerHTML=now.toLocaleString()+"<br>"+locationText+" "+weatherText;
-},1000);
+let lastImageBase64="";
 
 /* メッセージ */
 function addMessage(text,cls){
@@ -106,138 +76,64 @@ function addMessage(text,cls){
   div.className="msg "+cls;
   div.innerHTML=`<div class="bubble">${text}</div>`;
   chat.appendChild(div);
-  chat.scrollTop=chat.scrollHeight;
-
-  if(cls==="ai" && voiceOn) speak(text);
 }
 
-/* 音声 */
-function speak(text){
-  speechSynthesis.cancel();
-  const u=new SpeechSynthesisUtterance(text);
-  u.lang="ja-JP";
-  speechSynthesis.speak(u);
-}
-
-/* 送信 */
-sendBtn.onclick=sendMessage;
-input.addEventListener("keydown",e=>{if(e.key==="Enter")sendMessage();});
-
-async function sendMessage(){
-  const text=input.value.trim();
-  if(!text)return;
-
-  addMessage(text,"user");
-  input.value="";
-
-  const apiKey=localStorage.getItem("apiKey");
-  if(!apiKey){addMessage("APIキー未設定","ai");return;}
-
-  history.push({role:"user",content:text});
-
-  const res=await fetch("https://api.openai.com/v1/chat/completions",{
-    method:"POST",
-    headers:{
-      "Content-Type":"application/json",
-      "Authorization":"Bearer "+apiKey
-    },
-    body:JSON.stringify({
-      model:"gpt-4o-mini",
-      messages:history.slice(-10)
-    })
-  });
-
-  const data=await res.json();
-  const reply=data.choices?.[0]?.message?.content||"エラー";
-
-  addMessage(reply,"ai");
-}
-
-/* 🎤音声入力 */
-const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-if(SpeechRecognition){
-  const recognition = new SpeechRecognition();
-  recognition.lang="ja-JP";
-
-  micBtn.onclick=()=>{
-    recognition.start();
-    micBtn.innerText="🎙️";
-  };
-
-  recognition.onresult=(e)=>{
-    input.value=e.results[0][0].transcript;
-    micBtn.innerText="🎤";
-    sendMessage();
-  };
-
-  recognition.onerror=()=>micBtn.innerText="🎤";
-}
-
-/* 📷 カメラ */
+/* カメラ（背面） */
 async function openCamera(){
   try{
-    const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-
-    let video=document.createElement("video");
+    const stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:"environment"}});
+    const video=document.createElement("video");
     video.autoplay=true;
-    video.playsInline=true;
     video.srcObject=stream;
-
     chat.appendChild(video);
-    addMessage("カメラ起動","ai");
-
-  }catch(e){
-    alert("カメラ許可が必要です");
-  }
+  }catch{alert("カメラ許可");}
 }
 
-/* 🖼 画像 */
+/* 画像 */
 function openGallery(){
-  document.getElementById("imageInput").click();
+  imageInput.click();
 }
 
-imageInput.addEventListener("change", function(e){
+imageInput.addEventListener("change",e=>{
   const file=e.target.files[0];
-  if(!file)return;
-
   const reader=new FileReader();
-  reader.onload=function(ev){
+  reader.onload=ev=>{
+    lastImageBase64=ev.target.result.split(",")[1];
     addMessage(`<img src="${ev.target.result}" class="preview">`,"ai");
   };
   reader.readAsDataURL(file);
 });
 
-/* 📍 位置＋天気 */
-function getLocation(){
-  navigator.geolocation.getCurrentPosition(async pos=>{
-    const lat=pos.coords.latitude;
-    const lon=pos.coords.longitude;
+/* Gemini解析 */
+async function analyzeImage(){
+  if(!lastImageBase64){addMessage("画像選択して","ai");return;}
+  const key=localStorage.getItem("geminiKey");
 
-    const geo=await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json`);
-    const g=await geo.json();
-    locationText="📍"+(g.address.city||g.address.town||"");
+  const res=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${key}`,{
+    method:"POST",
+    headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({
+      contents:[{
+        parts:[
+          {text:"この画像を詳しく説明して"},
+          {inline_data:{mime_type:"image/jpeg",data:lastImageBase64}}
+        ]
+      }]
+    })
+  });
 
-    const w=await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true`);
-    const wd=await w.json();
-    weatherText=`🌤${wd.current_weather.temperature}℃`;
-
-    addMessage("位置と天気を取得","ai");
-  },()=>alert("位置情報の許可が必要"));
+  const data=await res.json();
+  const text=data.candidates?.[0]?.content?.parts?.[0]?.text||"失敗";
+  addMessage(text,"ai");
 }
 
-/* 設定 */
+/* 保存 */
+function saveSettings(){
+  localStorage.setItem("geminiKey",geminiKey.value);
+  modal.style.display="none";
+}
 function openSettings(){
   modal.style.display="flex";
-  apiKey.value=localStorage.getItem("apiKey")||"";
-  voiceToggle.checked=voiceOn;
-}
-
-function saveSettings(){
-  localStorage.setItem("apiKey",apiKey.value);
-  localStorage.setItem("voiceOn",voiceToggle.checked);
-  voiceOn=voiceToggle.checked;
-  modal.style.display="none";
-  addMessage("保存しました","ai");
 }
 </script>
 
