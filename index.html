@@ -3,73 +3,40 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>美咲AI ガチ最終版</title>
+<title>美咲AI フル完全版</title>
 
 <style>
-*{box-sizing:border-box;}
-body{
-margin:0;font-family:sans-serif;
-background:linear-gradient(135deg,#6ec6ff,#a0e0ff);
-height:100vh;display:flex;flex-direction:column;
-}
-
-/* ===== UI ===== */
-#character{height:26vh;}
-#character img{width:100%;height:100%;object-fit:cover;}
-
-#infoBar{font-size:12px;text-align:center;background:#fff8;padding:5px;}
-
-#chat{flex:1;overflow-y:auto;padding:10px;padding-bottom:120px;}
+body{margin:0;font-family:sans-serif;background:#6ec6ff;display:flex;flex-direction:column;height:100vh;}
+#chat{flex:1;overflow:auto;padding:10px;}
 .msg{margin:6px;max-width:85%;}
 .user{text-align:right;margin-left:auto;}
 .ai{text-align:left;}
-.bubble{padding:12px;border-radius:14px;background:#fff;}
+.bubble{padding:10px;border-radius:12px;background:#fff;}
 .user .bubble{background:#0072ff;color:#fff;}
 
-#bottom{position:fixed;bottom:0;width:100%;background:#fff;padding:8px;}
-#controls{display:flex;gap:6px;}
-#input{flex:1;padding:10px;border-radius:20px;border:none;}
+#bottom{display:flex;padding:5px;background:#fff;}
+#input{flex:1;padding:10px;border:none;}
 
-button{border:none;padding:8px;border-radius:8px;}
+button{padding:8px;border:none;border-radius:8px;}
+button:active{transform:scale(0.9);opacity:0.7;}
 
-#modal{
-position:fixed;width:100%;height:100%;
-display:none;background:#0008;
-justify-content:center;align-items:center;
-}
-#modalContent{
-background:#222;color:#fff;padding:15px;
-width:90%;max-height:80%;overflow:auto;
-border-radius:10px;
-}
+#modal{position:fixed;width:100%;height:100%;display:none;background:#0008;justify-content:center;align-items:center;}
+#modalContent{background:#222;color:#fff;padding:15px;width:90%;max-height:80%;overflow:auto;border-radius:10px;}
 
-/* プレゼン */
-#presentation{
-position:fixed;top:0;left:0;width:100%;height:100%;
-background:#000;color:#fff;
-display:none;justify-content:center;align-items:center;
-flex-direction:column;
-}
+#presentation{position:fixed;top:0;left:0;width:100%;height:100%;background:#000;color:#fff;display:none;justify-content:center;align-items:center;font-size:24px;text-align:center;}
 </style>
 </head>
 
 <body>
 
-<div id="character">
-<img id="avatar" src="normal.png">
-</div>
-
-<div id="infoBar"></div>
 <div id="chat"></div>
 
 <div id="bottom">
-<div id="controls">
-<input id="input">
+<input id="input" placeholder="話しかけてください">
 <button onclick="startVoice()">🎤</button>
 <button onclick="send()">➤</button>
 <button onclick="togglePresentation()">🎬</button>
 <button onclick="openSettings()">⚙</button>
-</div>
 </div>
 
 <!-- 設定 -->
@@ -77,10 +44,7 @@ flex-direction:column;
 <div id="modalContent">
 
 <h3>API</h3>
-<input id="apiKey" placeholder="OpenAI">
-<input id="geminiKey" placeholder="Gemini">
-<input id="elevenKey" placeholder="Eleven">
-<input id="voiceId">
+<input id="apiKey">
 
 <h3>プロンプト</h3>
 <textarea id="prompt"></textarea>
@@ -93,109 +57,70 @@ flex-direction:column;
 <option value="medical">医療</option>
 </select>
 
-<h3>音声</h3>
-<select id="voiceType">
-<option value="local">ローカル</option>
-<option value="eleven">Eleven</option>
-</select>
-<input type="checkbox" id="voiceToggle">音声ON
-
 <hr>
 
-<button onclick="openYahooNews()">ニュース</button>
-<button onclick="openGoogleMap()">マップ</button>
-<button onclick="openYahooTransit()">乗換</button>
+<button onclick="openGmail()">Gmail</button>
+<button onclick="openCalendar()">カレンダー</button>
+<button onclick="openLine()">LINE</button>
+<button onclick="sendToLine()">LINE送信</button>
+
+<button onclick="openYahooNews()">Yahooニュース</button>
+<button onclick="openNewsPicks()">NewsPicks</button>
+
+<button onclick="openMap()">マップ</button>
+<button onclick="searchMap()">場所検索</button>
+
+<button onclick="openTransit()">乗換</button>
+<button onclick="openJorudan()">ジョルダン</button>
+
+<button onclick="googleSearch()">検索</button>
 
 <button onclick="saveSettings()">保存</button>
 
 </div>
 </div>
 
-<div id="presentation">
-<div id="slideText"></div>
-</div>
+<div id="presentation" onclick="nextSlide()"></div>
 
 <script>
-/* ===== 状態管理 ===== */
-const state={
-memory:JSON.parse(localStorage.getItem("memory")||"[]"),
-health:JSON.parse(localStorage.getItem("health")||"[]"),
-money:JSON.parse(localStorage.getItem("money")||"[]"),
-lastTalk:Date.now(),
-slides:[],slideIndex:0,
-};
+const chat=document.getElementById("chat");
+const input=document.getElementById("input");
+let state={memory:[],lastTalk:Date.now(),slides:[],i:0};
 
-/* ===== UI ===== */
-function add(text,type){
-const div=document.createElement("div");
-div.className="msg "+type;
-div.innerHTML=`<div class="bubble">${text}</div>`;
-chat.appendChild(div);
+/* 表示 */
+function add(t,c){
+const d=document.createElement("div");
+d.className="msg "+c;
+d.innerHTML=`<div class="bubble">${t}</div>`;
+chat.appendChild(d);
 chat.scrollTop=chat.scrollHeight;
-
-if(type==="ai"){
-changeFace(text);
-speak(text);
-}
+if(c==="ai") speak(t);
 }
 
-function changeFace(t){
-avatar.src=t.includes("ありがとう")?"agree.png":"normal.png";
+/* 音声 */
+function speak(t){
+speechSynthesis.cancel();
+speechSynthesis.speak(new SpeechSynthesisUtterance(t));
 }
 
-/* ===== 音声 ===== */
-function speak(text){
-if(localStorage.getItem("voiceType")==="eleven"){
-speakEleven(text);
-}else{
-speechSynthesis.speak(new SpeechSynthesisUtterance(text));
-}
-}
-
-async function speakEleven(text){
-try{
-const res=await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${localStorage.getItem("voiceId")}`,{
-method:"POST",
-headers:{
-"xi-api-key":localStorage.getItem("elevenKey"),
-"Content-Type":"application/json"
-},
-body:JSON.stringify({text})
-});
-const blob=await res.blob();
-new Audio(URL.createObjectURL(blob)).play();
-}catch{
-speechSynthesis.speak(new SpeechSynthesisUtterance(text));
-}
-}
-
-/* ===== 記憶 ===== */
-function saveMemory(u,a){
-state.memory.push({u,a});
-if(state.memory.length>30) state.memory.shift();
-localStorage.setItem("memory",JSON.stringify(state.memory));
-}
-
-/* ===== AI ===== */
+/* AI */
 async function send(){
-const t=input.value.trim();
+let t=input.value.trim();
 if(!t)return;
 
 add(t,"user");
 input.value="";
 state.lastTalk=Date.now();
 
-/* 命令解析 */
-if(t.includes("美咲")){
-if(t.includes("ニュース")) return openYahooNews();
-if(t.includes("地図")) return openGoogleMap();
-}
+add("考え中...","ai");
 
-/* 通常AI */
+/* コマンド */
+if(t.includes("ニュース")) return openYahooNews();
+if(t.includes("地図")) return openMap();
+if(t.includes("乗換")) return openTransit();
+
 const key=localStorage.getItem("apiKey");
 if(!key)return add("APIキー未設定","ai");
-
-const mem=state.memory.map(m=>m.u+m.a).join("\n");
 
 const res=await fetch("https://api.openai.com/v1/chat/completions",{
 method:"POST",
@@ -206,86 +131,101 @@ headers:{
 body:JSON.stringify({
 model:"gpt-4o-mini",
 messages:[
-{role:"system",content:(localStorage.getItem("prompt")||"")+"\n"+mem},
+{role:"system",content:(localStorage.getItem("prompt")||"")},
 {role:"user",content:t}
 ]
 })
 });
 
-const data=await res.json();
-const reply=data.choices?.[0]?.message?.content||"エラー";
+const d=await res.json();
+const reply=d.choices?.[0]?.message?.content||"エラー";
 
 add(reply,"ai");
-saveMemory(t,reply);
 
-/* スライド生成 */
-state.slides=reply.split(/[。！？\n]/).filter(s=>s);
-state.slideIndex=0;
+/* スライド */
+state.slides=reply.split(/[。！？\n]/);
+state.i=0;
 }
 
-/* ===== プレゼン ===== */
+/* プレゼン */
 function togglePresentation(){
 presentation.style.display=
 presentation.style.display==="flex"?"none":"flex";
-showSlide();
+presentation.innerText=state.slides[state.i]||"";
 }
-
-function showSlide(){
-if(!state.slides.length)return;
-slideText.innerText=state.slides[state.slideIndex];
-}
-
 function nextSlide(){
-state.slideIndex=(state.slideIndex+1)%state.slides.length;
-showSlide();
+state.i=(state.i+1)%state.slides.length;
+presentation.innerText=state.slides[state.i];
 }
 
-/* ===== 自動AI ===== */
+/* 自動AI */
 setInterval(()=>{
 if(Date.now()-state.lastTalk>300000){
-add("そろそろ話そうか？","ai");
+add("ニュース見る？","ai");
 }
 },60000);
 
-/* ===== 体調AI ===== */
-setInterval(()=>{
-if(!state.health.length)return;
-add("体調どう？無理しないでね","ai");
-},600000);
-
-/* ===== 外部 ===== */
-function openYahooNews(){window.open("https://news.yahoo.co.jp");}
-function openGoogleMap(){window.open("https://maps.google.com");}
-function openYahooTransit(){window.open("https://transit.yahoo.co.jp");}
-
-/* ===== 音声入力 ===== */
-let recognition;
+/* 音声入力（ウェイクワード） */
 function startVoice(){
 const R=window.SpeechRecognition||window.webkitSpeechRecognition;
 if(!R)return;
 
-recognition=new R();
-recognition.lang="ja-JP";
+const rec=new R();
+rec.lang="ja-JP";
 
-recognition.onresult=e=>{
-const t=e.results[0][0].transcript;
+rec.onresult=e=>{
+let t=e.results[0][0].transcript;
+
+if(t.includes("美咲")){
+t=t.replace("美咲","").trim();
 input.value=t;
 send();
+}else{
+add("『美咲』って呼んでね","ai");
+}
 };
 
-recognition.start();
+rec.start();
 }
 
-/* ===== 設定 ===== */
+/* Enter */
+input.addEventListener("keydown",e=>{
+if(e.key==="Enter") send();
+});
+
+/* 外部 */
+function openGmail(){window.open("https://mail.google.com");}
+function openCalendar(){window.open("https://calendar.google.com");}
+function openLine(){window.open("https://line.me");}
+function sendToLine(){
+const t=document.querySelector(".bubble:last-child")?.innerText;
+window.open("https://line.me/R/msg/text/?"+encodeURIComponent(t));
+}
+function openYahooNews(){window.open("https://news.yahoo.co.jp");}
+function openNewsPicks(){window.open("https://newspicks.com");}
+function openMap(){window.open("https://maps.google.com");}
+function searchMap(){
+const q=prompt("場所");
+window.open("https://www.google.com/maps/search/"+q);
+}
+function openTransit(){window.open("https://transit.yahoo.co.jp");}
+function openJorudan(){window.open("https://www.jorudan.co.jp");}
+function googleSearch(){
+const q=prompt("検索");
+window.open("https://google.com/search?q="+q);
+}
+
+/* 設定 */
 function openSettings(){
 modal.style.display="flex";
+apiKey.value=localStorage.getItem("apiKey")||"";
+prompt.value=localStorage.getItem("prompt")||"";
+mode.value=localStorage.getItem("mode")||"normal";
 }
-
 function saveSettings(){
 localStorage.setItem("apiKey",apiKey.value);
 localStorage.setItem("prompt",prompt.value);
-localStorage.setItem("voiceType",voiceType.value);
-localStorage.setItem("voiceOn",voiceToggle.checked);
+localStorage.setItem("mode",mode.value);
 modal.style.display="none";
 add("保存OK","ai");
 }
