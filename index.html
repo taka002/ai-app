@@ -16,9 +16,17 @@ body{
   flex-direction:column;
 }
 
-#character{height:30vh;}
-#character img{width:100%;height:100%;object-fit:cover;}
+/* キャラ（大きく＆下げる） */
+#character{
+  height:30vh;
+}
+#character img{
+  width:100%;
+  height:100%;
+  object-fit:cover;
+}
 
+/* 情報バー */
 #infoBar{
   text-align:center;
   font-size:13px;
@@ -26,6 +34,7 @@ body{
   background:rgba(255,255,255,0.7);
 }
 
+/* チャット */
 #chat{
   flex:1;
   overflow-y:auto;
@@ -42,12 +51,14 @@ body{
   padding:12px;
   border-radius:16px;
   background:#fff;
+  line-height:1.6;
 }
 .user .bubble{
   background:linear-gradient(135deg,#4facfe,#00c6ff);
   color:#fff;
 }
 
+/* 入力 */
 #bottom{
   position:fixed;
   bottom:0;
@@ -55,19 +66,49 @@ body{
   background:#fff;
   padding:8px;
 }
-#controls{display:flex;gap:6px;max-width:600px;margin:auto;}
-#input{flex:1;padding:10px;border-radius:20px;border:none;}
-
-#sendBtn,#micBtn{
-  width:44px;height:44px;border-radius:50%;
-  border:none;color:#fff;
+#controls{
+  display:flex;
+  gap:6px;
+  max-width:600px;
+  margin:auto;
 }
-#sendBtn{background:#0072ff;}
-#micBtn{background:#ff4081;}
+#input{
+  flex:1;
+  padding:10px;
+  border-radius:20px;
+  border:none;
+}
 
-#fab{position:fixed;right:10px;bottom:90px;}
-#setBtn{width:50px;height:50px;border-radius:50%;background:#333;color:#fff;border:none;}
+/* ボタン */
+#sendBtn,#micBtn{
+  width:44px;
+  height:44px;
+  border-radius:50%;
+  border:none;
+  color:#fff;
+}
+#sendBtn{
+  background:linear-gradient(135deg,#00c6ff,#0072ff);
+}
+#micBtn{
+  background:#ff4081;
+}
 
+/* 設定 */
+#fab{
+  position:fixed;
+  right:10px;
+  bottom:90px;
+}
+#setBtn{
+  width:50px;height:50px;
+  border-radius:50%;
+  border:none;
+  color:#fff;
+  background:#333;
+}
+
+/* モーダル */
 #modal{
   position:fixed;width:100%;height:100%;
   display:none;background:rgba(0,0,0,0.5);
@@ -76,195 +117,243 @@ body{
 #modalContent{
   background:#222;color:#fff;padding:20px;
   border-radius:12px;width:90%;
+  max-height:80%;overflow:auto;
 }
-#modal input{width:100%;margin:6px 0;padding:10px;}
+#modal input,#modal select,#modal button{
+  width:100%;margin:6px 0;padding:10px;
+}
 </style>
 </head>
 
 <body>
 
 <div id="character">
-<img id="avatar" src="normal.png">
+  <img id="avatar" src="normal.png">
 </div>
 
 <div id="infoBar"></div>
+
 <div id="chat"></div>
 
 <div id="bottom">
-<div id="controls">
-<input id="input">
-<button id="micBtn">🎤</button>
-<button id="sendBtn">➤</button>
-</div>
+  <div id="controls">
+    <input id="input" placeholder="話しかけてください">
+    <button id="micBtn">🎤</button>
+    <button id="sendBtn">➤</button>
+  </div>
 </div>
 
 <div id="fab">
-<button id="setBtn" onclick="openSettings()">⚙</button>
+  <button id="setBtn" onclick="openSettings()">⚙</button>
 </div>
 
+<input type="file" id="imageInput" accept="image/*" style="display:none">
+
+<!-- 設定 -->
 <div id="modal">
 <div id="modalContent">
-<h3>APIキー</h3>
-<input id="apiKey">
+
+<h3>🔑 API設定</h3>
+ChatGPTキー<input id="apiKey">
+Geminiキー<input id="geminiKey">
+ElevenLabsキー<input id="elevenKey">
+VoiceID<input id="voiceId">
+
+<h3>🎭 モード</h3>
+<select id="mode">
+<option value="normal">通常</option>
+<option value="teacher">家庭教師</option>
+<option value="counselor">カウンセラー</option>
+<option value="medical">医療</option>
+<option value="sales">営業</option>
+<option value="secretary">秘書</option>
+</select>
+
+<h3>🔊 音声</h3>
+<select id="voiceType">
+<option value="local">ローカル</option>
+<option value="eleven">ElevenLabs</option>
+</select>
+
+音声ON <input type="checkbox" id="voiceToggle">
+
+<hr>
+
+<button onclick="openCamera()">📷 カメラ</button>
+<button onclick="openGallery()">🖼 画像</button>
+<button onclick="getLocation()">📍 位置＋天気</button>
+<button onclick="openCalendar()">📅 カレンダー</button>
+
 <button onclick="saveSettings()">保存</button>
+
 </div>
 </div>
 
 <script>
 const chat=document.getElementById("chat");
 const input=document.getElementById("input");
+const avatar=document.getElementById("avatar");
 
-/* ===== 記憶AI ===== */
-let memory=JSON.parse(localStorage.getItem("memory")||"[]");
+let voiceOn=localStorage.getItem("voiceOn")==="true";
+let history=JSON.parse(localStorage.getItem("history")||"[]");
 
-/* 表示 */
-function addMessage(t,c){
-const d=document.createElement("div");
-d.className="msg "+c;
-d.innerHTML=`<div class="bubble">${t}</div>`;
-chat.appendChild(d);
-chat.scrollTop=chat.scrollHeight;
+let locationText="";
+let weatherText="";
 
-if(c==="ai") speak(t);
+/* 表情 */
+function changeFace(text){
+  if(text.includes("ありがとう")) avatar.src="agree.png";
+  else if(text.includes("怒")) avatar.src="怒り.png";
+  else if(text.includes("悩")) avatar.src="ためらい.png";
+  else avatar.src="normal.png";
+}
+
+/* 情報バー */
+setInterval(()=>{
+  const now=new Date();
+  infoBar.innerHTML=now.toLocaleString()+"<br>"+locationText+" "+weatherText;
+},1000);
+
+/* メッセージ */
+function addMessage(text,cls){
+  const div=document.createElement("div");
+  div.className="msg "+cls;
+  div.innerHTML=`<div class="bubble">${text}</div>`;
+  chat.appendChild(div);
+  chat.scrollTop=chat.scrollHeight;
+
+  if(cls==="ai"){
+    changeFace(text);
+    if(voiceOn) speak(text);
+  }
 }
 
 /* 音声 */
-function speak(t){
-speechSynthesis.cancel();
-speechSynthesis.speak(new SpeechSynthesisUtterance(t));
+async function speak(text){
+  const type=localStorage.getItem("voiceType")||"local";
+
+  if(type==="eleven"){
+    const key=localStorage.getItem("elevenKey");
+    const voiceId=localStorage.getItem("voiceId");
+    if(!key||!voiceId) return speakLocal(text);
+
+    try{
+      const res=await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`,{
+        method:"POST",
+        headers:{
+          "xi-api-key":key,
+          "Content-Type":"application/json"
+        },
+        body:JSON.stringify({text})
+      });
+      const blob=await res.blob();
+      new Audio(URL.createObjectURL(blob)).play();
+    }catch{
+      speakLocal(text);
+    }
+  }else{
+    speakLocal(text);
+  }
 }
 
-/* ===== 外部 ===== */
-function openYahooNews(){window.open("https://news.yahoo.co.jp");}
-function openGoogleMap(){window.open("https://maps.google.com");}
-function openYahooTransit(){window.open("https://transit.yahoo.co.jp");}
-function openCalendar(){window.open("https://calendar.google.com");}
-function openLine(){window.open("https://line.me");}
-function sendToLine(){
-const t=document.querySelector(".bubble:last-child")?.innerText;
-window.open("https://line.me/R/msg/text/?"+encodeURIComponent(t));
-}
-function openGmail(){window.open("https://mail.google.com");}
-
-/* ===== ウェイクワード ===== */
-function handleCommand(t){
-if(!t.includes("美咲")) return t;
-
-let command = t.replace(/美咲[、,\s]?/,"").trim();
-
-if(command.includes("ニュース")) return openYahooNews();
-if(command.includes("地図")||command.includes("マップ")) return openGoogleMap();
-if(command.includes("乗換")) return openYahooTransit();
-
-if(command.includes("検索")){
-let q=command.replace("検索","").replace("して","").trim();
-if(q) return window.open("https://google.com/search?q="+encodeURIComponent(q));
+function speakLocal(text){
+  speechSynthesis.cancel();
+  const u=new SpeechSynthesisUtterance(text);
+  u.lang="ja-JP";
+  speechSynthesis.speak(u);
 }
 
-if(command.includes("LINE送信")) return sendToLine();
-if(command.includes("LINE")) return openLine();
-if(command.includes("カレンダー")) return openCalendar();
-if(command.includes("Gmail")) return openGmail();
-
-if(command.includes("元気出して")){
-addMessage("大丈夫、ちゃんと休もうね😊","ai");
-return null;
-}
-
-return command;
-}
-
-/* ===== AI送信 ===== */
+/* 送信 */
 sendBtn.onclick=sendMessage;
 input.addEventListener("keydown",e=>{if(e.key==="Enter")sendMessage();});
 
 async function sendMessage(){
-let t=input.value.trim();
-if(!t)return;
+  const text=input.value.trim();
+  if(!text)return;
 
-addMessage(t,"user");
-input.value="";
+  addMessage(text,"user");
+  input.value="";
 
-/* ウェイク */
-let result=handleCommand(t);
-if(result===null)return;
-if(result!==t)t=result;
+  const apiKey=localStorage.getItem("apiKey");
+  if(!apiKey){addMessage("APIキー未設定","ai");return;}
 
-const key=localStorage.getItem("apiKey");
-if(!key)return addMessage("APIキー未設定","ai");
+  history.push({role:"user",content:text});
 
-/* ===== 記憶追加 ===== */
-memory.push("ユーザー:"+t);
-if(memory.length>20) memory.shift();
+  let mode=localStorage.getItem("mode")||"normal";
+  let sys="";
+  if(mode==="teacher")sys="わかりやすく説明";
+  if(mode==="counselor")sys="優しく寄り添う";
+  if(mode==="medical")sys="医療的に丁寧に";
+  if(mode==="sales")sys="営業的に提案";
+  if(mode==="secretary")sys="秘書として整理";
 
-/* ===== AI ===== */
-addMessage("考え中...","ai");
+  const res=await fetch("https://api.openai.com/v1/chat/completions",{
+    method:"POST",
+    headers:{
+      "Content-Type":"application/json",
+      "Authorization":"Bearer "+apiKey
+    },
+    body:JSON.stringify({
+      model:"gpt-4o-mini",
+      messages:[{role:"system",content:sys},...history.slice(-10)]
+    })
+  });
 
-const res=await fetch("https://api.openai.com/v1/chat/completions",{
-method:"POST",
-headers:{
-"Content-Type":"application/json",
-"Authorization":"Bearer "+key
-},
-body:JSON.stringify({
-model:"gpt-4o-mini",
-messages:[
-{role:"system",content:memory.join("\n")},
-{role:"user",content:t}
-]
-})
-});
+  const data=await res.json();
+  const reply=data.choices?.[0]?.message?.content||"エラー";
 
-const data=await res.json();
-const reply=data.choices?.[0]?.message?.content||"エラー";
-
-addMessage(reply,"ai");
-
-/* 記憶保存 */
-memory.push("AI:"+reply);
-localStorage.setItem("memory",JSON.stringify(memory));
+  addMessage(reply,"ai");
 }
 
-/* ===== 自動提案AI ===== */
-let lastTalk=Date.now();
+/* 🎤音声入力 */
+const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 
-setInterval(()=>{
-if(Date.now()-lastTalk>180000){ // 3分放置
-addMessage("ニュース見る？","ai");
-lastTalk=Date.now();
+if(SpeechRecognition){
+  const recognition = new SpeechRecognition();
+  recognition.lang="ja-JP";
+
+  micBtn.onclick=()=>{
+    recognition.start();
+    micBtn.innerText="🎙️";
+  };
+
+  recognition.onresult=(e)=>{
+    input.value=e.results[0][0].transcript;
+    micBtn.innerText="🎤";
+    sendMessage();
+  };
+
+  recognition.onerror=()=>micBtn.innerText="🎤";
 }
-},60000);
 
-/* ===== 音声入力 ===== */
-const R=window.SpeechRecognition||window.webkitSpeechRecognition;
-if(R){
-const rec=new R();
-rec.lang="ja-JP";
+/* 位置 */
+function getLocation(){
+  navigator.geolocation.getCurrentPosition(async pos=>{
+    const lat=pos.coords.latitude;
+    const lon=pos.coords.longitude;
 
-micBtn.onclick=()=>rec.start();
+    const geo=await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json`);
+    const g=await geo.json();
+    locationText="📍"+(g.address.city||g.address.town||g.address.village||"");
 
-rec.onresult=e=>{
-let t=e.results[0][0].transcript;
-
-if(t.includes("美咲")){
-t=t.replace(/美咲[、,\s]?/,"").trim();
-input.value=t;
-sendMessage();
-}else{
-addMessage("『美咲』って呼んでね","ai");
+    const w=await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true`);
+    const wd=await w.json();
+    weatherText=`🌤${wd.current_weather.temperature}℃`;
+  });
 }
-};
-}
+
+function openCalendar(){window.open("https://calendar.google.com");}
 
 /* 設定 */
 function openSettings(){
-modal.style.display="flex";
-apiKey.value=localStorage.getItem("apiKey")||"";
+  modal.style.display="flex";
+  apiKey.value=localStorage.getItem("apiKey")||"";
 }
+
 function saveSettings(){
-localStorage.setItem("apiKey",apiKey.value);
-modal.style.display="none";
-addMessage("保存OK","ai");
+  localStorage.setItem("apiKey",apiKey.value);
+  modal.style.display="none";
+  addMessage("保存しました","ai");
 }
 </script>
 
