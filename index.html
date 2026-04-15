@@ -52,7 +52,6 @@ body{
   color:#fff;
 }
 
-/* 時間 */
 .meta{
   font-size:11px;
   color:#555;
@@ -63,9 +62,8 @@ body{
 #bottom{
   position:fixed;
   bottom:0;
-  left:0;
   width:100%;
-  background:rgba(255,255,255,0.95);
+  background:#fff;
   padding:10px;
 }
 
@@ -83,19 +81,16 @@ body{
   border:none;
 }
 
-/* 送信ボタン */
 #sendBtn{
   width:46px;
   height:46px;
   border-radius:50%;
   border:none;
   color:#fff;
-  font-size:18px;
   background:linear-gradient(135deg,#00c6ff,#0072ff);
-  box-shadow:0 4px 12px rgba(0,0,0,0.25);
 }
 
-/* 浮かせ */
+/* FAB */
 #fab{
   position:fixed;
   right:15px;
@@ -111,18 +106,19 @@ body{
   border-radius:50%;
   border:none;
   color:#fff;
-  font-size:18px;
 }
 
 .cam{background:#ff9800;}
 .img{background:#4caf50;}
 .loc{background:#e91e63;}
+.cal{background:#3f51b5;}
 .set{background:#333;}
 
+/* モーダル */
 #modal{
   position:fixed;
-  top:0;left:0;
-  width:100%;height:100%;
+  width:100%;
+  height:100%;
   display:none;
   background:rgba(0,0,0,0.5);
   justify-content:center;
@@ -135,12 +131,6 @@ body{
   padding:20px;
   border-radius:12px;
   width:90%;
-}
-
-#modal input,#modal textarea,#modal select{
-  width:100%;
-  margin:6px 0;
-  padding:8px;
 }
 </style>
 </head>
@@ -164,6 +154,7 @@ body{
   <button class="cam" onclick="openCamera()">📷</button>
   <button class="img" onclick="openGallery()">🖼</button>
   <button class="loc" onclick="getLocation()">📍</button>
+  <button class="cal" onclick="openCalendar()">📅</button>
   <button class="set" onclick="openSettings()">⚙</button>
 </div>
 
@@ -172,11 +163,8 @@ body{
 <div id="modal">
 <div id="modalContent">
 
-APIキー
-<input id="apiKey">
-
-プロンプト
-<textarea id="prompt"></textarea>
+APIキー<input id="apiKey">
+プロンプト<textarea id="prompt"></textarea>
 
 モード
 <select id="mode">
@@ -185,6 +173,7 @@ APIキー
 <option value="sales">営業</option>
 <option value="medical">医療</option>
 <option value="housework">家事</option>
+<option value="secretary">秘書</option>
 <option value="normal">通常</option>
 </select>
 
@@ -201,33 +190,21 @@ const input=document.getElementById("input");
 const avatar=document.getElementById("avatar");
 
 let voiceOn=localStorage.getItem("voiceOn")==="true";
-let isTalking=false;
 
 /* ===== 記憶 ===== */
 let history = JSON.parse(localStorage.getItem("history") || "[]");
-history = history.filter(m => m && m.role && m.content);
 
 /* ===== メッセージ ===== */
 function addMessage(text,cls){
-
-  const time = new Date().toLocaleTimeString([],{
-    hour:"2-digit",
-    minute:"2-digit"
-  });
+  const time=new Date().toLocaleTimeString([], {hour:"2-digit",minute:"2-digit"});
 
   const wrap=document.createElement("div");
   wrap.className="msg "+cls;
 
-  const bubble=document.createElement("div");
-  bubble.className="bubble";
-  bubble.innerText=text;
-
-  const meta=document.createElement("div");
-  meta.className="meta";
-  meta.innerText=time;
-
-  wrap.appendChild(bubble);
-  wrap.appendChild(meta);
+  wrap.innerHTML=`
+    <div class="bubble">${text}</div>
+    <div class="meta">${time}</div>
+  `;
 
   chat.appendChild(wrap);
   chat.scrollTop=chat.scrollHeight;
@@ -238,61 +215,21 @@ function addMessage(text,cls){
   }
 }
 
-/* ===== 音声＋口パク ===== */
+/* ===== 音声 ===== */
 function speak(text){
   if(!voiceOn) return;
-
   speechSynthesis.cancel();
-
   const u=new SpeechSynthesisUtterance(text);
   u.lang="ja-JP";
-
-  isTalking=true;
-
-  const mouth=setInterval(()=>{
-    if(!isTalking) return;
-
-    avatar.src = avatar.src.includes("open")
-      ? "normal.png"
-      : "mouth_open.png";
-
-  },120);
-
-  u.onend=()=>{
-    isTalking=false;
-    clearInterval(mouth);
-    avatar.src="normal.png";
-  };
-
   speechSynthesis.speak(u);
 }
 
-/* ===== まばたき ===== */
-setInterval(()=>{
-
-  if(isTalking) return;
-
-  avatar.src="blink.png";
-
-  setTimeout(()=>{
-    if(!isTalking){
-      avatar.src="normal.png";
-    }
-  },120);
-
-},3000 + Math.random()*2000);
-
 /* ===== 表情 ===== */
 function changeFace(text){
-
-  if(isTalking) return;
-
   let img="normal.png";
-
-  if(text.includes("嬉")||text.includes("良")) img="happy.png";
-  if(text.includes("疲")||text.includes("眠")) img="sleepy.png";
-  if(text.includes("痛")||text.includes("不安")) img="anxiety.png";
-
+  if(text.includes("嬉")) img="happy.png";
+  if(text.includes("疲")) img="sleepy.png";
+  if(text.includes("痛")) img="anxiety.png";
   avatar.src=img;
 }
 
@@ -313,6 +250,12 @@ async function sendMessage(){
 
   history.push({role:"user",content:text});
 
+  const mode=localStorage.getItem("mode")||"normal";
+  let modePrompt="";
+
+  if(mode==="teacher") modePrompt="わかりやすく説明";
+  if(mode==="secretary") modePrompt="秘書として要点整理・スケジュール整理";
+
   try{
     const res=await fetch("https://api.openai.com/v1/chat/completions",{
       method:"POST",
@@ -323,107 +266,55 @@ async function sendMessage(){
       body:JSON.stringify({
         model:"gpt-4o-mini",
         messages:[
-          {role:"user",content:text}
+          {role:"system",content:modePrompt},
+          ...history.slice(-10)
         ]
       })
     });
 
     const data=await res.json();
+    const reply=data.choices?.[0]?.message?.content || "エラー";
 
-    addMessage(data.choices?.[0]?.message?.content || "エラー","ai");
+    addMessage(reply,"ai");
 
-    history.push({role:"assistant",content:data.choices?.[0]?.message?.content});
+    history.push({role:"assistant",content:reply});
+    localStorage.setItem("history",JSON.stringify(history));
 
   }catch{
     addMessage("通信エラー","ai");
   }
 }
 
-/* Enter送信 */
-input.addEventListener("keydown",e=>{
-  if(e.key==="Enter") sendMessage();
-});
+/* ===== カレンダー ===== */
+function openCalendar(){
+  if(localStorage.getItem("mode")!=="secretary"){
+    addMessage("秘書モードで使用できます","ai");
+    return;
+  }
+  window.open("https://calendar.google.com","_blank");
+}
 
 /* ===== 画像 ===== */
-function openCamera(){
-  imageInput.setAttribute("capture","environment");
-  imageInput.click();
-}
-function openGallery(){
-  imageInput.removeAttribute("capture");
-  imageInput.click();
-}
-
-imageInput.onchange=async e=>{
-
-  const file=e.target.files[0];
-  if(!file) return;
-
-  addMessage("📷解析中...","ai");
-
-  const base64=await new Promise(r=>{
-    const fr=new FileReader();
-    fr.onload=()=>r(fr.result);
-    fr.readAsDataURL(file);
-  });
-
-  const apiKey=localStorage.getItem("apiKey");
-
-  try{
-    const res=await fetch("https://api.openai.com/v1/chat/completions",{
-      method:"POST",
-      headers:{
-        "Content-Type":"application/json",
-        "Authorization":"Bearer "+apiKey
-      },
-      body:JSON.stringify({
-        model:"gpt-4o-mini",
-        messages:[{
-          role:"user",
-          content:[
-            {type:"text",text:"この画像を説明して"},
-            {type:"image_url",image_url:{url:base64}}
-          ]
-        }]
-      })
-    });
-
-    const data=await res.json();
-    addMessage(data.choices?.[0]?.message?.content || "失敗","ai");
-
-  }catch{
-    addMessage("画像エラー","ai");
-  }
-
-  e.target.value="";
-};
+function openCamera(){imageInput.click();}
+function openGallery(){imageInput.click();}
 
 /* ===== 位置 ===== */
 function getLocation(){
   navigator.geolocation.getCurrentPosition(pos=>{
-    addMessage(`📍緯度:${pos.coords.latitude}\n経度:${pos.coords.longitude}`,"ai");
-  },()=>{
-    addMessage("位置取得失敗","ai");
+    addMessage(`📍${pos.coords.latitude},${pos.coords.longitude}`,"ai");
   });
 }
 
 /* ===== 設定 ===== */
 function openSettings(){
   modal.style.display="flex";
-  apiKey.value=localStorage.getItem("apiKey")||"";
-  prompt.value=localStorage.getItem("prompt")||"";
-  mode.value=localStorage.getItem("mode")||"normal";
-  voiceToggle.checked=voiceOn;
 }
 
 function saveSettings(){
   localStorage.setItem("apiKey",apiKey.value);
-  localStorage.setItem("prompt",prompt.value);
   localStorage.setItem("mode",mode.value);
-
   voiceOn=voiceToggle.checked;
   localStorage.setItem("voiceOn",voiceOn);
-
   modal.style.display="none";
   addMessage("設定保存しました","ai");
 }
