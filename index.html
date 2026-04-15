@@ -15,6 +15,7 @@ body{
   height:100vh;
   display:flex;
   flex-direction:column;
+  overflow:hidden;
 }
 
 /* キャラ */
@@ -26,47 +27,76 @@ body{
   flex:1;
   overflow-y:auto;
   padding:12px;
+  padding-bottom:90px;
 }
 
 /* メッセージ */
-.msg{max-width:85%;margin:10px 0;}
-.user{margin-left:auto;}
-.ai{margin-right:auto;}
-
-.card{
-  background:#fff;
-  padding:12px;
-  border-radius:14px;
-  margin-bottom:8px;
+.msg{
+  display:flex;
+  flex-direction:column;
+  max-width:85%;
+  margin:10px;
 }
 
-.user .card{
-  background:#4facfe;
+.user{align-items:flex-end;margin-left:auto;}
+.ai{align-items:flex-start;}
+
+.bubble{
+  padding:12px;
+  border-radius:16px;
+  background:#fff;
+}
+
+.user .bubble{
+  background:linear-gradient(135deg,#4facfe,#00c6ff);
   color:#fff;
 }
 
-/* リスト */
-.list{
-  background:#e8f3ff;
-  padding:10px;
-  border-left:4px solid #4facfe;
-  border-radius:10px;
+/* 時間 */
+.meta{
+  font-size:11px;
+  color:#555;
+  margin-top:4px;
 }
 
-/* フロー */
-.flow{display:flex;gap:6px;flex-wrap:wrap;}
-.flow div{background:#fff;padding:8px;border-radius:8px;}
+.user .meta{text-align:right;}
+.ai .meta{text-align:left;}
 
 /* 入力 */
-#bottom{padding:10px;}
-#controls{display:flex;gap:8px;}
-#input{flex:1;padding:12px;border-radius:20px;border:none;}
-button{
-  border:none;
+#bottom{
+  position:fixed;
+  bottom:0;
+  left:0;
+  width:100%;
+  background:rgba(255,255,255,0.95);
+  padding:10px;
+}
+
+#controls{
+  display:flex;
+  gap:8px;
+  max-width:600px;
+  margin:auto;
+}
+
+#input{
+  flex:1;
+  padding:12px;
   border-radius:20px;
-  background:#667eea;
-  color:white;
-  padding:10px 14px;
+  border:none;
+}
+
+/* 送信ボタン */
+#sendBtn{
+  width:46px;
+  height:46px;
+  border-radius:50%;
+  border:none;
+  color:#fff;
+  font-size:18px;
+
+  background:linear-gradient(135deg,#00c6ff,#0072ff);
+  box-shadow:0 4px 12px rgba(0,0,0,0.25);
 }
 
 /* 浮かせボタン */
@@ -83,10 +113,17 @@ button{
   width:50px;
   height:50px;
   border-radius:50%;
+  border:none;
+  color:#fff;
   font-size:18px;
 }
 
-/* 設定 */
+.cam{background:#ff9800;}
+.img{background:#4caf50;}
+.loc{background:#e91e63;}
+.set{background:#333;}
+
+/* モーダル */
 #modal{
   position:fixed;
   top:0;left:0;
@@ -122,15 +159,16 @@ button{
 <div id="bottom">
   <div id="controls">
     <input id="input" placeholder="話しかけてください">
-    <button onclick="sendMessage()">送信</button>
+    <button id="sendBtn" onclick="sendMessage()">➤</button>
   </div>
 </div>
 
-<!-- 浮かせUI -->
+<!-- 浮かせ -->
 <div id="fab">
-  <button onclick="openCamera()">📷</button>
-  <button onclick="openGallery()">🖼</button>
-  <button onclick="openSettings()">⚙</button>
+  <button class="cam" onclick="openCamera()">📷</button>
+  <button class="img" onclick="openGallery()">🖼</button>
+  <button class="loc" onclick="getLocation()">📍</button>
+  <button class="set" onclick="openSettings()">⚙</button>
 </div>
 
 <input type="file" id="imageInput" accept="image/*" style="display:none">
@@ -168,26 +206,29 @@ const input=document.getElementById("input");
 
 let voiceOn=localStorage.getItem("voiceOn")==="true";
 
-/* ===== 表示 ===== */
-function formatMessage(text){
-  text=text.replace(/\*/g,"");
-
-  return text.split("\n").filter(t=>t.trim()).map(line=>{
-    if(line.includes("→")){
-      return `<div class="flow">${line.split("→").map(s=>`<div>${s}</div>`).join("")}</div>`;
-    }
-    if(line.startsWith("・")||line.startsWith("-")){
-      return `<div class="list">${line}</div>`;
-    }
-    return `<div class="card">${line}</div>`;
-  }).join("");
-}
-
+/* ===== メッセージ ===== */
 function addMessage(text,cls){
-  const div=document.createElement("div");
-  div.className="msg "+cls;
-  div.innerHTML=formatMessage(text);
-  chat.appendChild(div);
+
+  const time = new Date().toLocaleTimeString([],{
+    hour:"2-digit",
+    minute:"2-digit"
+  });
+
+  const wrap=document.createElement("div");
+  wrap.className="msg "+cls;
+
+  const bubble=document.createElement("div");
+  bubble.className="bubble";
+  bubble.innerText=text;
+
+  const meta=document.createElement("div");
+  meta.className="meta";
+  meta.innerText=time;
+
+  wrap.appendChild(bubble);
+  wrap.appendChild(meta);
+
+  chat.appendChild(wrap);
   chat.scrollTop=chat.scrollHeight;
 
   if(cls==="ai" && voiceOn){
@@ -200,6 +241,7 @@ function addMessage(text,cls){
 
 /* ===== 送信 ===== */
 async function sendMessage(){
+
   const text=input.value.trim();
   if(!text) return;
 
@@ -212,16 +254,6 @@ async function sendMessage(){
     return;
   }
 
-  const prompt=localStorage.getItem("prompt")||"";
-  const mode=localStorage.getItem("mode")||"teacher";
-
-  let modePrompt="";
-  if(mode==="teacher") modePrompt="わかりやすく説明";
-  if(mode==="counselor") modePrompt="優しく寄り添う";
-  if(mode==="sales") modePrompt="提案型";
-  if(mode==="medical") modePrompt="安全に説明";
-  if(mode==="housework") modePrompt="家事のコツで説明";
-
   try{
     const res=await fetch("https://api.openai.com/v1/chat/completions",{
       method:"POST",
@@ -232,7 +264,6 @@ async function sendMessage(){
       body:JSON.stringify({
         model:"gpt-4o-mini",
         messages:[
-          {role:"system",content:prompt+"\n"+modePrompt},
           {role:"user",content:text}
         ]
       })
@@ -240,73 +271,68 @@ async function sendMessage(){
 
     const data=await res.json();
 
-    if(!data.choices){
-      addMessage("エラー\n"+JSON.stringify(data,null,2),"ai");
-      return;
-    }
+    addMessage(data.choices?.[0]?.message?.content || "エラー","ai");
 
-    addMessage(data.choices[0].message.content,"ai");
-
-  }catch(e){
+  }catch{
     addMessage("通信エラー","ai");
   }
 }
 
-/* ===== カメラ＆画像 ===== */
+/* ===== 画像 ===== */
 function openCamera(){
-  const input=document.getElementById("imageInput");
-  input.setAttribute("capture","environment");
-  input.click();
+  imageInput.setAttribute("capture","environment");
+  imageInput.click();
 }
-
 function openGallery(){
-  const input=document.getElementById("imageInput");
-  input.removeAttribute("capture");
-  input.click();
+  imageInput.removeAttribute("capture");
+  imageInput.click();
 }
 
-document.getElementById("imageInput").addEventListener("change", async function(e){
-
+imageInput.onchange=async e=>{
   const file=e.target.files[0];
   if(!file) return;
 
   addMessage("画像解析中...","ai");
 
-  const base64 = await new Promise(res=>{
-    const r=new FileReader();
-    r.onload=()=>res(r.result);
-    r.readAsDataURL(file);
+  const base64=await new Promise(r=>{
+    const fr=new FileReader();
+    fr.onload=()=>r(fr.result);
+    fr.readAsDataURL(file);
   });
 
   const apiKey=localStorage.getItem("apiKey");
 
-  try{
-    const res=await fetch("https://api.openai.com/v1/chat/completions",{
-      method:"POST",
-      headers:{
-        "Content-Type":"application/json",
-        "Authorization":"Bearer "+apiKey
-      },
-      body:JSON.stringify({
-        model:"gpt-4o-mini",
-        messages:[{
-          role:"user",
-          content:[
-            {type:"text",text:"この画像をわかりやすく説明して"},
-            {type:"image_url",image_url:{url:base64}}
-          ]
-        }]
-      })
-    });
+  const res=await fetch("https://api.openai.com/v1/chat/completions",{
+    method:"POST",
+    headers:{
+      "Content-Type":"application/json",
+      "Authorization":"Bearer "+apiKey
+    },
+    body:JSON.stringify({
+      model:"gpt-4o-mini",
+      messages:[{
+        role:"user",
+        content:[
+          {type:"text",text:"この画像を説明して"},
+          {type:"image_url",image_url:{url:base64}}
+        ]
+      }]
+    })
+  });
 
-    const data=await res.json();
+  const data=await res.json();
+  addMessage(data.choices?.[0]?.message?.content || "失敗","ai");
+};
 
-    addMessage(data.choices?.[0]?.message?.content || "解析失敗","ai");
-
-  }catch(e){
-    addMessage("画像解析エラー","ai");
-  }
-});
+/* ===== 位置情報 ===== */
+function getLocation(){
+  navigator.geolocation.getCurrentPosition(pos=>{
+    const txt=`現在地：緯度${pos.coords.latitude} 経度${pos.coords.longitude}`;
+    addMessage(txt,"ai");
+  },()=>{
+    addMessage("位置取得失敗","ai");
+  });
+}
 
 /* ===== 設定 ===== */
 function openSettings(){
