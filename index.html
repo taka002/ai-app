@@ -7,7 +7,6 @@
 
 <style>
 *{box-sizing:border-box;}
-
 body{
   margin:0;
   font-family:sans-serif;
@@ -15,7 +14,6 @@ body{
   height:100vh;
   display:flex;
   flex-direction:column;
-  overflow:hidden;
 }
 
 /* キャラ */
@@ -38,12 +36,12 @@ body{
   padding-bottom:90px;
 }
 
-/* メッセージ */
-.msg{display:flex;flex-direction:column;max-width:85%;margin:8px;}
-.user{align-items:flex-end;margin-left:auto;}
-.ai{align-items:flex-start;}
+.msg{max-width:85%;margin:8px;}
+.user{margin-left:auto;text-align:right;}
+.ai{text-align:left;}
 
 .bubble{
+  display:inline-block;
   padding:10px;
   border-radius:14px;
   background:#fff;
@@ -72,24 +70,17 @@ body{
   background:linear-gradient(135deg,#00c6ff,#0072ff);
 }
 
-/* FAB */
+/* 設定ボタン */
 #fab{
   position:fixed;
   right:10px;
   bottom:80px;
-  display:flex;
-  flex-direction:column;
-  gap:8px;
 }
-#fab button{
-  width:48px;height:48px;border-radius:50%;
+#setBtn{
+  width:50px;height:50px;border-radius:50%;
   border:none;color:#fff;
+  background:#333;
 }
-.cam{background:#ff9800;}
-.img{background:#4caf50;}
-.loc{background:#e91e63;}
-.cal{background:#3f51b5;}
-.set{background:#333;}
 
 /* モーダル */
 #modal{
@@ -100,9 +91,10 @@ body{
 #modalContent{
   background:#222;color:#fff;padding:20px;
   border-radius:12px;width:90%;
+  max-height:80%;overflow:auto;
 }
-#modal input,#modal select{
-  width:100%;margin:6px 0;padding:8px;
+#modal input,#modal select,#modal button{
+  width:100%;margin:6px 0;padding:10px;
 }
 </style>
 </head>
@@ -110,7 +102,7 @@ body{
 <body>
 
 <div id="character">
-  <img id="avatar" src="normal.png">
+  <img src="normal.png">
 </div>
 
 <div id="infoBar"></div>
@@ -125,30 +117,42 @@ body{
 </div>
 
 <div id="fab">
-  <button class="cam">📷</button>
-  <button class="img">🖼</button>
-  <button class="loc">📍</button>
-  <button class="cal">📅</button>
-  <button class="set">⚙</button>
+  <button id="setBtn" onclick="openSettings()">⚙</button>
 </div>
 
 <input type="file" id="imageInput" accept="image/*" style="display:none">
 
+<!-- 設定 -->
 <div id="modal">
 <div id="modalContent">
-Geminiキー<input id="geminiKey">
 
-モード
+<h3>🔑 API設定</h3>
+ChatGPTキー<input id="apiKey">
+Geminiキー<input id="geminiKey">
+ElevenLabsキー<input id="elevenKey">
+
+<h3>🎭 モード</h3>
 <select id="mode">
 <option value="normal">通常</option>
 <option value="teacher">家庭教師</option>
 <option value="counselor">カウンセラー</option>
+<option value="medical">医療</option>
+<option value="sales">営業</option>
 <option value="secretary">秘書</option>
 </select>
 
 音声 <input type="checkbox" id="voiceToggle">
 
+<hr>
+
+<h3>⚙ 機能</h3>
+<button onclick="openCamera()">📷 カメラ</button>
+<button onclick="openGallery()">🖼 画像</button>
+<button onclick="getLocation()">📍 位置＋天気</button>
+<button onclick="openCalendar()">📅 カレンダー</button>
+
 <button onclick="saveSettings()">保存</button>
+
 </div>
 </div>
 
@@ -165,57 +169,73 @@ let weatherText="";
 /* ===== 情報バー ===== */
 setInterval(()=>{
 const now=new Date();
-const date=now.toLocaleDateString("ja-JP",{month:"short",day:"numeric",weekday:"short"});
-const time=now.toLocaleTimeString("ja-JP",{hour:"2-digit",minute:"2-digit"});
 document.getElementById("infoBar").innerHTML=
-`${date} ${time}<br>${locationText}<br>${weatherText}`;
+now.toLocaleString()+"<br>"+locationText+" "+weatherText;
 },1000);
 
 /* ===== メッセージ ===== */
 function addMessage(text,cls){
-const wrap=document.createElement("div");
-wrap.className="msg "+cls;
-
-wrap.innerHTML=`
-<div class="bubble">${text}</div>
-<div class="meta">${new Date().toLocaleTimeString()}</div>
-`;
-
-chat.appendChild(wrap);
+const div=document.createElement("div");
+div.className="msg "+cls;
+div.innerHTML=`<div class="bubble">${text}</div>`;
+chat.appendChild(div);
 chat.scrollTop=chat.scrollHeight;
 
 if(cls==="ai" && voiceOn){
-speechSynthesis.cancel();
-speechSynthesis.speak(new SpeechSynthesisUtterance(text));
+speak(text);
 }
 }
 
-/* ===== 送信（安全版） ===== */
+/* ===== ElevenLabs音声 ===== */
+async function speak(text){
+const key=localStorage.getItem("elevenKey");
+if(!key)return;
+
+const res=await fetch("https://api.elevenlabs.io/v1/text-to-speech/YOUR_VOICE_ID",{
+method:"POST",
+headers:{
+"xi-api-key":key,
+"Content-Type":"application/json"
+},
+body:JSON.stringify({text})
+});
+const blob=await res.blob();
+new Audio(URL.createObjectURL(blob)).play();
+}
+
+/* ===== 送信 ===== */
 document.getElementById("sendBtn").onclick=sendMessage;
 input.addEventListener("keydown",e=>{if(e.key==="Enter")sendMessage();});
 
 async function sendMessage(){
-
 const text=input.value.trim();
 if(!text)return;
 
 addMessage(text,"user");
 input.value="";
 
+const apiKey=localStorage.getItem("apiKey");
+if(!apiKey){addMessage("APIキー未設定","ai");return;}
+
 history.push({role:"user",content:text});
 
-const mode=localStorage.getItem("mode")||"normal";
-let modePrompt="";
-if(mode==="teacher") modePrompt="わかりやすく説明";
-if(mode==="counselor") modePrompt="優しく寄り添う";
-if(mode==="secretary") modePrompt="秘書として整理";
+let mode=localStorage.getItem("mode")||"normal";
+let sys="";
+if(mode==="teacher")sys="わかりやすく説明";
+if(mode==="counselor")sys="優しく寄り添う";
+if(mode==="medical")sys="医療的に丁寧に";
+if(mode==="sales")sys="営業的に提案";
+if(mode==="secretary")sys="秘書として整理";
 
-try{
-const res=await fetch("/api/chat",{
+const res=await fetch("https://api.openai.com/v1/chat/completions",{
 method:"POST",
-headers:{ "Content-Type":"application/json" },
+headers:{
+"Content-Type":"application/json",
+"Authorization":"Bearer "+apiKey
+},
 body:JSON.stringify({
-messages:[{role:"system",content:modePrompt},...history.slice(-10)]
+model:"gpt-4o-mini",
+messages:[{role:"system",content:sys},...history.slice(-10)]
 })
 });
 
@@ -226,21 +246,17 @@ addMessage(reply,"ai");
 
 history.push({role:"assistant",content:reply});
 localStorage.setItem("history",JSON.stringify(history));
-
-}catch{
-addMessage("通信エラー","ai");
-}
 }
 
-/* ===== 画像（Gemini） ===== */
-document.querySelector(".cam").onclick=()=>{imageInput.setAttribute("capture","environment");imageInput.click();}
-document.querySelector(".img").onclick=()=>{imageInput.removeAttribute("capture");imageInput.click();}
+/* ===== 画像 ===== */
+function openCamera(){imageInput.setAttribute("capture","environment");imageInput.click();}
+function openGallery(){imageInput.removeAttribute("capture");imageInput.click();}
 
 imageInput.onchange=async e=>{
 const file=e.target.files[0];
 if(!file)return;
 
-addMessage("📷解析中...","ai");
+addMessage("画像解析中...","ai");
 
 const base64=await new Promise(r=>{
 const fr=new FileReader();
@@ -249,8 +265,6 @@ fr.readAsDataURL(file);
 });
 
 const key=localStorage.getItem("geminiKey");
-
-if(!key){addMessage("Geminiキー未設定","ai");return;}
 
 const res=await fetch(`https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${key}`,{
 method:"POST",
@@ -267,8 +281,8 @@ const data=await res.json();
 addMessage(data.candidates?.[0]?.content?.parts?.[0]?.text||"失敗","ai");
 };
 
-/* ===== 位置＋天気 ===== */
-document.querySelector(".loc").onclick=()=>{
+/* ===== 位置 ===== */
+async function getLocation(){
 navigator.geolocation.getCurrentPosition(async pos=>{
 const lat=pos.coords.latitude;
 const lon=pos.coords.longitude;
@@ -281,22 +295,28 @@ const w=await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&long
 const wData=await w.json();
 weatherText=`🌤${wData.current_weather.temperature}℃`;
 });
-};
+}
 
 /* ===== カレンダー ===== */
-document.querySelector(".cal").onclick=()=>window.open("https://calendar.google.com");
+function openCalendar(){
+window.open("https://calendar.google.com");
+}
 
 /* ===== 設定 ===== */
-document.querySelector(".set").onclick=()=>{
+function openSettings(){
 modal.style.display="flex";
+apiKey.value=localStorage.getItem("apiKey")||"";
+geminiKey.value=localStorage.getItem("geminiKey")||"";
+elevenKey.value=localStorage.getItem("elevenKey")||"";
 mode.value=localStorage.getItem("mode")||"normal";
 voiceToggle.checked=voiceOn;
-geminiKey.value=localStorage.getItem("geminiKey")||"";
-};
+}
 
 function saveSettings(){
-localStorage.setItem("mode",mode.value);
+localStorage.setItem("apiKey",apiKey.value);
 localStorage.setItem("geminiKey",geminiKey.value);
+localStorage.setItem("elevenKey",elevenKey.value);
+localStorage.setItem("mode",mode.value);
 voiceOn=voiceToggle.checked;
 localStorage.setItem("voiceOn",voiceOn);
 modal.style.display="none";
