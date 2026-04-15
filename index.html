@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>美咲AI 完全版 UI強化</title>
+<title>美咲AI 完全版</title>
 
 <style>
 *{box-sizing:border-box;}
@@ -28,77 +28,68 @@ body{
   padding:12px;
 }
 
-/* 吹き出し */
-.msg{
-  max-width:85%;
-  margin:10px 0;
-}
+/* メッセージ */
+.msg{max-width:85%;margin:10px 0;}
+.user{margin-left:auto;}
+.ai{margin-right:auto;}
 
-.user{
-  margin-left:auto;
-}
-
-.ai{
-  margin-right:auto;
-}
-
-/* カード */
 .card{
   background:#fff;
   padding:12px;
   border-radius:14px;
   margin-bottom:8px;
-  box-shadow:0 2px 6px rgba(0,0,0,0.1);
 }
 
-/* ユーザー */
 .user .card{
-  background:linear-gradient(135deg,#4facfe,#00c6ff);
+  background:#4facfe;
   color:#fff;
 }
 
-/* 箇条書き */
+/* リスト */
 .list{
   background:#e8f3ff;
   padding:10px;
   border-left:4px solid #4facfe;
   border-radius:10px;
-  margin-bottom:6px;
 }
 
 /* フロー */
-.flow{
-  display:flex;
-  gap:6px;
-  flex-wrap:wrap;
-}
-.flow div{
-  background:#fff;
-  padding:8px;
-  border-radius:8px;
-  box-shadow:0 1px 3px rgba(0,0,0,0.1);
-}
+.flow{display:flex;gap:6px;flex-wrap:wrap;}
+.flow div{background:#fff;padding:8px;border-radius:8px;}
 
 /* 入力 */
-#bottom{
-  padding:10px;
-}
-#controls{
-  display:flex;
-  gap:8px;
-}
-#input{
-  flex:1;
-  padding:12px;
-  border-radius:20px;
-  border:none;
-}
+#bottom{padding:10px;}
+#controls{display:flex;gap:8px;}
+#input{flex:1;padding:12px;border-radius:20px;border:none;}
 button{
   border:none;
   border-radius:20px;
   background:#667eea;
   color:white;
   padding:10px 14px;
+}
+
+/* 設定 */
+#modal{
+  position:fixed;
+  top:0;left:0;
+  width:100%;height:100%;
+  display:none;
+  background:rgba(0,0,0,0.5);
+  justify-content:center;
+  align-items:center;
+}
+#modalContent{
+  background:#222;
+  color:#fff;
+  padding:20px;
+  border-radius:12px;
+  width:90%;
+}
+#modal input,#modal textarea,#modal select{
+  width:100%;
+  margin:6px 0;
+  padding:8px;
 }
 </style>
 </head>
@@ -115,50 +106,75 @@ button{
   <div id="controls">
     <input id="input" placeholder="話しかけてください">
     <button onclick="sendMessage()">送信</button>
+    <button onclick="openSettings()">⚙</button>
   </div>
+</div>
+
+<!-- 設定 -->
+<div id="modal">
+<div id="modalContent">
+
+APIキー
+<input id="apiKey">
+
+プロンプト
+<textarea id="prompt"></textarea>
+
+モード
+<select id="mode">
+<option value="teacher">家庭教師</option>
+<option value="counselor">カウンセラー</option>
+<option value="sales">営業</option>
+<option value="medical">医療</option>
+<option value="housework">家事</option>
+<option value="normal">通常</option>
+</select>
+
+音声 <input type="checkbox" id="voiceToggle">
+
+<button onclick="saveSettings()">保存</button>
+
+</div>
 </div>
 
 <script>
 const chat=document.getElementById("chat");
 const input=document.getElementById("input");
 
-/* 表示強化 */
-function formatMessage(text){
+/* ===== 状態 ===== */
+let voiceOn=localStorage.getItem("voiceOn")==="true";
 
+/* ===== 表示 ===== */
+function formatMessage(text){
   text=text.replace(/\*/g,"");
 
-  const lines=text.split("\n").filter(t=>t.trim());
-
-  return lines.map(line=>{
-
+  return text.split("\n").filter(t=>t.trim()).map(line=>{
     if(line.includes("→")){
-      return `<div class="flow">
-        ${line.split("→").map(s=>`<div>${s}</div>`).join("")}
-      </div>`;
+      return `<div class="flow">${line.split("→").map(s=>`<div>${s}</div>`).join("")}</div>`;
     }
-
-    if(line.startsWith("・") || line.startsWith("-")){
+    if(line.startsWith("・")||line.startsWith("-")){
       return `<div class="list">${line}</div>`;
     }
-
     return `<div class="card">${line}</div>`;
-
   }).join("");
 }
 
-/* メッセージ */
 function addMessage(text,cls){
   const div=document.createElement("div");
   div.className="msg "+cls;
   div.innerHTML=formatMessage(text);
-
   chat.appendChild(div);
   chat.scrollTop=chat.scrollHeight;
+
+  if(cls==="ai" && voiceOn){
+    const u=new SpeechSynthesisUtterance(text);
+    u.lang="ja-JP";
+    speechSynthesis.speak(u);
+  }
 }
 
-/* 送信 */
+/* ===== 送信 ===== */
 async function sendMessage(){
-
   const text=input.value.trim();
   if(!text) return;
 
@@ -166,14 +182,22 @@ async function sendMessage(){
   input.value="";
 
   const apiKey=localStorage.getItem("apiKey");
-
   if(!apiKey){
     addMessage("APIキー未設定","ai");
     return;
   }
 
-  try{
+  const prompt=localStorage.getItem("prompt")||"";
+  const mode=localStorage.getItem("mode")||"teacher";
 
+  let modePrompt="";
+  if(mode==="teacher") modePrompt="わかりやすく説明";
+  if(mode==="counselor") modePrompt="優しく寄り添う";
+  if(mode==="sales") modePrompt="提案型";
+  if(mode==="medical") modePrompt="安全に説明";
+  if(mode==="housework") modePrompt="家事のコツで説明";
+
+  try{
     const res=await fetch("https://api.openai.com/v1/chat/completions",{
       method:"POST",
       headers:{
@@ -183,7 +207,7 @@ async function sendMessage(){
       body:JSON.stringify({
         model:"gpt-4o-mini",
         messages:[
-          {role:"system",content:"わかりやすく説明"},
+          {role:"system",content:prompt+"\n"+modePrompt},
           {role:"user",content:text}
         ]
       })
@@ -201,6 +225,27 @@ async function sendMessage(){
   }catch(e){
     addMessage("通信エラー","ai");
   }
+}
+
+/* ===== 設定 ===== */
+function openSettings(){
+  modal.style.display="flex";
+  apiKey.value=localStorage.getItem("apiKey")||"";
+  prompt.value=localStorage.getItem("prompt")||"";
+  mode.value=localStorage.getItem("mode")||"teacher";
+  voiceToggle.checked=voiceOn;
+}
+
+function saveSettings(){
+  localStorage.setItem("apiKey",apiKey.value);
+  localStorage.setItem("prompt",prompt.value);
+  localStorage.setItem("mode",mode.value);
+
+  voiceOn=voiceToggle.checked;
+  localStorage.setItem("voiceOn",voiceOn);
+
+  modal.style.display="none";
+  addMessage("設定保存しました","ai");
 }
 </script>
 
