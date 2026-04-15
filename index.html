@@ -3,78 +3,73 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>美咲AI 神フル版</title>
+<title>美咲AI ガチ最終版</title>
 
 <style>
-body{margin:0;font-family:sans-serif;background:#6ec6ff;height:100vh;display:flex;flex-direction:column;}
-#chat{flex:1;overflow:auto;padding:10px;padding-bottom:100px;}
+*{box-sizing:border-box;}
+body{
+margin:0;font-family:sans-serif;
+background:linear-gradient(135deg,#6ec6ff,#a0e0ff);
+height:100vh;display:flex;flex-direction:column;
+}
+
+/* ===== UI ===== */
+#character{height:26vh;}
+#character img{width:100%;height:100%;object-fit:cover;}
+
+#infoBar{font-size:12px;text-align:center;background:#fff8;padding:5px;}
+
+#chat{flex:1;overflow-y:auto;padding:10px;padding-bottom:120px;}
 .msg{margin:6px;max-width:85%;}
 .user{text-align:right;margin-left:auto;}
 .ai{text-align:left;}
-.bubble{padding:10px;border-radius:12px;background:#fff;}
+.bubble{padding:12px;border-radius:14px;background:#fff;}
 .user .bubble{background:#0072ff;color:#fff;}
 
-#bottom{position:fixed;bottom:0;width:100%;display:flex;background:#fff;padding:5px;}
-#input{flex:1;padding:10px;border:none;}
+#bottom{position:fixed;bottom:0;width:100%;background:#fff;padding:8px;}
+#controls{display:flex;gap:6px;}
+#input{flex:1;padding:10px;border-radius:20px;border:none;}
 
-button{padding:8px;border:none;border-radius:8px;}
-button:active{transform:scale(0.9);opacity:0.7;}
+button{border:none;padding:8px;border-radius:8px;}
 
-#modal,#homeScreen{
-position:fixed;top:0;left:0;width:100%;height:100%;
-display:none;justify-content:center;align-items:center;
-flex-direction:column;z-index:9999;
+#modal{
+position:fixed;width:100%;height:100%;
+display:none;background:#0008;
+justify-content:center;align-items:center;
+}
+#modalContent{
+background:#222;color:#fff;padding:15px;
+width:90%;max-height:80%;overflow:auto;
+border-radius:10px;
 }
 
-#modal{background:#0008;}
-#modalContent{background:#222;color:#fff;padding:15px;width:90%;max-height:80%;overflow:auto;border-radius:10px;}
-
-#homeScreen{
-background:linear-gradient(135deg,#4facfe,#00f2fe);
-color:#fff;
-}
-
-#homeAI{
-margin-top:20px;
-background:#ffffff33;
-padding:15px;
-border-radius:12px;
-max-width:80%;
-text-align:center;
-}
-
+/* プレゼン */
 #presentation{
 position:fixed;top:0;left:0;width:100%;height:100%;
 background:#000;color:#fff;
 display:none;justify-content:center;align-items:center;
-font-size:24px;text-align:center;
+flex-direction:column;
 }
 </style>
 </head>
 
 <body>
 
-<!-- ホーム -->
-<div id="homeScreen">
-<h1>美咲AI</h1>
-
-<button onclick="enterChat()">💬 チャット</button>
-<button onclick="startListening()">🎤 音声開始</button>
-<button onclick="openYahooNews()">📰 ニュース</button>
-<button onclick="openMap()">🗺 マップ</button>
-<button onclick="openSettings()">⚙ 設定</button>
-
-<div id="homeAI">準備中...</div>
+<div id="character">
+<img id="avatar" src="normal.png">
 </div>
 
+<div id="infoBar"></div>
 <div id="chat"></div>
 
 <div id="bottom">
+<div id="controls">
 <input id="input">
-<button onclick="startListening()">🎤</button>
+<button onclick="startVoice()">🎤</button>
 <button onclick="send()">➤</button>
 <button onclick="togglePresentation()">🎬</button>
-<button onclick="showHome()">🏠</button>
+<button onclick="openSettings()">⚙</button>
+</div>
 </div>
 
 <!-- 設定 -->
@@ -82,97 +77,121 @@ font-size:24px;text-align:center;
 <div id="modalContent">
 
 <h3>API</h3>
-<input id="apiKey">
+<input id="apiKey" placeholder="OpenAI">
+<input id="geminiKey" placeholder="Gemini">
+<input id="elevenKey" placeholder="Eleven">
+<input id="voiceId">
 
 <h3>プロンプト</h3>
 <textarea id="prompt"></textarea>
 
-<button onclick="saveSettings()">保存</button>
+<h3>モード</h3>
+<select id="mode">
+<option value="normal">通常</option>
+<option value="teacher">家庭教師</option>
+<option value="counselor">カウンセラー</option>
+<option value="medical">医療</option>
+</select>
+
+<h3>音声</h3>
+<select id="voiceType">
+<option value="local">ローカル</option>
+<option value="eleven">Eleven</option>
+</select>
+<input type="checkbox" id="voiceToggle">音声ON
 
 <hr>
 
-<button onclick="openGmail()">Gmail</button>
-<button onclick="openCalendar()">カレンダー</button>
-<button onclick="openLine()">LINE</button>
-<button onclick="sendToLine()">LINE送信</button>
-
 <button onclick="openYahooNews()">ニュース</button>
-<button onclick="openNewsPicks()">NewsPicks</button>
+<button onclick="openGoogleMap()">マップ</button>
+<button onclick="openYahooTransit()">乗換</button>
 
-<button onclick="openMap()">マップ</button>
-<button onclick="searchMap()">場所検索</button>
-
-<button onclick="openTransit()">乗換</button>
-<button onclick="openJorudan()">ジョルダン</button>
-
-<button onclick="googleSearch()">検索</button>
+<button onclick="saveSettings()">保存</button>
 
 </div>
 </div>
 
-<div id="presentation" onclick="nextSlide()"></div>
+<div id="presentation">
+<div id="slideText"></div>
+</div>
 
 <script>
-const chat=document.getElementById("chat");
-const input=document.getElementById("input");
-
-let state={
+/* ===== 状態管理 ===== */
+const state={
 memory:JSON.parse(localStorage.getItem("memory")||"[]"),
+health:JSON.parse(localStorage.getItem("health")||"[]"),
+money:JSON.parse(localStorage.getItem("money")||"[]"),
 lastTalk:Date.now(),
-slides:[],
-i:0
+slides:[],slideIndex:0,
 };
 
-/* ===== 表示 ===== */
-function add(t,c){
-const d=document.createElement("div");
-d.className="msg "+c;
-d.innerHTML=`<div class="bubble">${t}</div>`;
-chat.appendChild(d);
+/* ===== UI ===== */
+function add(text,type){
+const div=document.createElement("div");
+div.className="msg "+type;
+div.innerHTML=`<div class="bubble">${text}</div>`;
+chat.appendChild(div);
 chat.scrollTop=chat.scrollHeight;
 
-if(c==="ai") speak(t);
+if(type==="ai"){
+changeFace(text);
+speak(text);
+}
+}
+
+function changeFace(t){
+avatar.src=t.includes("ありがとう")?"agree.png":"normal.png";
 }
 
 /* ===== 音声 ===== */
-function speak(t){
-speechSynthesis.cancel();
-speechSynthesis.speak(new SpeechSynthesisUtterance(t));
+function speak(text){
+if(localStorage.getItem("voiceType")==="eleven"){
+speakEleven(text);
+}else{
+speechSynthesis.speak(new SpeechSynthesisUtterance(text));
+}
+}
+
+async function speakEleven(text){
+try{
+const res=await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${localStorage.getItem("voiceId")}`,{
+method:"POST",
+headers:{
+"xi-api-key":localStorage.getItem("elevenKey"),
+"Content-Type":"application/json"
+},
+body:JSON.stringify({text})
+});
+const blob=await res.blob();
+new Audio(URL.createObjectURL(blob)).play();
+}catch{
+speechSynthesis.speak(new SpeechSynthesisUtterance(text));
+}
 }
 
 /* ===== 記憶 ===== */
 function saveMemory(u,a){
 state.memory.push({u,a});
-if(state.memory.length>20) state.memory.shift();
+if(state.memory.length>30) state.memory.shift();
 localStorage.setItem("memory",JSON.stringify(state.memory));
-}
-
-/* ===== AIコマンド ===== */
-function handleCommand(t){
-
-if(t.includes("ニュース")) return openYahooNews();
-if(t.includes("地図")) return openMap();
-if(t.includes("乗換")) return openTransit();
-if(t.includes("LINE")) return openLine();
-if(t.includes("天気")) return googleSearch("天気");
-
-return false;
 }
 
 /* ===== AI ===== */
 async function send(){
-let t=input.value.trim();
+const t=input.value.trim();
 if(!t)return;
 
 add(t,"user");
 input.value="";
 state.lastTalk=Date.now();
 
-/* コマンド */
-if(handleCommand(t)) return;
+/* 命令解析 */
+if(t.includes("美咲")){
+if(t.includes("ニュース")) return openYahooNews();
+if(t.includes("地図")) return openGoogleMap();
+}
 
-add("考え中...","ai");
-
+/* 通常AI */
 const key=localStorage.getItem("apiKey");
 if(!key)return add("APIキー未設定","ai");
 
@@ -187,130 +206,89 @@ headers:{
 body:JSON.stringify({
 model:"gpt-4o-mini",
 messages:[
-{role:"system",content:"自然に会話\n"+mem},
+{role:"system",content:(localStorage.getItem("prompt")||"")+"\n"+mem},
 {role:"user",content:t}
 ]
 })
 });
 
-const d=await res.json();
-const reply=d.choices?.[0]?.message?.content||"エラー";
+const data=await res.json();
+const reply=data.choices?.[0]?.message?.content||"エラー";
 
 add(reply,"ai");
 saveMemory(t,reply);
 
-/* スライド */
-state.slides=reply.split(/[。！？\n]/);
-state.i=0;
+/* スライド生成 */
+state.slides=reply.split(/[。！？\n]/).filter(s=>s);
+state.slideIndex=0;
 }
 
 /* ===== プレゼン ===== */
 function togglePresentation(){
 presentation.style.display=
 presentation.style.display==="flex"?"none":"flex";
-presentation.innerText=state.slides[state.i]||"";
+showSlide();
 }
+
+function showSlide(){
+if(!state.slides.length)return;
+slideText.innerText=state.slides[state.slideIndex];
+}
+
 function nextSlide(){
-state.i=(state.i+1)%state.slides.length;
-presentation.innerText=state.slides[state.i];
-}
-
-/* ===== 音声（常時） ===== */
-function startListening(){
-const R=window.SpeechRecognition||window.webkitSpeechRecognition;
-if(!R)return;
-
-const rec=new R();
-rec.lang="ja-JP";
-
-rec.onresult=e=>{
-let t=e.results[0][0].transcript;
-
-if(t.includes("美咲")){
-t=t.replace("美咲","").trim();
-input.value=t;
-send();
-}
-};
-
-rec.onend=()=>startListening();
-rec.start();
+state.slideIndex=(state.slideIndex+1)%state.slides.length;
+showSlide();
 }
 
 /* ===== 自動AI ===== */
 setInterval(()=>{
 if(Date.now()-state.lastTalk>300000){
-add("何かする？ニュース見る？","ai");
+add("そろそろ話そうか？","ai");
 }
 },60000);
 
-/* ===== ホームAI ===== */
-function generateHomeAI(){
-const h=new Date().getHours();
-let msg=h<10?"おはよう":h<18?"元気？":"お疲れ様";
-
-if(state.memory.length>0){
-msg+=" 続き話す？";
-}
-
-homeAI.innerText="美咲："+msg;
-speak(msg);
-}
-
-/* ===== ホーム ===== */
-function enterChat(){
-homeScreen.style.display="none";
-}
-function showHome(){
-homeScreen.style.display="flex";
-generateHomeAI();
-}
+/* ===== 体調AI ===== */
+setInterval(()=>{
+if(!state.health.length)return;
+add("体調どう？無理しないでね","ai");
+},600000);
 
 /* ===== 外部 ===== */
-function open(url){window.open(url);}
-function openGmail(){open("https://mail.google.com");}
-function openCalendar(){open("https://calendar.google.com");}
-function openLine(){open("https://line.me");}
-function sendToLine(){
-const t=document.querySelector(".bubble:last-child")?.innerText;
-open("https://line.me/R/msg/text/?"+encodeURIComponent(t));
-}
-function openYahooNews(){open("https://news.yahoo.co.jp");}
-function openNewsPicks(){open("https://newspicks.com");}
-function openMap(){open("https://maps.google.com");}
-function searchMap(){
-const q=prompt("場所");
-open("https://www.google.com/maps/search/"+q);
-}
-function openTransit(){open("https://transit.yahoo.co.jp");}
-function openJorudan(){open("https://www.jorudan.co.jp");}
-function googleSearch(q){
-if(!q) q=prompt("検索");
-open("https://google.com/search?q="+q);
+function openYahooNews(){window.open("https://news.yahoo.co.jp");}
+function openGoogleMap(){window.open("https://maps.google.com");}
+function openYahooTransit(){window.open("https://transit.yahoo.co.jp");}
+
+/* ===== 音声入力 ===== */
+let recognition;
+function startVoice(){
+const R=window.SpeechRecognition||window.webkitSpeechRecognition;
+if(!R)return;
+
+recognition=new R();
+recognition.lang="ja-JP";
+
+recognition.onresult=e=>{
+const t=e.results[0][0].transcript;
+input.value=t;
+send();
+};
+
+recognition.start();
 }
 
 /* ===== 設定 ===== */
 function openSettings(){
 modal.style.display="flex";
-apiKey.value=localStorage.getItem("apiKey")||"";
-prompt.value=localStorage.getItem("prompt")||"";
 }
+
 function saveSettings(){
 localStorage.setItem("apiKey",apiKey.value);
 localStorage.setItem("prompt",prompt.value);
+localStorage.setItem("voiceType",voiceType.value);
+localStorage.setItem("voiceOn",voiceToggle.checked);
 modal.style.display="none";
 add("保存OK","ai");
 }
-
-/* ===== 初期 ===== */
-window.onload=()=>{
-showHome();
-};
-
-/* Enter */
-input.addEventListener("keydown",e=>{
-if(e.key==="Enter") send();
-});
 </script>
 
 </body>
