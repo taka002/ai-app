@@ -69,6 +69,23 @@ button{
   padding:10px 14px;
 }
 
+/* 浮かせボタン */
+#fab{
+  position:fixed;
+  right:15px;
+  bottom:90px;
+  display:flex;
+  flex-direction:column;
+  gap:10px;
+}
+
+#fab button{
+  width:50px;
+  height:50px;
+  border-radius:50%;
+  font-size:18px;
+}
+
 /* 設定 */
 #modal{
   position:fixed;
@@ -106,9 +123,17 @@ button{
   <div id="controls">
     <input id="input" placeholder="話しかけてください">
     <button onclick="sendMessage()">送信</button>
-    <button onclick="openSettings()">⚙</button>
   </div>
 </div>
+
+<!-- 浮かせUI -->
+<div id="fab">
+  <button onclick="openCamera()">📷</button>
+  <button onclick="openGallery()">🖼</button>
+  <button onclick="openSettings()">⚙</button>
+</div>
+
+<input type="file" id="imageInput" accept="image/*" style="display:none">
 
 <!-- 設定 -->
 <div id="modal">
@@ -141,7 +166,6 @@ APIキー
 const chat=document.getElementById("chat");
 const input=document.getElementById("input");
 
-/* ===== 状態 ===== */
 let voiceOn=localStorage.getItem("voiceOn")==="true";
 
 /* ===== 表示 ===== */
@@ -167,6 +191,7 @@ function addMessage(text,cls){
   chat.scrollTop=chat.scrollHeight;
 
   if(cls==="ai" && voiceOn){
+    speechSynthesis.cancel();
     const u=new SpeechSynthesisUtterance(text);
     u.lang="ja-JP";
     speechSynthesis.speak(u);
@@ -226,6 +251,62 @@ async function sendMessage(){
     addMessage("通信エラー","ai");
   }
 }
+
+/* ===== カメラ＆画像 ===== */
+function openCamera(){
+  const input=document.getElementById("imageInput");
+  input.setAttribute("capture","environment");
+  input.click();
+}
+
+function openGallery(){
+  const input=document.getElementById("imageInput");
+  input.removeAttribute("capture");
+  input.click();
+}
+
+document.getElementById("imageInput").addEventListener("change", async function(e){
+
+  const file=e.target.files[0];
+  if(!file) return;
+
+  addMessage("画像解析中...","ai");
+
+  const base64 = await new Promise(res=>{
+    const r=new FileReader();
+    r.onload=()=>res(r.result);
+    r.readAsDataURL(file);
+  });
+
+  const apiKey=localStorage.getItem("apiKey");
+
+  try{
+    const res=await fetch("https://api.openai.com/v1/chat/completions",{
+      method:"POST",
+      headers:{
+        "Content-Type":"application/json",
+        "Authorization":"Bearer "+apiKey
+      },
+      body:JSON.stringify({
+        model:"gpt-4o-mini",
+        messages:[{
+          role:"user",
+          content:[
+            {type:"text",text:"この画像をわかりやすく説明して"},
+            {type:"image_url",image_url:{url:base64}}
+          ]
+        }]
+      })
+    });
+
+    const data=await res.json();
+
+    addMessage(data.choices?.[0]?.message?.content || "解析失敗","ai");
+
+  }catch(e){
+    addMessage("画像解析エラー","ai");
+  }
+});
 
 /* ===== 設定 ===== */
 function openSettings(){
