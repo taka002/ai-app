@@ -51,8 +51,6 @@ body{
   color:#fff;
 }
 
-.meta{font-size:10px;color:#555;}
-
 /* 入力 */
 #bottom{
   position:fixed;
@@ -141,11 +139,16 @@ ElevenLabsキー<input id="elevenKey">
 <option value="secretary">秘書</option>
 </select>
 
-音声 <input type="checkbox" id="voiceToggle">
+<h3>🔊 音声</h3>
+<select id="voiceType">
+<option value="local">ローカル音声</option>
+<option value="eleven">ElevenLabs</option>
+</select>
+
+音声ON <input type="checkbox" id="voiceToggle">
 
 <hr>
 
-<h3>⚙ 機能</h3>
 <button onclick="openCamera()">📷 カメラ</button>
 <button onclick="openGallery()">🖼 画像</button>
 <button onclick="getLocation()">📍 位置＋天気</button>
@@ -165,6 +168,11 @@ let history=JSON.parse(localStorage.getItem("history")||"[]");
 
 let locationText="";
 let weatherText="";
+
+/* ===== 音声ロック解除 ===== */
+document.body.addEventListener("click",()=>{
+  speechSynthesis.resume();
+},{once:true});
 
 /* ===== 情報バー ===== */
 setInterval(()=>{
@@ -186,21 +194,52 @@ speak(text);
 }
 }
 
-/* ===== ElevenLabs音声 ===== */
+/* ===== 音声 ===== */
 async function speak(text){
-const key=localStorage.getItem("elevenKey");
-if(!key)return;
 
+const type=localStorage.getItem("voiceType")||"local";
+
+if(type==="eleven"){
+const key=localStorage.getItem("elevenKey");
+
+if(!key){
+speakLocal(text);
+return;
+}
+
+try{
 const res=await fetch("https://api.elevenlabs.io/v1/text-to-speech/YOUR_VOICE_ID",{
 method:"POST",
 headers:{
 "xi-api-key":key,
 "Content-Type":"application/json"
 },
-body:JSON.stringify({text})
+body:JSON.stringify({
+text:text,
+model_id:"eleven_multilingual_v2"
+})
 });
+
+if(!res.ok) throw "error";
+
 const blob=await res.blob();
-new Audio(URL.createObjectURL(blob)).play();
+const audio=new Audio(URL.createObjectURL(blob));
+audio.play().catch(()=>speakLocal(text));
+
+}catch{
+speakLocal(text);
+}
+
+}else{
+speakLocal(text);
+}
+}
+
+function speakLocal(text){
+speechSynthesis.cancel();
+const u=new SpeechSynthesisUtterance(text);
+u.lang="ja-JP";
+speechSynthesis.speak(u);
 }
 
 /* ===== 送信 ===== */
@@ -309,6 +348,7 @@ apiKey.value=localStorage.getItem("apiKey")||"";
 geminiKey.value=localStorage.getItem("geminiKey")||"";
 elevenKey.value=localStorage.getItem("elevenKey")||"";
 mode.value=localStorage.getItem("mode")||"normal";
+voiceType.value=localStorage.getItem("voiceType")||"local";
 voiceToggle.checked=voiceOn;
 }
 
@@ -317,6 +357,7 @@ localStorage.setItem("apiKey",apiKey.value);
 localStorage.setItem("geminiKey",geminiKey.value);
 localStorage.setItem("elevenKey",elevenKey.value);
 localStorage.setItem("mode",mode.value);
+localStorage.setItem("voiceType",voiceType.value);
 voiceOn=voiceToggle.checked;
 localStorage.setItem("voiceOn",voiceOn);
 modal.style.display="none";
