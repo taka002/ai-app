@@ -1,160 +1,3 @@
-<!DOCTYPE html>
-<html lang="ja">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>美咲AI 完全神版</title>
-
-<style>
-*{box-sizing:border-box;}
-body{
-margin:0;font-family:sans-serif;
-background:linear-gradient(135deg,#6ec6ff,#a0e0ff);
-height:100vh;display:flex;flex-direction:column;
-}
-
-#character{height:28vh;}
-#character img{width:100%;height:100%;object-fit:cover;}
-
-#modeBar{
-display:flex;gap:5px;padding:5px;overflow-x:auto;
-}
-#modeBar button{
-flex:1;border-radius:20px;background:#fff;
-font-size:12px;padding:6px;
-}
-
-#chat{flex:1;overflow:auto;padding:10px;padding-bottom:120px;}
-.msg{margin:6px;max-width:85%;}
-.user{margin-left:auto;text-align:right;}
-.ai{text-align:left;}
-.bubble{padding:12px;border-radius:16px;background:#fff;}
-.user .bubble{background:#0072ff;color:#fff;}
-
-#bottom{position:fixed;bottom:0;width:100%;background:#fff;padding:8px;}
-#controls{display:flex;gap:6px;}
-#input{flex:1;padding:10px;border-radius:20px;border:none;}
-
-button{border:none;border-radius:10px;padding:10px;}
-
-#modal{
-position:fixed;width:100%;height:100%;
-display:none;background:#0008;
-justify-content:center;align-items:center;
-}
-#modalContent{
-background:#222;color:#fff;padding:15px;
-width:90%;max-height:85vh;overflow:auto;
-border-radius:10px;
-}
-
-.grid{
-display:grid;
-grid-template-columns:1fr 1fr;
-gap:6px;
-}
-</style>
-</head>
-
-<body>
-
-<div id="character">
-<img id="avatar" src="normal.png">
-</div>
-
-<!-- モード -->
-<div id="modeBar">
-<button onclick="setMode('normal')">通常</button>
-<button onclick="setMode('counselor')">相談</button>
-<button onclick="setMode('work')">仕事</button>
-<button onclick="setMode('medical')">医療</button>
-</div>
-
-<div id="chat"></div>
-
-<div id="bottom">
-<div id="controls">
-<input id="input" placeholder="話しかけてください">
-<button onclick="send()">➤</button>
-<button onclick="openSettings()">⚙</button>
-</div>
-</div>
-
-<!-- 設定 -->
-<div id="modal">
-<div id="modalContent">
-
-<h3>APIキー</h3>
-ChatGPT<input id="apiKey">
-Gemini<input id="geminiKey">
-
-<h3>モード</h3>
-<select id="mode">
-<option value="normal">通常</option>
-<option value="counselor">カウンセラー</option>
-<option value="work">仕事</option>
-<option value="medical">医療</option>
-</select>
-
-<hr>
-
-<h3 onclick="toggleTools()">▼ ツール</h3>
-
-<div id="tools" style="display:none;">
-
-<div class="grid">
-<button onclick="openYahooNews()">ニュース</button>
-<button onclick="openMap()">マップ</button>
-
-<button onclick="openTransit()">乗換</button>
-<button onclick="openLine()">LINE</button>
-
-<button onclick="openGmail()">Gmail</button>
-<button onclick="openCalendar()">カレンダー</button>
-</div>
-
-<input id="searchText" placeholder="Google検索">
-<button onclick="googleSearch()">検索</button>
-
-<input id="ytText" placeholder="YouTube検索">
-<button onclick="youtubeSearch()">YouTube</button>
-
-</div>
-
-<br>
-<button onclick="saveSettings()">保存</button>
-
-</div>
-</div>
-
-<script>
-const chat=document.getElementById("chat");
-const input=document.getElementById("input");
-
-let memory=JSON.parse(localStorage.getItem("memory")||"[]");
-
-/* 表示 */
-function add(t,c){
-const d=document.createElement("div");
-d.className="msg "+c;
-d.innerHTML=`<div class="bubble">${t}</div>`;
-chat.appendChild(d);
-chat.scrollTop=chat.scrollHeight;
-
-if(c==="ai"){
-speechSynthesis.cancel();
-speechSynthesis.speak(new SpeechSynthesisUtterance(t));
-}
-}
-
-/* モード */
-function setMode(m){
-document.getElementById("mode").value=m;
-localStorage.setItem("mode",m);
-add("モード："+m,"ai");
-}
-
-/* 送信 */
 async function send(){
 const t=input.value.trim();
 if(!t)return;
@@ -167,19 +10,11 @@ add("考え中...","ai");
 const openaiKey=localStorage.getItem("apiKey");
 const geminiKey=localStorage.getItem("geminiKey");
 
-memory.push("ユーザー:"+t);
-if(memory.length>20) memory.shift();
-
-const mode=document.getElementById("mode").value;
-
-let system="";
-if(mode==="counselor") system="優しく寄り添う";
-if(mode==="work") system="正確に答える";
-if(mode==="medical") system="体調に配慮する";
-
-/* ChatGPT */
 try{
+
+/* ===== ChatGPT ===== */
 if(openaiKey){
+
 const res=await fetch("https://api.openai.com/v1/chat/completions",{
 method:"POST",
 headers:{
@@ -188,36 +23,29 @@ headers:{
 },
 body:JSON.stringify({
 model:"gpt-4o-mini",
-messages:[
-{role:"system",content:system+"\n"+memory.join("\n")},
-{role:"user",content:t}
-]
+messages:[{role:"user",content:t}]
 })
 });
 
-if(res.ok){
+if(!res.ok){
+add("ChatGPTエラー:"+res.status,"ai");
+throw new Error();
+}
+
 const data=await res.json();
+console.log(data);
+
 const reply=data.choices?.[0]?.message?.content;
 
 if(reply){
 document.querySelector(".ai:last-child").remove();
 add(reply,"ai");
-
-memory.push("AI:"+reply);
-localStorage.setItem("memory",JSON.stringify(memory));
 return;
 }
 }
-}
-}catch(e){}
 
-/* Gemini fallback */
-try{
-if(!geminiKey){
-document.querySelector(".ai:last-child").remove();
-add("APIキー未設定","ai");
-return;
-}
+/* ===== Gemini ===== */
+if(geminiKey){
 
 const res=await fetch(
 `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiKey}`,
@@ -225,76 +53,30 @@ const res=await fetch(
 method:"POST",
 headers:{"Content-Type":"application/json"},
 body:JSON.stringify({
-contents:[{
-parts:[{text:system+"\n"+memory.join("\n")+"\nユーザー:"+t}]
-}]
+contents:[{parts:[{text:t}]}]
 })
 }
 );
 
 const data=await res.json();
+console.log(data);
+
 const reply=data.candidates?.[0]?.content?.parts?.[0]?.text;
 
 document.querySelector(".ai:last-child").remove();
 
-if(!reply){
-add("Geminiエラー","ai");
+if(reply){
+add(reply,"ai");
 return;
 }
+}
 
-add(reply,"ai");
-
-memory.push("AI:"+reply);
-localStorage.setItem("memory",JSON.stringify(memory));
+document.querySelector(".ai:last-child").remove();
+add("両方のAIで失敗","ai");
 
 }catch(e){
 document.querySelector(".ai:last-child").remove();
 add("通信エラー","ai");
+console.error(e);
 }
 }
-
-/* Enter送信 */
-input.addEventListener("keydown",e=>{
-if(e.key==="Enter") send();
-});
-
-/* ツール */
-function toggleTools(){
-const el=document.getElementById("tools");
-el.style.display = el.style.display==="none"?"block":"none";
-}
-
-function openYahooNews(){window.open("https://news.yahoo.co.jp");}
-function openMap(){window.open("https://maps.google.com");}
-function openTransit(){window.open("https://transit.yahoo.co.jp");}
-function openCalendar(){window.open("https://calendar.google.com");}
-function openLine(){window.open("https://line.me");}
-function openGmail(){window.open("https://mail.google.com");}
-
-function googleSearch(){
-window.open("https://google.com/search?q="+encodeURIComponent(searchText.value));
-}
-
-function youtubeSearch(){
-window.open("https://youtube.com/results?search_query="+encodeURIComponent(ytText.value));
-}
-
-/* 設定 */
-function openSettings(){
-modal.style.display="flex";
-apiKey.value=localStorage.getItem("apiKey")||"";
-geminiKey.value=localStorage.getItem("geminiKey")||"";
-mode.value=localStorage.getItem("mode")||"normal";
-}
-
-function saveSettings(){
-localStorage.setItem("apiKey",apiKey.value);
-localStorage.setItem("geminiKey",geminiKey.value);
-localStorage.setItem("mode",mode.value);
-modal.style.display="none";
-add("保存OK","ai");
-}
-</script>
-
-</body>
-</html>
