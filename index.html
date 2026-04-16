@@ -16,9 +16,23 @@ body{
   flex-direction:column;
 }
 
-/* キャラ */
-#character{height:30vh;}
-#character img{width:100%;height:100%;object-fit:cover;}
+/* キャラ（大きく＆下げる） */
+#character{
+  height:30vh;
+}
+#character img{
+  width:100%;
+  height:100%;
+  object-fit:cover;
+}
+
+/* 情報バー */
+#infoBar{
+  text-align:center;
+  font-size:13px;
+  padding:6px;
+  background:rgba(255,255,255,0.7);
+}
 
 /* チャット */
 #chat{
@@ -29,7 +43,7 @@ body{
 }
 
 .msg{max-width:85%;margin:8px;}
-.user{text-align:right;}
+.user{margin-left:auto;text-align:right;}
 .ai{text-align:left;}
 
 .bubble{
@@ -37,10 +51,10 @@ body{
   padding:12px;
   border-radius:16px;
   background:#fff;
-  line-height:1.5;
+  line-height:1.6;
 }
 .user .bubble{
-  background:#0072ff;
+  background:linear-gradient(135deg,#4facfe,#00c6ff);
   color:#fff;
 }
 
@@ -55,6 +69,8 @@ body{
 #controls{
   display:flex;
   gap:6px;
+  max-width:600px;
+  margin:auto;
 }
 #input{
   flex:1;
@@ -62,12 +78,20 @@ body{
   border-radius:20px;
   border:none;
 }
-#sendBtn{
-  width:44px;height:44px;
+
+/* ボタン */
+#sendBtn,#micBtn{
+  width:44px;
+  height:44px;
   border-radius:50%;
-  background:#0072ff;
-  color:#fff;
   border:none;
+  color:#fff;
+}
+#sendBtn{
+  background:linear-gradient(135deg,#00c6ff,#0072ff);
+}
+#micBtn{
+  background:#ff4081;
 }
 
 /* 設定 */
@@ -79,71 +103,88 @@ body{
 #setBtn{
   width:50px;height:50px;
   border-radius:50%;
-  background:#333;
-  color:#fff;
   border:none;
+  color:#fff;
+  background:#333;
 }
 
 /* モーダル */
 #modal{
-  position:fixed;
-  width:100%;
-  height:100%;
-  display:none;
-  background:rgba(0,0,0,0.5);
-  justify-content:center;
-  align-items:center;
+  position:fixed;width:100%;height:100%;
+  display:none;background:rgba(0,0,0,0.5);
+  justify-content:center;align-items:center;
 }
 #modalContent{
-  background:#222;
-  color:#fff;
-  padding:20px;
-  border-radius:12px;
-  width:90%;
+  background:#222;color:#fff;padding:20px;
+  border-radius:12px;width:90%;
+  max-height:80%;overflow:auto;
 }
-textarea{width:100%;}
+#modal input,#modal select,#modal button{
+  width:100%;margin:6px 0;padding:10px;
+}
 </style>
 </head>
 
 <body>
 
 <div id="character">
-  <img src="normal.png">
+  <img id="avatar" src="normal.png">
 </div>
+
+<div id="infoBar"></div>
 
 <div id="chat"></div>
 
 <div id="bottom">
-<div id="controls">
-<input id="input" placeholder="話しかけてください">
-<button id="sendBtn">➤</button>
-</div>
+  <div id="controls">
+    <input id="input" placeholder="話しかけてください">
+    <button id="micBtn">🎤</button>
+    <button id="sendBtn">➤</button>
+  </div>
 </div>
 
 <div id="fab">
-<button id="setBtn" onclick="openSettings()">⚙</button>
+  <button id="setBtn" onclick="openSettings()">⚙</button>
 </div>
+
+<input type="file" id="imageInput" accept="image/*" style="display:none">
 
 <!-- 設定 -->
 <div id="modal">
 <div id="modalContent">
 
-ChatGPTキー<input id="openaiKey">
+<h3>🔑 API設定</h3>
+ChatGPTキー<input id="apiKey">
+Geminiキー<input id="geminiKey">
+ElevenLabsキー<input id="elevenKey">
+VoiceID<input id="voiceId">
 
-<h3>モード</h3>
+<h3>🎭 モード</h3>
 <select id="mode">
-<option value="child">子供</option>
+<option value="normal">通常</option>
 <option value="teacher">家庭教師</option>
 <option value="counselor">カウンセラー</option>
-<option value="boss">上司</option>
+<option value="medical">医療</option>
+<option value="sales">営業</option>
+<option value="secretary">秘書</option>
 </select>
 
-<textarea id="customPrompt" placeholder="カスタム"></textarea>
+<h3>🔊 音声</h3>
+<select id="voiceType">
+<option value="local">ローカル</option>
+<option value="eleven">ElevenLabs</option>
+</select>
 
-<button onclick="showMemory()">📖記憶</button>
-<button onclick="clearMemory()">🧹リセット</button>
+音声ON <input type="checkbox" id="voiceToggle">
 
-<button onclick="saveSettings()">閉じる</button>
+<hr>
+
+<button onclick="openCamera()">📷 カメラ</button>
+<button onclick="openGallery()">🖼 画像</button>
+<button onclick="getLocation()">📍 位置＋天気</button>
+<button onclick="openCalendar()">📅 カレンダー</button>
+
+<button onclick="saveSettings()">保存</button>
 
 </div>
 </div>
@@ -151,132 +192,169 @@ ChatGPTキー<input id="openaiKey">
 <script>
 const chat=document.getElementById("chat");
 const input=document.getElementById("input");
+const avatar=document.getElementById("avatar");
 
-/* 状態 */
-let history = JSON.parse(localStorage.getItem("history")||"[]");
-let memory = JSON.parse(localStorage.getItem("memory")||"[]");
+let voiceOn=localStorage.getItem("voiceOn")==="true";
+let history=JSON.parse(localStorage.getItem("history")||"[]");
 
-/* 表示 */
+let locationText="";
+let weatherText="";
+
+/* 表情 */
+function changeFace(text){
+  if(text.includes("ありがとう")) avatar.src="agree.png";
+  else if(text.includes("怒")) avatar.src="怒り.png";
+  else if(text.includes("悩")) avatar.src="ためらい.png";
+  else avatar.src="normal.png";
+}
+
+/* 情報バー */
+setInterval(()=>{
+  const now=new Date();
+  infoBar.innerHTML=now.toLocaleString()+"<br>"+locationText+" "+weatherText;
+},1000);
+
+/* メッセージ */
 function addMessage(text,cls){
   const div=document.createElement("div");
   div.className="msg "+cls;
   div.innerHTML=`<div class="bubble">${text}</div>`;
   chat.appendChild(div);
   chat.scrollTop=chat.scrollHeight;
+
+  if(cls==="ai"){
+    changeFace(text);
+    if(voiceOn) speak(text);
+  }
 }
 
-/* モード */
-function getModePrompt(mode){
-  return {
-    child:"子供向けに優しく",
-    teacher:"わかりやすく教える",
-    counselor:"共感して優しく寄り添う",
-    boss:"結論と行動を指示する"
-  }[mode]||"";
+/* 音声 */
+async function speak(text){
+  const type=localStorage.getItem("voiceType")||"local";
+
+  if(type==="eleven"){
+    const key=localStorage.getItem("elevenKey");
+    const voiceId=localStorage.getItem("voiceId");
+    if(!key||!voiceId) return speakLocal(text);
+
+    try{
+      const res=await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`,{
+        method:"POST",
+        headers:{
+          "xi-api-key":key,
+          "Content-Type":"application/json"
+        },
+        body:JSON.stringify({text})
+      });
+      const blob=await res.blob();
+      new Audio(URL.createObjectURL(blob)).play();
+    }catch{
+      speakLocal(text);
+    }
+  }else{
+    speakLocal(text);
+  }
+}
+
+function speakLocal(text){
+  speechSynthesis.cancel();
+  const u=new SpeechSynthesisUtterance(text);
+  u.lang="ja-JP";
+  speechSynthesis.speak(u);
 }
 
 /* 送信 */
-document.getElementById("sendBtn").onclick=sendMessage;
-
-input.addEventListener("keydown",e=>{
-  if(e.key==="Enter") sendMessage();
-});
+sendBtn.onclick=sendMessage;
+input.addEventListener("keydown",e=>{if(e.key==="Enter")sendMessage();});
 
 async function sendMessage(){
   const text=input.value.trim();
-  if(!text) return;
+  if(!text)return;
 
   addMessage(text,"user");
   input.value="";
 
-  const key=localStorage.getItem("openaiKey");
-
-  if(!key){
-    addMessage("APIキー入れて","ai");
-    return;
-  }
+  const apiKey=localStorage.getItem("apiKey");
+  if(!apiKey){addMessage("APIキー未設定","ai");return;}
 
   history.push({role:"user",content:text});
-  if(history.length>15) history=history.slice(-15);
 
-  const system =
-    getModePrompt(document.getElementById("mode").value) +
-    "\n" +
-    document.getElementById("customPrompt").value +
-    "\nユーザー情報:\n" + memory.join("\n");
+  let mode=localStorage.getItem("mode")||"normal";
+  let sys="";
+  if(mode==="teacher")sys="わかりやすく説明";
+  if(mode==="counselor")sys="優しく寄り添う";
+  if(mode==="medical")sys="医療的に丁寧に";
+  if(mode==="sales")sys="営業的に提案";
+  if(mode==="secretary")sys="秘書として整理";
 
-  try{
-    const res=await fetch("https://api.openai.com/v1/chat/completions",{
-      method:"POST",
-      headers:{
-        "Content-Type":"application/json",
-        "Authorization":"Bearer "+key
-      },
-      body:JSON.stringify({
-        model:"gpt-4o-mini",
-        messages:[
-          {role:"system",content:system},
-          ...history
-        ]
-      })
-    });
+  const res=await fetch("https://api.openai.com/v1/chat/completions",{
+    method:"POST",
+    headers:{
+      "Content-Type":"application/json",
+      "Authorization":"Bearer "+apiKey
+    },
+    body:JSON.stringify({
+      model:"gpt-4o-mini",
+      messages:[{role:"system",content:sys},...history.slice(-10)]
+    })
+  });
 
-    const data=await res.json();
+  const data=await res.json();
+  const reply=data.choices?.[0]?.message?.content||"エラー";
 
-    if(data.error){
-      addMessage("エラー: "+data.error.message,"ai");
-      return;
-    }
-
-    const reply=data.choices?.[0]?.message?.content || "エラー";
-
-    addMessage(reply,"ai");
-
-    history.push({role:"assistant",content:reply});
-    localStorage.setItem("history",JSON.stringify(history));
-
-    extractMemory(text);
-
-  }catch(e){
-    addMessage("通信エラー","ai");
-  }
+  addMessage(reply,"ai");
 }
 
-/* 記憶 */
-function extractMemory(text){
-  if(text.length>5){
-    memory.push(text);
-    if(memory.length>10) memory=memory.slice(-10);
-    localStorage.setItem("memory",JSON.stringify(memory));
-  }
+/* 🎤音声入力 */
+const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+if(SpeechRecognition){
+  const recognition = new SpeechRecognition();
+  recognition.lang="ja-JP";
+
+  micBtn.onclick=()=>{
+    recognition.start();
+    micBtn.innerText="🎙️";
+  };
+
+  recognition.onresult=(e)=>{
+    input.value=e.results[0][0].transcript;
+    micBtn.innerText="🎤";
+    sendMessage();
+  };
+
+  recognition.onerror=()=>micBtn.innerText="🎤";
 }
 
-/* 表示 */
-function showMemory(){
-  addMessage(memory.join("<br>"),"ai");
+/* 位置 */
+function getLocation(){
+  navigator.geolocation.getCurrentPosition(async pos=>{
+    const lat=pos.coords.latitude;
+    const lon=pos.coords.longitude;
+
+    const geo=await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json`);
+    const g=await geo.json();
+    locationText="📍"+(g.address.city||g.address.town||g.address.village||"");
+
+    const w=await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true`);
+    const wd=await w.json();
+    weatherText=`🌤${wd.current_weather.temperature}℃`;
+  });
 }
 
-/* リセット */
-function clearMemory(){
-  history=[];
-  memory=[];
-  localStorage.clear();
-  chat.innerHTML="";
-}
+function openCalendar(){window.open("https://calendar.google.com");}
 
 /* 設定 */
 function openSettings(){
   modal.style.display="flex";
-  openaiKey.value=localStorage.getItem("openaiKey")||"";
+  apiKey.value=localStorage.getItem("apiKey")||"";
 }
 
 function saveSettings(){
-  localStorage.setItem("openaiKey",openaiKey.value);
+  localStorage.setItem("apiKey",apiKey.value);
   modal.style.display="none";
+  addMessage("保存しました","ai");
 }
-
-/* 復元 */
-history.forEach(m=>addMessage(m.content,m.role==="user"?"user":"ai"));
 </script>
 
 </body>
