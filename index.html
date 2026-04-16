@@ -125,7 +125,7 @@ Gemini<input id="geminiKey">
 const chat=document.getElementById("chat");
 const input=document.getElementById("input");
 
-/* ★ 追加（バグ防止） */
+/* バグ防止 */
 const modal=document.getElementById("modal");
 const apiKey=document.getElementById("apiKey");
 const geminiKey=document.getElementById("geminiKey");
@@ -166,8 +166,9 @@ input.value="";
 
 add("考え中...","ai");
 
-const openaiKey=localStorage.getItem("apiKey");
-const geminiKeyVal=localStorage.getItem("geminiKey");
+/* 🔥 修正済み */
+const openaiKey = apiKey.value || localStorage.getItem("apiKey");
+const geminiKeyVal = geminiKey.value || localStorage.getItem("geminiKey");
 
 memory.push("ユーザー:"+t);
 if(memory.length>20) memory.shift();
@@ -195,7 +196,6 @@ messages:[
 })
 });
 
-/* ★ エラー可視化 */
 if(!res.ok){
 document.querySelector(".ai:last-child")?.remove();
 add("ChatGPTエラー："+res.status,"ai");
@@ -214,7 +214,9 @@ localStorage.setItem("memory",JSON.stringify(memory));
 return;
 }
 }
-}catch(e){}
+}catch(e){
+console.log(e);
+}
 
 /* Gemini fallback */
 try{
