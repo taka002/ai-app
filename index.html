@@ -49,14 +49,19 @@ button{border:none;border-radius:10px;padding:10px;}
 
 <div id="modal">
 <div id="modalContent">
-<h3>APIキー</h3>
+
+<h3>ChatGPTキー</h3>
 <input id="apiKey">
+
+<h3>NewsAPIキー</h3>
+<input id="newsApiKey">
 
 <h3>音声</h3>
 <input type="checkbox" id="voiceToggle"> ON
 
 <br><br>
 <button onclick="saveSettings()">保存</button>
+
 </div>
 </div>
 
@@ -64,6 +69,12 @@ button{border:none;border-radius:10px;padding:10px;}
 const chat=document.getElementById("chat");
 const input=document.getElementById("input");
 const infoBar=document.getElementById("infoBar");
+
+/* 追加 */
+const modal=document.getElementById("modal");
+const apiKey=document.getElementById("apiKey");
+const newsApiKey=document.getElementById("newsApiKey");
+const voiceToggle=document.getElementById("voiceToggle");
 
 let voiceOn=localStorage.getItem("voiceOn")==="true";
 let history=[];
@@ -104,18 +115,14 @@ return "遅い時間ですね。ゆっくり休んでください";
 
 /* ===== 天気コメント ===== */
 function weatherComment(){
-if(weatherCode===null) return "";
-
-if(weatherCode===0) return "今日は快晴ですね！いい1日になりそう☀️";
-if(weatherCode<=3) return "少し曇ってますね☁️ 無理せずいきましょう";
-if(weatherCode<=67) return "雨っぽいですね☔ 足元気をつけて";
-if(weatherCode<=77) return "雪かも❄️ 暖かくしてくださいね";
-if(weatherCode>=80) return "荒れた天気です⚡ 無理しないで";
-
-return "";
+if(weatherCode===0) return "今日は快晴ですね！☀️";
+if(weatherCode<=3) return "少し曇ってますね☁️";
+if(weatherCode<=67) return "雨ですね☔";
+if(weatherCode<=77) return "雪かも❄️";
+return "天気荒れ気味です⚡";
 }
 
-/* ===== 送信 ===== */
+/* ===== ChatGPT ===== */
 async function send(){
 const t=input.value.trim();
 if(!t)return;
@@ -147,9 +154,7 @@ return;
 }
 
 const data=await res.json();
-const reply=data.choices?.[0]?.message?.content||"エラー";
-
-add(reply,"ai");
+add(data.choices?.[0]?.message?.content||"エラー","ai");
 
 }catch(e){
 add("通信エラー","ai");
@@ -157,7 +162,7 @@ add("通信エラー","ai");
 }
 
 /* ===== 位置＋天気 ===== */
-async function getLocation(){
+function getLocation(){
 navigator.geolocation.getCurrentPosition(async pos=>{
 const lat=pos.coords.latitude;
 const lon=pos.coords.longitude;
@@ -173,12 +178,11 @@ const wd=await w.json();
 weatherCode=wd.current_weather.weathercode;
 weatherText=`🌤${wd.current_weather.temperature}℃`;
 
-add(`現在地：${locationText}<br>気温：${weatherText}`,"ai");
-
-/* 🔥 天気コメント追加 */
-setTimeout(()=>{
+add(`現在地：${locationText}<br>${weatherText}`,"ai");
 add(weatherComment(),"ai");
-},500);
+
+/* ニュース取得 */
+getNews();
 
 }catch(e){
 add("天気取得失敗","ai");
@@ -187,8 +191,64 @@ add("天気取得失敗","ai");
 },()=>add("位置情報の許可が必要","ai"));
 }
 
-/* ===== 起動時 ===== */
-window.onload = ()=>{
+/* ===== NewsAPI ===== */
+async function getNews(){
+add("ニュース取得中...","ai");
+
+const API_KEY = localStorage.getItem("newsApiKey");
+
+if(!API_KEY){
+add("NewsAPIキー未設定","ai");
+return;
+}
+
+const keyword=locationText.replace("📍","");
+
+const url=`https://api.allorigins.win/get?url=${encodeURIComponent(
+`https://newsapi.org/v2/everything?q=${keyword}&language=jp&pageSize=5&sortBy=publishedAt&apiKey=${API_KEY}`
+)}`;
+
+const res=await fetch(url);
+const data=await res.json();
+const json=JSON.parse(data.contents);
+
+let text="📰 地域ニュース<br>";
+
+json.articles.forEach(a=>{
+text+=`・${a.title}<br>`;
+});
+
+smartNews(text);
+}
+
+/* ===== AIニュース整理 ===== */
+async function smartNews(newsText){
+const key=localStorage.getItem("apiKey");
+if(!key){add(newsText,"ai");return;}
+
+const res=await fetch("https://api.openai.com/v1/chat/completions",{
+method:"POST",
+headers:{
+"Content-Type":"application/json",
+"Authorization":"Bearer "+key
+},
+body:JSON.stringify({
+model:"gpt-4o-mini",
+messages:[
+{
+role:"user",
+content:`場所:${locationText}\n天気:${weatherText}\nニュースを会話で説明\n${newsText}`
+}
+]
+})
+});
+
+const data=await res.json();
+add(data.choices?.[0]?.message?.content||newsText,"ai");
+}
+
+/* ===== 起動 ===== */
+window.onload=()=>{
 add(greeting(),"ai");
 getLocation();
 };
@@ -197,11 +257,13 @@ getLocation();
 function openSettings(){
 modal.style.display="flex";
 apiKey.value=localStorage.getItem("apiKey")||"";
+newsApiKey.value=localStorage.getItem("newsApiKey")||"";
 voiceToggle.checked=voiceOn;
 }
 
 function saveSettings(){
 localStorage.setItem("apiKey",apiKey.value);
+localStorage.setItem("newsApiKey",newsApiKey.value);
 localStorage.setItem("voiceOn",voiceToggle.checked);
 voiceOn=voiceToggle.checked;
 modal.style.display="none";
