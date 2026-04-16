@@ -53,7 +53,12 @@ Geminiキー<input id="geminiKey">
 <select id="mode">
 <option value="child">子供</option>
 <option value="teacher">家庭教師</option>
+<option value="parent">親</option>
+<option value="friend">友達</option>
 <option value="counselor">カウンセラー</option>
+<option value="gal">ギャル</option>
+<option value="medical">医療</option>
+<option value="boss">上司</option>
 <option value="work">仕事</option>
 </select>
 
@@ -90,14 +95,42 @@ function speak(text){
   speechSynthesis.speak(u);
 }
 
-/* モード */
+/* モード（進化版） */
 function getModePrompt(mode){
   return {
-    child:"子供に優しく話す",
-    teacher:"わかりやすく教える",
-    counselor:"優しく寄り添う",
-    work:"正確に答える"
-  }[mode]||"";
+
+    child:"小学生でもわかるように優しく話す",
+
+    teacher:"わかりやすく丁寧に教える",
+
+    parent:"親のように寄り添う",
+
+    friend:"フレンドリーで気軽に話す",
+
+    counselor:`あなたはカウンセラーです。
+必ず共感から始める。
+否定しない。
+優しく寄り添う。
+過去の悩みも考慮する。`,
+
+    gal:`あなたはギャルです。
+タメ口でテンション高く。
+ノリよく短めに話す。`,
+
+    medical:`あなたは医療サポートAIです。
+慎重に説明する。
+断定しない。
+必要なら受診をすすめる。
+過去の体調も考慮する。`,
+
+    boss:`あなたは上司です。
+結論から話す。
+やるべきことを整理する。
+具体的に指示する。`,
+
+    work:"ビジネスとして簡潔に答える"
+
+  }[mode] || "";
 }
 
 /* 送信 */
@@ -111,6 +144,8 @@ async function sendMessage(){
   input.value="";
 
   const key=document.getElementById("openaiKey").value;
+  const mode=document.getElementById("mode").value;
+
   if(!key){
     addMessage("APIキー入れて","ai");
     return;
@@ -120,10 +155,12 @@ async function sendMessage(){
   if(history.length>20) history=history.slice(-20);
 
   const system =
-    getModePrompt(document.getElementById("mode").value) +
-    "\n" +
+    "あなたはユーザー専用AIです。\n" +
+    "役割に応じて性格・口調・対応を変える\n\n" +
+    getModePrompt(mode) +
+    "\n\n" +
     document.getElementById("customPrompt").value +
-    "\nユーザー情報:\n" + memory.join("\n");
+    "\n\nユーザー情報:\n" + memory.join("\n");
 
   try{
     const res=await fetch("https://api.openai.com/v1/chat/completions",{
@@ -152,14 +189,16 @@ async function sendMessage(){
 
     extractMemory(text);
 
-    // 🔥 Geminiで記憶要約
+    if(mode === "boss"){
+      generateTasks(text);
+    }
+
     if(memory.length > 5){
       summarizeMemory();
     }
 
   }catch(e){
     addMessage("通信エラー","ai");
-    console.error(e);
   }
 }
 
@@ -169,6 +208,14 @@ function extractMemory(text){
     memory.push(text);
     if(memory.length>10) memory=memory.slice(-10);
     localStorage.setItem("memory",JSON.stringify(memory));
+  }
+}
+
+/* タスク生成 */
+function generateTasks(text){
+  const parts = text.split("。").filter(t=>t.length>3);
+  if(parts.length){
+    addMessage("📋やること:\n・"+parts.join("\n・"),"ai");
   }
 }
 
@@ -185,9 +232,7 @@ async function summarizeMemory(){
         headers:{"Content-Type":"application/json"},
         body:JSON.stringify({
           contents:[{
-            parts:[{
-              text:"重要な情報だけにまとめて:\n"+memory.join("\n")
-            }]
+            parts:[{text:"重要な情報だけにまとめて:\n"+memory.join("\n")}]
           }]
         })
       }
