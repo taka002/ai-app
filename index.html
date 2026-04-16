@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>美咲AI 会話強化版</title>
+<title>美咲AI 完全版</title>
 
 <style>
 *{box-sizing:border-box;}
@@ -40,30 +40,24 @@ textarea{width:100%;}
 </div>
 
 <div id="fab">
-<button id="setBtn" onclick="openSettings()">⚙</button>
+<button onclick="openSettings()">⚙</button>
 </div>
 
 <div id="modal">
 <div id="modalContent">
 
 ChatGPTキー<input id="openaiKey">
+Geminiキー<input id="geminiKey">
 
 <h3>モード</h3>
 <select id="mode">
 <option value="child">子供</option>
 <option value="teacher">家庭教師</option>
-<option value="parent">親</option>
-<option value="work">仕事</option>
-<option value="research">研究</option>
 <option value="counselor">カウンセラー</option>
-<option value="hostess">ホステス</option>
-<option value="elder">年配</option>
-<option value="medical">医療</option>
-<option value="consult">相談</option>
+<option value="work">仕事</option>
 </select>
 
-カスタムプロンプト
-<textarea id="customPrompt"></textarea>
+<textarea id="customPrompt" placeholder="カスタムプロンプト"></textarea>
 
 <button onclick="showMemory()">📖記憶</button>
 <button onclick="clearMemory()">🧹リセット</button>
@@ -101,19 +95,13 @@ function getModePrompt(mode){
   return {
     child:"子供に優しく話す",
     teacher:"わかりやすく教える",
-    parent:"親のように寄り添う",
-    work:"正確に仕事として答える",
-    research:"専門的に詳しく",
     counselor:"優しく寄り添う",
-    hostess:"明るく楽しく会話",
-    elder:"落ち着いて話す",
-    medical:"医療的に慎重に",
-    consult:"相談に乗る"
+    work:"正確に答える"
   }[mode]||"";
 }
 
 /* 送信 */
-sendBtn.onclick=sendMessage;
+document.getElementById("sendBtn").onclick=sendMessage;
 
 async function sendMessage(){
   const text=input.value.trim();
@@ -123,9 +111,6 @@ async function sendMessage(){
   input.value="";
 
   const key=document.getElementById("openaiKey").value;
-  const mode=document.getElementById("mode").value;
-  const custom=document.getElementById("customPrompt").value;
-
   if(!key){
     addMessage("APIキー入れて","ai");
     return;
@@ -134,7 +119,11 @@ async function sendMessage(){
   history.push({role:"user",content:text});
   if(history.length>20) history=history.slice(-20);
 
-  const system = getModePrompt(mode)+"\n"+custom+"\nユーザー情報:\n"+memory.join("\n");
+  const system =
+    getModePrompt(document.getElementById("mode").value) +
+    "\n" +
+    document.getElementById("customPrompt").value +
+    "\nユーザー情報:\n" + memory.join("\n");
 
   try{
     const res=await fetch("https://api.openai.com/v1/chat/completions",{
@@ -162,10 +151,15 @@ async function sendMessage(){
     localStorage.setItem("history",JSON.stringify(history));
 
     extractMemory(text);
-    extractMemory(reply);
+
+    // 🔥 Geminiで記憶要約
+    if(memory.length > 5){
+      summarizeMemory();
+    }
 
   }catch(e){
     addMessage("通信エラー","ai");
+    console.error(e);
   }
 }
 
@@ -178,10 +172,46 @@ function extractMemory(text){
   }
 }
 
+/* Gemini要約 */
+async function summarizeMemory(){
+  const key=document.getElementById("geminiKey").value;
+  if(!key) return;
+
+  try{
+    const res=await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${key}`,
+      {
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({
+          contents:[{
+            parts:[{
+              text:"重要な情報だけにまとめて:\n"+memory.join("\n")
+            }]
+          }]
+        })
+      }
+    );
+
+    const data=await res.json();
+    const summary=data.candidates?.[0]?.content?.parts?.[0]?.text;
+
+    if(summary){
+      memory=[summary];
+      localStorage.setItem("memory",JSON.stringify(memory));
+    }
+
+  }catch(e){
+    console.log("要約失敗");
+  }
+}
+
+/* 記憶表示 */
 function showMemory(){
   addMessage(memory.join("<br>"),"ai");
 }
 
+/* リセット */
 function clearMemory(){
   history=[];
   memory=[];
