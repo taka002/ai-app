@@ -53,7 +53,6 @@ display:grid;
 grid-template-columns:1fr 1fr;
 gap:6px;
 }
-
 </style>
 </head>
 
@@ -63,7 +62,7 @@ gap:6px;
 <img id="avatar" src="normal.png">
 </div>
 
-<!-- ワンタップモード -->
+<!-- モード -->
 <div id="modeBar">
 <button onclick="setMode('normal')">通常</button>
 <button onclick="setMode('counselor')">相談</button>
@@ -86,7 +85,8 @@ gap:6px;
 <div id="modalContent">
 
 <h3>APIキー</h3>
-<input id="apiKey">
+ChatGPT<input id="apiKey">
+Gemini<input id="geminiKey">
 
 <h3>モード</h3>
 <select id="mode">
@@ -130,7 +130,6 @@ gap:6px;
 <script>
 const chat=document.getElementById("chat");
 const input=document.getElementById("input");
-const avatar=document.getElementById("avatar");
 
 let memory=JSON.parse(localStorage.getItem("memory")||"[]");
 
@@ -143,14 +142,9 @@ chat.appendChild(d);
 chat.scrollTop=chat.scrollHeight;
 
 if(c==="ai"){
-speak(t);
-}
-}
-
-/* 音声 */
-function speak(t){
 speechSynthesis.cancel();
 speechSynthesis.speak(new SpeechSynthesisUtterance(t));
+}
 }
 
 /* モード */
@@ -168,8 +162,10 @@ if(!t)return;
 add(t,"user");
 input.value="";
 
-const key=localStorage.getItem("apiKey");
-if(!key)return add("APIキー未設定","ai");
+add("考え中...","ai");
+
+const openaiKey=localStorage.getItem("apiKey");
+const geminiKey=localStorage.getItem("geminiKey");
 
 memory.push("ユーザー:"+t);
 if(memory.length>20) memory.shift();
@@ -178,14 +174,17 @@ const mode=document.getElementById("mode").value;
 
 let system="";
 if(mode==="counselor") system="優しく寄り添う";
-if(mode==="work") system="仕事として正確に答える";
-if(mode==="medical") system="体調に配慮して答える";
+if(mode==="work") system="正確に答える";
+if(mode==="medical") system="体調に配慮する";
 
+/* ChatGPT */
+try{
+if(openaiKey){
 const res=await fetch("https://api.openai.com/v1/chat/completions",{
 method:"POST",
 headers:{
 "Content-Type":"application/json",
-"Authorization":"Bearer "+key
+"Authorization":"Bearer "+openaiKey
 },
 body:JSON.stringify({
 model:"gpt-4o-mini",
@@ -196,22 +195,75 @@ messages:[
 })
 });
 
+if(res.ok){
 const data=await res.json();
-const reply=data.choices?.[0]?.message?.content||"エラー";
+const reply=data.choices?.[0]?.message?.content;
+
+if(reply){
+document.querySelector(".ai:last-child").remove();
+add(reply,"ai");
+
+memory.push("AI:"+reply);
+localStorage.setItem("memory",JSON.stringify(memory));
+return;
+}
+}
+}
+}catch(e){}
+
+/* Gemini fallback */
+try{
+if(!geminiKey){
+document.querySelector(".ai:last-child").remove();
+add("APIキー未設定","ai");
+return;
+}
+
+const res=await fetch(
+`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiKey}`,
+{
+method:"POST",
+headers:{"Content-Type":"application/json"},
+body:JSON.stringify({
+contents:[{
+parts:[{text:system+"\n"+memory.join("\n")+"\nユーザー:"+t}]
+}]
+})
+}
+);
+
+const data=await res.json();
+const reply=data.candidates?.[0]?.content?.parts?.[0]?.text;
+
+document.querySelector(".ai:last-child").remove();
+
+if(!reply){
+add("Geminiエラー","ai");
+return;
+}
 
 add(reply,"ai");
 
 memory.push("AI:"+reply);
 localStorage.setItem("memory",JSON.stringify(memory));
+
+}catch(e){
+document.querySelector(".ai:last-child").remove();
+add("通信エラー","ai");
+}
 }
 
-/* ツール開閉 */
+/* Enter送信 */
+input.addEventListener("keydown",e=>{
+if(e.key==="Enter") send();
+});
+
+/* ツール */
 function toggleTools(){
 const el=document.getElementById("tools");
 el.style.display = el.style.display==="none"?"block":"none";
 }
 
-/* 外部 */
 function openYahooNews(){window.open("https://news.yahoo.co.jp");}
 function openMap(){window.open("https://maps.google.com");}
 function openTransit(){window.open("https://transit.yahoo.co.jp");}
@@ -220,25 +272,25 @@ function openLine(){window.open("https://line.me");}
 function openGmail(){window.open("https://mail.google.com");}
 
 function googleSearch(){
-const q=document.getElementById("searchText").value;
-window.open("https://google.com/search?q="+encodeURIComponent(q));
+window.open("https://google.com/search?q="+encodeURIComponent(searchText.value));
 }
 
 function youtubeSearch(){
-const q=document.getElementById("ytText").value;
-window.open("https://youtube.com/results?search_query="+encodeURIComponent(q));
+window.open("https://youtube.com/results?search_query="+encodeURIComponent(ytText.value));
 }
 
 /* 設定 */
 function openSettings(){
 modal.style.display="flex";
 apiKey.value=localStorage.getItem("apiKey")||"";
-document.getElementById("mode").value=localStorage.getItem("mode")||"normal";
+geminiKey.value=localStorage.getItem("geminiKey")||"";
+mode.value=localStorage.getItem("mode")||"normal";
 }
 
 function saveSettings(){
 localStorage.setItem("apiKey",apiKey.value);
-localStorage.setItem("mode",document.getElementById("mode").value);
+localStorage.setItem("geminiKey",geminiKey.value);
+localStorage.setItem("mode",mode.value);
 modal.style.display="none";
 add("保存OK","ai");
 }
