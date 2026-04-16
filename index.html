@@ -70,7 +70,6 @@ const chat=document.getElementById("chat");
 const input=document.getElementById("input");
 const infoBar=document.getElementById("infoBar");
 
-/* 追加 */
 const modal=document.getElementById("modal");
 const apiKey=document.getElementById("apiKey");
 const newsApiKey=document.getElementById("newsApiKey");
@@ -82,8 +81,9 @@ let history=[];
 let locationText="";
 let weatherText="";
 let weatherCode=null;
+let prefecture="";
 
-/* ===== 時刻表示 ===== */
+/* ===== 時刻 ===== */
 setInterval(()=>{
 const now=new Date();
 infoBar.innerHTML=now.toLocaleString()+"<br>"+locationText+" "+weatherText;
@@ -161,6 +161,11 @@ add("通信エラー","ai");
 }
 }
 
+/* ===== 都道府県取得 ===== */
+function getPrefecture(address){
+return address.state || address.region || "";
+}
+
 /* ===== 位置＋天気 ===== */
 function getLocation(){
 navigator.geolocation.getCurrentPosition(async pos=>{
@@ -170,7 +175,11 @@ const lon=pos.coords.longitude;
 try{
 const geo=await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json`);
 const g=await geo.json();
-locationText="📍"+(g.address.city||g.address.town||g.address.village||"現在地");
+
+const city = g.address.city || g.address.town || g.address.village || "";
+prefecture = getPrefecture(g.address);
+
+locationText=`📍${city}（${prefecture}）`;
 
 const w=await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true`);
 const wd=await w.json();
@@ -181,8 +190,7 @@ weatherText=`🌤${wd.current_weather.temperature}℃`;
 add(`現在地：${locationText}<br>${weatherText}`,"ai");
 add(weatherComment(),"ai");
 
-/* ニュース取得 */
-getNews();
+getNews(prefecture);
 
 }catch(e){
 add("天気取得失敗","ai");
@@ -192,20 +200,19 @@ add("天気取得失敗","ai");
 }
 
 /* ===== NewsAPI ===== */
-async function getNews(){
+async function getNews(area){
 add("ニュース取得中...","ai");
 
 const API_KEY = localStorage.getItem("newsApiKey");
-
 if(!API_KEY){
 add("NewsAPIキー未設定","ai");
 return;
 }
 
-const keyword=locationText.replace("📍","");
+const query = `${area} AND (事件 OR 事故 OR 災害 OR 話題)`;
 
 const url=`https://api.allorigins.win/get?url=${encodeURIComponent(
-`https://newsapi.org/v2/everything?q=${keyword}&language=jp&pageSize=5&sortBy=publishedAt&apiKey=${API_KEY}`
+`https://newsapi.org/v2/everything?q=${query}&language=jp&pageSize=5&sortBy=publishedAt&apiKey=${API_KEY}`
 )}`;
 
 const res=await fetch(url);
@@ -218,13 +225,18 @@ json.articles.forEach(a=>{
 text+=`・${a.title}<br>`;
 });
 
-smartNews(text);
+/* 子供ニュース */
+childNews(text);
 }
 
-/* ===== AIニュース整理 ===== */
-async function smartNews(newsText){
+/* ===== 子供ニュース化 ===== */
+async function childNews(newsText){
 const key=localStorage.getItem("apiKey");
-if(!key){add(newsText,"ai");return;}
+
+if(!key){
+add(newsText,"ai");
+return;
+}
 
 const res=await fetch("https://api.openai.com/v1/chat/completions",{
 method:"POST",
@@ -237,7 +249,18 @@ model:"gpt-4o-mini",
 messages:[
 {
 role:"user",
-content:`場所:${locationText}\n天気:${weatherText}\nニュースを会話で説明\n${newsText}`
+content:`
+あなたは小学生向けニュースのお姉さんです
+
+・むずかしい言葉を使わない
+・やさしく説明
+・最後にひとこと
+
+場所:${locationText}
+天気:${weatherText}
+
+${newsText}
+`
 }
 ]
 })
