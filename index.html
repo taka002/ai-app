@@ -50,8 +50,17 @@ button{border:none;border-radius:10px;padding:10px;}
 <div id="modal">
 <div id="modalContent">
 
+<h3>AI選択</h3>
+<select id="aiType">
+<option value="gpt">ChatGPT</option>
+<option value="gemini">Gemini</option>
+</select>
+
 <h3>ChatGPTキー</h3>
 <input id="apiKey">
+
+<h3>Geminiキー</h3>
+<input id="geminiKey">
 
 <h3>NewsAPIキー</h3>
 <input id="newsApiKey">
@@ -72,8 +81,10 @@ const infoBar=document.getElementById("infoBar");
 
 const modal=document.getElementById("modal");
 const apiKey=document.getElementById("apiKey");
+const geminiKey=document.getElementById("geminiKey");
 const newsApiKey=document.getElementById("newsApiKey");
 const voiceToggle=document.getElementById("voiceToggle");
+const aiType=document.getElementById("aiType");
 
 let voiceOn=localStorage.getItem("voiceOn")==="true";
 let history=[];
@@ -119,10 +130,10 @@ if(weatherCode===0) return "今日は快晴ですね！☀️";
 if(weatherCode<=3) return "少し曇ってますね☁️";
 if(weatherCode<=67) return "雨ですね☔";
 if(weatherCode<=77) return "雪かも❄️";
-return "天気荒れ気味です⚡";
+return "天気荒れ気味⚡";
 }
 
-/* ===== ChatGPT ===== */
+/* ===== AI送信 ===== */
 async function send(){
 const t=input.value.trim();
 if(!t)return;
@@ -130,10 +141,15 @@ if(!t)return;
 add(t,"user");
 input.value="";
 
+const type=localStorage.getItem("aiType") || "gpt";
+
+/* ===== GPT ===== */
+if(type==="gpt"){
 const key=localStorage.getItem("apiKey");
-if(!key){add("APIキー未設定","ai");return;}
+if(!key){add("GPTキー未設定","ai");return;}
 
 history.push({role:"user",content:t});
+if(history.length>10) history.shift();
 
 try{
 const res=await fetch("https://api.openai.com/v1/chat/completions",{
@@ -144,12 +160,12 @@ headers:{
 },
 body:JSON.stringify({
 model:"gpt-4o-mini",
-messages:history.slice(-10)
+messages:history
 })
 });
 
 if(!res.ok){
-add("エラー："+res.status,"ai");
+add("GPTエラー："+res.status,"ai");
 return;
 }
 
@@ -161,9 +177,32 @@ add("通信エラー","ai");
 }
 }
 
-/* ===== 都道府県取得 ===== */
-function getPrefecture(address){
-return address.state || address.region || "";
+/* ===== Gemini ===== */
+if(type==="gemini"){
+const key=localStorage.getItem("geminiKey");
+if(!key){add("Geminiキー未設定","ai");return;}
+
+try{
+const res=await fetch(
+`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${key}`,
+{
+method:"POST",
+headers:{"Content-Type":"application/json"},
+body:JSON.stringify({
+contents:[{parts:[{text:t}]}]
+})
+}
+);
+
+const data=await res.json();
+const reply=data.candidates?.[0]?.content?.parts?.[0]?.text;
+
+add(reply||"Geminiエラー","ai");
+
+}catch(e){
+add("通信エラー","ai");
+}
+}
 }
 
 /* ===== 位置＋天気 ===== */
@@ -176,8 +215,8 @@ try{
 const geo=await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json`);
 const g=await geo.json();
 
-const city = g.address.city || g.address.town || g.address.village || "";
-prefecture = getPrefecture(g.address);
+const city=g.address.city||g.address.town||g.address.village||"";
+prefecture=g.address.state||g.address.region||"";
 
 locationText=`📍${city}（${prefecture}）`;
 
@@ -199,75 +238,28 @@ add("天気取得失敗","ai");
 },()=>add("位置情報の許可が必要","ai"));
 }
 
-/* ===== NewsAPI ===== */
+/* ===== ニュース ===== */
 async function getNews(area){
-add("ニュース取得中...","ai");
+const API_KEY=localStorage.getItem("newsApiKey");
+if(!API_KEY){add("NewsAPIキー未設定","ai");return;}
 
-const API_KEY = localStorage.getItem("newsApiKey");
-if(!API_KEY){
-add("NewsAPIキー未設定","ai");
-return;
-}
-
-const query = `${area} AND (事件 OR 事故 OR 災害 OR 話題)`;
-
+try{
 const url=`https://api.allorigins.win/get?url=${encodeURIComponent(
-`https://newsapi.org/v2/everything?q=${query}&language=jp&pageSize=5&sortBy=publishedAt&apiKey=${API_KEY}`
+`https://newsapi.org/v2/everything?q=${area}&language=jp&pageSize=5&apiKey=${API_KEY}`
 )}`;
 
 const res=await fetch(url);
 const data=await res.json();
 const json=JSON.parse(data.contents);
 
-let text="📰 地域ニュース<br>";
+let text="📰 ニュース<br>";
+json.articles?.forEach(a=>{text+=`・${a.title}<br>`});
 
-json.articles.forEach(a=>{
-text+=`・${a.title}<br>`;
-});
+add(text,"ai");
 
-/* 子供ニュース */
-childNews(text);
+}catch(e){
+add("ニュース取得失敗","ai");
 }
-
-/* ===== 子供ニュース化 ===== */
-async function childNews(newsText){
-const key=localStorage.getItem("apiKey");
-
-if(!key){
-add(newsText,"ai");
-return;
-}
-
-const res=await fetch("https://api.openai.com/v1/chat/completions",{
-method:"POST",
-headers:{
-"Content-Type":"application/json",
-"Authorization":"Bearer "+key
-},
-body:JSON.stringify({
-model:"gpt-4o-mini",
-messages:[
-{
-role:"user",
-content:`
-あなたは小学生向けニュースのお姉さんです
-
-・むずかしい言葉を使わない
-・やさしく説明
-・最後にひとこと
-
-場所:${locationText}
-天気:${weatherText}
-
-${newsText}
-`
-}
-]
-})
-});
-
-const data=await res.json();
-add(data.choices?.[0]?.message?.content||newsText,"ai");
 }
 
 /* ===== 起動 ===== */
@@ -280,14 +272,19 @@ getLocation();
 function openSettings(){
 modal.style.display="flex";
 apiKey.value=localStorage.getItem("apiKey")||"";
+geminiKey.value=localStorage.getItem("geminiKey")||"";
 newsApiKey.value=localStorage.getItem("newsApiKey")||"";
 voiceToggle.checked=voiceOn;
+aiType.value=localStorage.getItem("aiType")||"gpt";
 }
 
 function saveSettings(){
 localStorage.setItem("apiKey",apiKey.value);
+localStorage.setItem("geminiKey",geminiKey.value);
 localStorage.setItem("newsApiKey",newsApiKey.value);
 localStorage.setItem("voiceOn",voiceToggle.checked);
+localStorage.setItem("aiType",aiType.value);
+
 voiceOn=voiceToggle.checked;
 modal.style.display="none";
 add("保存しました","ai");
