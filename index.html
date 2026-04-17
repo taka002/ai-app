@@ -131,10 +131,12 @@ const avatarUpload=document.getElementById("avatarUpload");
 let voiceOn=false;
 let history=[];
 
+/* 🔥 ①フラグ */
 let isListening=false;
+let isSpeaking=false;
 let rec=null;
 
-/* ===== 表示 ===== */
+/* 表示 */
 function add(t,c){
 const d=document.createElement("div");
 d.className="msg "+c;
@@ -143,12 +145,14 @@ chat.appendChild(d);
 chat.scrollTop=chat.scrollHeight;
 }
 
-/* ===== 音声 ===== */
+/* ===== 🔥② 音声（修正版） ===== */
 async function speak(text){
 if(!voiceOn)return;
 
 const key=localStorage.getItem("apiKey");
 if(!key)return;
+
+isSpeaking = true;
 
 speechSynthesis.speak(new SpeechSynthesisUtterance(" "));
 
@@ -167,10 +171,16 @@ input:text
 });
 
 const audio=new Audio(URL.createObjectURL(await res.blob()));
+
+audio.onended=()=>{
+isSpeaking=false;
+};
+
 await audio.play();
 
 }catch{
 speechSynthesis.speak(new SpeechSynthesisUtterance(text));
+isSpeaking=false;
 }
 }
 
@@ -216,13 +226,12 @@ history.push({role:"user",content:t});
 history.push({role:"assistant",content:reply});
 }
 
-/* ===== 🎤 完全会話モード ===== */
+/* ===== 🎤 会話モード ===== */
 if(window.SpeechRecognition||window.webkitSpeechRecognition){
 
 rec=new (window.SpeechRecognition||window.webkitSpeechRecognition)();
 rec.lang="ja-JP";
 rec.continuous=false;
-rec.interimResults=false;
 
 const startTalks=[
 "どうしたの？😊",
@@ -234,7 +243,6 @@ const startTalks=[
 document.getElementById("micBtn").onclick=()=>{
 
 if(!isListening){
-
 isListening=true;
 try{rec.start();}catch{}
 
@@ -243,30 +251,29 @@ add(msg,"ai");
 speak(msg);
 
 }else{
-
 isListening=false;
 rec.stop();
 add("会話モードOFF","ai");
-
 }
 };
 
-/* 音声結果 */
+/* ===== 🔥③ AI音声は無視 ===== */
 rec.onresult=e=>{
+if(isSpeaking) return;
+
 input.value=e.results[0][0].transcript;
 send();
 };
 
-/* 🔥 絶対途切れない核心 */
+/* ===== 🔥④ 自動復活（最重要） ===== */
 rec.onend=()=>{
-if(isListening){
+if(isListening && !isSpeaking){
 setTimeout(()=>{
 try{rec.start();}catch{}
 },300);
 }
 };
 
-/* 🔥 エラー復旧 */
 rec.onerror=()=>{
 if(isListening){
 setTimeout(()=>{
