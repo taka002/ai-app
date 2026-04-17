@@ -48,6 +48,7 @@ button{border:none;border-radius:10px;padding:10px;}
 <button onclick="send()">➤</button>
 <button onclick="openNews()">📰</button>
 <button onclick="openTransit()">🚃</button>
+<button onclick="openMap()">🗺</button>
 <button onclick="openSettings()">⚙</button>
 </div>
 </div>
@@ -82,6 +83,8 @@ let history=[];
 let locationText="";
 let weatherText="";
 let weatherCode=null;
+let lat=null;
+let lon=null;
 
 /* ===== 時刻 ===== */
 setInterval(()=>{
@@ -166,38 +169,33 @@ add("通信エラー","ai");
 function openNews(){
 const keyword = locationText.replace("📍","");
 
-const choice = confirm("OK→Yahooニュース\nキャンセル→NewsPicks");
-
-if(choice){
+if(confirm("OK→Yahooニュース\nキャンセル→NewsPicks")){
 window.open(`https://news.yahoo.co.jp/search?p=${encodeURIComponent(keyword)}`);
 }else{
 window.open(`https://newspicks.com/search?q=${encodeURIComponent(keyword)}`);
 }
 }
 
-/* ===== 乗換 ===== */
+/* ===== 乗換（Yahoo固定） ===== */
 function openTransit(){
-const choice = prompt("1:Yahoo\n2:NAVITIME\n3:ジョルダン");
+const from = locationText.replace("📍","") || "現在地";
+window.open(`https://transit.yahoo.co.jp/search/result?from=${encodeURIComponent(from)}`);
+}
 
-if(choice==="1"){
-window.open("https://transit.yahoo.co.jp/");
-}
-else if(choice==="2"){
-window.open("https://www.navitime.co.jp/");
-}
-else if(choice==="3"){
-window.open("https://www.jorudan.co.jp/");
-}
-else{
-add("キャンセルしました","ai");
+/* ===== Googleマップ ===== */
+function openMap(){
+if(lat && lon){
+window.open(`https://www.google.com/maps?q=${lat},${lon}`);
+}else{
+window.open("https://www.google.com/maps");
 }
 }
 
 /* ===== 位置＋天気 ===== */
 function getLocation(){
 navigator.geolocation.getCurrentPosition(async pos=>{
-const lat=pos.coords.latitude;
-const lon=pos.coords.longitude;
+lat=pos.coords.latitude;
+lon=pos.coords.longitude;
 
 try{
 const geo=await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json`);
