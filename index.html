@@ -104,6 +104,14 @@ margin-bottom:10px;background:#444;color:#fff;
 <div class="menuItem" onclick="openYouTube()">▶<br>YouTube</div>
 </div>
 
+<!-- 🔥 キャラ切替 -->
+<h3>キャラ切替</h3>
+<div class="menuGrid">
+<div class="menuItem" onclick="setCharacter('misaki')">😊<br>美咲</div>
+<div class="menuItem" onclick="setCharacter('yandere')">🖤<br>ヤンデレ</div>
+<div class="menuItem" onclick="setCharacter('amae')">💗<br>甘え</div>
+</div>
+
 <h3>設定</h3>
 
 <input id="apiKey" class="menuInput" placeholder="APIキー">
@@ -129,6 +137,7 @@ margin-bottom:10px;background:#444;color:#fff;
 const chat=document.getElementById("chat");
 const input=document.getElementById("input");
 const menu=document.getElementById("menu");
+const avatar=document.getElementById("avatar");
 
 const apiKey=document.getElementById("apiKey");
 const userName=document.getElementById("userName");
@@ -140,6 +149,44 @@ const voiceEngineSelect=document.getElementById("voiceEngine");
 let voiceOn=false;
 let voiceEngine="openai";
 let history=[];
+
+/* ===== キャラ定義 ===== */
+const characters={
+misaki:{
+name:"美咲",
+prompt:"優しくて落ち着いた女性。丁寧に寄り添う。",
+voice:"nova",
+avatar:"normal.png"
+},
+yandere:{
+name:"みさき",
+prompt:"嫉妬深く重い愛情の女性。",
+voice:"onyx",
+avatar:"yandere.png"
+},
+amae:{
+name:"みさき",
+prompt:"甘えん坊で距離が近い女性。",
+voice:"nova",
+avatar:"amae.png"
+}
+};
+
+/* ===== キャラ切替 ===== */
+function setCharacter(type){
+const c=characters[type];
+if(!c)return;
+
+localStorage.setItem("charName",c.name);
+localStorage.setItem("systemPrompt",c.prompt);
+localStorage.setItem("voiceType",c.voice);
+localStorage.setItem("avatar",c.avatar);
+
+avatar.src=c.avatar;
+
+add("キャラ変更しました😊","ai");
+closeMenu();
+}
 
 /* 表示 */
 function add(t,c){
@@ -167,6 +214,8 @@ return;
 const key=localStorage.getItem("apiKey");
 if(!key)return;
 
+const voiceType=localStorage.getItem("voiceType")||"alloy";
+
 try{
 const res=await fetch("https://api.openai.com/v1/audio/speech",{
 method:"POST",
@@ -176,7 +225,7 @@ headers:{
 },
 body:JSON.stringify({
 model:"gpt-4o-mini-tts",
-voice:"alloy",
+voice:voiceType,
 input:text
 })
 });
@@ -287,6 +336,10 @@ window.onload=()=>{
 voiceOn=localStorage.getItem("voiceOn")==="true";
 voiceEngine=localStorage.getItem("voiceEngine")||"openai";
 history=JSON.parse(localStorage.getItem("chatHistory"))||[];
+
+/* 画像復元 */
+const savedAvatar=localStorage.getItem("avatar");
+if(savedAvatar) avatar.src=savedAvatar;
 };
 </script>
 
