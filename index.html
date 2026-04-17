@@ -131,12 +131,12 @@ const avatarUpload=document.getElementById("avatarUpload");
 let voiceOn=false;
 let history=[];
 
-/* 🔥 ①フラグ */
+/* 🔥 ①追加：状態フラグ */
 let isListening=false;
 let isSpeaking=false;
 let rec=null;
 
-/* 表示 */
+/* ===== 表示 ===== */
 function add(t,c){
 const d=document.createElement("div");
 d.className="msg "+c;
@@ -145,15 +145,16 @@ chat.appendChild(d);
 chat.scrollTop=chat.scrollHeight;
 }
 
-/* ===== 🔥② 音声（修正版） ===== */
+/* ===== 音声 ===== */
 async function speak(text){
 if(!voiceOn)return;
+
+isSpeaking=true;
 
 const key=localStorage.getItem("apiKey");
 if(!key)return;
 
-isSpeaking = true;
-
+speechSynthesis.cancel();
 speechSynthesis.speak(new SpeechSynthesisUtterance(" "));
 
 try{
@@ -171,16 +172,13 @@ input:text
 });
 
 const audio=new Audio(URL.createObjectURL(await res.blob()));
-
-audio.onended=()=>{
-isSpeaking=false;
-};
-
+audio.onended=()=>{ isSpeaking=false; };
 await audio.play();
 
 }catch{
-speechSynthesis.speak(new SpeechSynthesisUtterance(text));
-isSpeaking=false;
+const uttr = new SpeechSynthesisUtterance(text);
+uttr.onend=()=>{ isSpeaking=false; };
+speechSynthesis.speak(uttr);
 }
 }
 
@@ -226,61 +224,48 @@ history.push({role:"user",content:t});
 history.push({role:"assistant",content:reply});
 }
 
-/* ===== 🎤 会話モード ===== */
+/* ===== 🎤 1回だけ会話モード ===== */
 if(window.SpeechRecognition||window.webkitSpeechRecognition){
 
 rec=new (window.SpeechRecognition||window.webkitSpeechRecognition)();
 rec.lang="ja-JP";
-rec.continuous=false;
 
-const startTalks=[
-"どうしたの？😊",
-"うん、聞くよ",
-"なにかあった？",
-"呼んだ？"
-];
-
+/* 🎤ボタン */
 document.getElementById("micBtn").onclick=()=>{
 
 if(!isListening){
+
 isListening=true;
 try{rec.start();}catch{}
 
-const msg=startTalks[Math.floor(Math.random()*startTalks.length)];
-add(msg,"ai");
-speak(msg);
+add("話していいよ😊","ai");
+speak("話していいよ");
 
 }else{
+
 isListening=false;
 rec.stop();
-add("会話モードOFF","ai");
+add("停止したよ","ai");
+
 }
 };
 
-/* ===== 🔥③ AI音声は無視 ===== */
+/* 🔥 ②修正：AIの声は無視 */
 rec.onresult=e=>{
 if(isSpeaking) return;
 
-input.value=e.results[0][0].transcript;
+const text=e.results[0][0].transcript;
+
+input.value=text;
 send();
+
+/* 🔥 ③修正：1回で終了 */
+isListening=false;
+rec.stop();
 };
 
-/* ===== 🔥④ 自動復活（最重要） ===== */
-rec.onend=()=>{
-if(isListening && !isSpeaking){
-setTimeout(()=>{
-try{rec.start();}catch{}
-},300);
-}
-};
-
-rec.onerror=()=>{
-if(isListening){
-setTimeout(()=>{
-try{rec.start();}catch{}
-},800);
-}
-};
+/* 🔥 ④再起動しない（削除済み） */
+rec.onend=()=>{};
 
 }
 
