@@ -7,7 +7,6 @@
 
 <style>
 *{box-sizing:border-box;}
-
 body{
 margin:0;
 font-family:sans-serif;
@@ -17,130 +16,45 @@ display:flex;
 flex-direction:column;
 padding-bottom:60px;
 }
-
 header{height:28vh;}
 header img{width:100%;height:100%;object-fit:cover;}
-
-#infoBar{
-text-align:center;
-font-size:11px;
-padding:4px;
-background:rgba(255,255,255,0.6);
-}
-
 main{flex:1;overflow-y:auto;padding:10px;}
 .msg{margin:8px;max-width:85%;}
 .user{text-align:right;margin-left:auto;}
 .ai{text-align:left;}
-
-.bubble{
-padding:10px;
-border-radius:16px;
-background:#fff;
-}
+.bubble{padding:10px;border-radius:16px;background:#fff;}
 .user .bubble{background:#0072ff;color:#fff;}
 
 footer{
-position:fixed;
-bottom:0;width:100%;
-background:#fff;
-padding:6px;
-display:flex;
-justify-content:center;
+position:fixed;bottom:0;width:100%;
+background:#fff;padding:6px;
+display:flex;justify-content:center;
 }
-
-#dock{
-width:100%;
-max-width:600px;
-display:flex;
-gap:6px;
-}
-
-#input{
-width:58%;
-height:36px;
-border-radius:20px;
-border:none;
-padding:8px;
-}
-
-.dockBtn{
-width:40px;height:36px;
-border:none;border-radius:10px;
-background:#eee;
-}
+#dock{width:100%;max-width:600px;display:flex;gap:6px;}
+#input{width:58%;height:36px;border-radius:20px;border:none;padding:8px;}
+.dockBtn{width:40px;height:36px;border:none;border-radius:10px;background:#eee;}
 
 #menu{
-position:fixed;
-bottom:-100%;
-width:100%;
-height:88%;
-background:#111;
-color:#fff;
-display:flex;
-flex-direction:column;
+position:fixed;bottom:-100%;
+width:100%;height:88%;
+background:#111;color:#fff;
+display:flex;flex-direction:column;
 border-radius:20px 20px 0 0;
-transition:.3s;
-z-index:1000;
+transition:.3s;z-index:1000;
 }
 #menu.active{bottom:0;}
-
-#menuTop{
-flex:1;
-overflow:auto;
-padding:20px;
+#menuTop{flex:1;overflow:auto;padding:20px;}
+.menuInput,.menuBtn{
+width:100%;height:44px;border-radius:10px;border:none;
+margin-bottom:10px;padding:10px;
 }
-
-#searchBox{
-width:100%;
-height:48px;
-border-radius:12px;
-border:none;
-padding:10px;
-margin-bottom:10px;
-}
-
-.menuBtn{
-width:100%;
-height:44px;
-border:none;
-border-radius:10px;
-margin-bottom:10px;
-background:#444;
-color:#fff;
-}
-
-.menuGrid{
-display:grid;
-grid-template-columns:repeat(3,1fr);
-gap:12px;
-}
-
-.menuItem{
-height:90px;
-background:#333;
-border-radius:16px;
-display:flex;
-flex-direction:column;
-justify-content:center;
-align-items:center;
-}
-
-.menuInput{
-width:100%;
-height:44px;
-border-radius:10px;
-border:none;
-padding:10px;
-margin-bottom:10px;
-}
+.menuBtn{background:#444;color:#fff;}
 </style>
 </head>
 
 <body>
 
 <header><img src="normal.png"></header>
-<div id="infoBar"></div>
 <main id="chat"></main>
 
 <footer>
@@ -152,32 +66,16 @@ margin-bottom:10px;
 </div>
 </footer>
 
+<!-- 設定 -->
 <div id="menu">
 <div id="menuTop">
 
-<input id="searchBox" placeholder="Google検索">
-<button class="menuBtn" onclick="searchGoogle()">検索</button>
-
-<div class="menuGrid">
-<div class="menuItem" onclick="openNews()">📰<br>ニュース</div>
-<div class="menuItem" onclick="openMap()">🗺<br>地図</div>
-<div class="menuItem" onclick="openWeather()">☀️<br>天気</div>
-<div class="menuItem" onclick="openTransit()">🚃<br>乗換</div>
-<div class="menuItem" onclick="openCalendar()">📅<br>予定</div>
-<div class="menuItem" onclick="openGmail()">📧<br>メール</div>
-<div class="menuItem" onclick="openLine()">💬<br>LINE</div>
-<div class="menuItem" onclick="openYouTube()">▶<br>YouTube</div>
-</div>
-
-<h3>設定</h3>
-
 <input id="apiKey" class="menuInput" placeholder="APIキー">
 <input id="userName" class="menuInput" placeholder="あなたの名前">
-<input id="charName" class="menuInput" placeholder="キャラ名（例：美咲）">
+<input id="charName" class="menuInput" placeholder="キャラ名">
 
 <textarea id="systemPrompt" class="menuInput"
-placeholder="キャラ設定"
-style="height:80px;"></textarea>
+placeholder="キャラ設定"></textarea>
 
 <label>
 <input type="checkbox" id="voiceToggle"> 音声ON
@@ -185,8 +83,6 @@ style="height:80px;"></textarea>
 
 <select id="voiceType" class="menuInput">
 <option value="normal">通常</option>
-<option value="female">女性っぽい</option>
-<option value="male">男性っぽい</option>
 <option value="slow">ゆっくり</option>
 <option value="veryslow">かなりゆっくり</option>
 <option value="ultraslow">超ゆっくり</option>
@@ -204,9 +100,16 @@ const input=document.getElementById("input");
 const menu=document.getElementById("menu");
 const micBtn=document.getElementById("micBtn");
 
+/* ===== 設定 ===== */
+const apiKeyInput=document.getElementById("apiKey");
+const userNameInput=document.getElementById("userName");
+const charNameInput=document.getElementById("charName");
+const systemPromptInput=document.getElementById("systemPrompt");
+const voiceToggleInput=document.getElementById("voiceToggle");
+const voiceTypeSelect=document.getElementById("voiceType");
+
 let voiceOn=localStorage.getItem("voiceOn")==="true";
 let voiceType=localStorage.getItem("voiceType")||"normal";
-let history=JSON.parse(localStorage.getItem("chatHistory"))||[];
 
 /* ===== 表示 ===== */
 function add(t,c){
@@ -220,45 +123,32 @@ chat.scrollTop=chat.scrollHeight;
 /* ===== 音声 ===== */
 function speak(text){
 if(!voiceOn)return;
-
 speechSynthesis.cancel();
 const u=new SpeechSynthesisUtterance(text);
 u.lang="ja-JP";
 
-switch(voiceType){
-case "female": u.pitch=1.4; break;
-case "male": u.pitch=0.7; break;
-case "slow": u.rate=0.6; break;
-case "veryslow": u.rate=0.45; break;
-case "ultraslow": u.rate=0.3; break;
-}
+if(voiceType==="slow")u.rate=0.6;
+if(voiceType==="veryslow")u.rate=0.45;
+if(voiceType==="ultraslow")u.rate=0.3;
 
 speechSynthesis.speak(u);
 }
 
-document.body.onclick=()=>speechSynthesis.resume();
-
-/* ===== 名前呼びロジック ===== */
-function formatReply(text){
-const userName=localStorage.getItem("userName")||"";
-
-if(!userName) return text;
-
-/* 初回 */
-if(!localStorage.getItem("firstTalk")){
-localStorage.setItem("firstTalk","1");
-return userName+"さん、"+text;
+/* ===== 天気 ===== */
+async function getWeather(lat,lon){
+const res=await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true`);
+const d=await res.json();
+return `${Math.round(d.current_weather.temperature)}℃`;
 }
 
-/* ランダム */
-if(Math.random()<0.3){
-return userName+"さん、"+text;
+/* ===== 位置 ===== */
+function getLocation(){
+return new Promise((res,rej)=>{
+navigator.geolocation.getCurrentPosition(res,rej);
+});
 }
 
-return text;
-}
-
-/* ===== ChatGPT ===== */
+/* ===== 会話送信 ===== */
 async function send(){
 const t=input.value.trim();
 if(!t)return;
@@ -266,116 +156,74 @@ if(!t)return;
 add(t,"user");
 input.value="";
 
-const key=localStorage.getItem("apiKey");
-if(!key){add("APIキー未設定","ai");return;}
-
-add("考え中...","ai");
-
-const userName=localStorage.getItem("userName")||"";
-const charName=localStorage.getItem("charName")||"美咲";
-const basePrompt=localStorage.getItem("systemPrompt")||"";
-
-const res=await fetch("https://api.openai.com/v1/chat/completions",{
-method:"POST",
-headers:{
-"Content-Type":"application/json",
-"Authorization":"Bearer "+key
-},
-body:JSON.stringify({
-model:"gpt-4o-mini",
-messages:[
-{
-role:"system",
-content:`あなたの名前は${charName}です。ユーザーは${userName}。自然に会話する。\n${basePrompt}`
-},
-...history,
-{role:"user",content:t}
-]
-})
-});
-
-const data=await res.json();
-let reply=data.choices?.[0]?.message?.content||"エラー";
-
-/* 名前付け */
-reply=formatReply(reply);
-
-add(reply,"ai");
-speak(reply);
-
-history.push({role:"user",content:t});
-history.push({role:"assistant",content:reply});
-localStorage.setItem("chatHistory",JSON.stringify(history));
+/* 意図判定 */
+if(t.includes("天気")||t.includes("気温")){
+const pos=await getLocation();
+const temp=await getWeather(pos.coords.latitude,pos.coords.longitude);
+const msg=`今の気温は ${temp}だよ`;
+add(msg,"ai"); speak(msg); return;
 }
 
-/* ===== 音声入力 ===== */
-if(window.SpeechRecognition||window.webkitSpeechRecognition){
-const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
-const rec=new SR();
-rec.lang="ja-JP";
+if(t.includes("時間")){
+const now=new Date();
+const msg=`今は ${now.getHours()}時${now.getMinutes()}分`;
+add(msg,"ai"); speak(msg); return;
+}
 
-micBtn.onclick=()=>rec.start();
-
-rec.onresult=e=>{
-input.value=e.results[0][0].transcript;
-send();
-};
+/* 通常AI */
+add("（AI返答）","ai");
 }
 
 /* ===== メニュー ===== */
 function openMenu(){
 menu.classList.add("active");
-apiKey.value=localStorage.getItem("apiKey")||"";
-voiceToggle.checked=voiceOn;
-voiceType.value=voiceType;
-systemPrompt.value=localStorage.getItem("systemPrompt")||"";
-userName.value=localStorage.getItem("userName")||"";
-charName.value=localStorage.getItem("charName")||"";
+
+apiKeyInput.value=localStorage.getItem("apiKey")||"";
+userNameInput.value=localStorage.getItem("userName")||"";
+charNameInput.value=localStorage.getItem("charName")||"";
+systemPromptInput.value=localStorage.getItem("systemPrompt")||"";
+voiceToggleInput.checked=voiceOn;
+voiceTypeSelect.value=voiceType;
 }
 
-function closeMenu(){
-menu.classList.remove("active");
-}
+function closeMenu(){menu.classList.remove("active");}
 
 function saveSettings(){
-localStorage.setItem("apiKey",apiKey.value);
-localStorage.setItem("voiceOn",voiceToggle.checked);
-localStorage.setItem("voiceType",voiceType.value);
-localStorage.setItem("systemPrompt",systemPrompt.value);
-localStorage.setItem("userName",userName.value);
-localStorage.setItem("charName",charName.value);
+localStorage.setItem("apiKey",apiKeyInput.value);
+localStorage.setItem("userName",userNameInput.value);
+localStorage.setItem("charName",charNameInput.value);
+localStorage.setItem("systemPrompt",systemPromptInput.value);
+localStorage.setItem("voiceOn",voiceToggleInput.checked);
+localStorage.setItem("voiceType",voiceTypeSelect.value);
 
-voiceOn=voiceToggle.checked;
-voiceType=voiceType.value;
+voiceOn=voiceToggleInput.checked;
+voiceType=voiceTypeSelect.value;
 
 add("保存しました😊","ai");
 closeMenu();
 }
 
-/* ===== 外部 ===== */
-function openNews(){window.open("https://news.yahoo.co.jp/");}
-function openMap(){window.open("https://maps.google.com");}
-function openWeather(){window.open("https://weather.yahoo.co.jp/");}
-function openTransit(){window.open("https://transit.yahoo.co.jp/");}
-function openCalendar(){window.open("https://calendar.google.com/");}
-function openGmail(){window.open("https://mail.google.com/");}
-function openLine(){window.open("https://line.me");}
-function openYouTube(){window.open("https://youtube.com");}
-
-function searchGoogle(){
-const q=document.getElementById("searchBox").value;
-if(q) window.open("https://www.google.com/search?q="+encodeURIComponent(q));
-}
-
 /* ===== 起動 ===== */
-window.onload=()=>{
-const userName=localStorage.getItem("userName")||"";
-const charName=localStorage.getItem("charName")||"美咲";
+window.onload=async()=>{
+const name=localStorage.getItem("userName")||"";
+const char=localStorage.getItem("charName")||"美咲";
 
-if(userName){
-add(`${charName}だよ😊 ${userName}さん、こんにちは！`,"ai");
-}else{
-add(`${charName}だよ😊 こんにちは！`,"ai");
+try{
+const pos=await getLocation();
+const temp=await getWeather(pos.coords.latitude,pos.coords.longitude);
+
+const now=new Date();
+const greet=now.getHours()<12?"おはよう":"こんにちは";
+
+const msg=`${greet}😊 ${name}さん
+今は ${now.getHours()}時
+気温は ${temp}だよ`;
+
+add(msg,"ai");
+speak(msg);
+
+}catch{
+add(`${char}だよ😊 こんにちは！`,"ai");
 }
 };
 </script>
