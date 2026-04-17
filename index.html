@@ -26,6 +26,18 @@ padding:4px;
 background:rgba(255,255,255,0.6);
 }
 
+/* 🔥 好感度UI */
+#affectionWrap{
+padding:6px;
+background:rgba(255,255,255,0.7);
+}
+#affectionBar{
+height:8px;
+background:#ff6b81;
+border-radius:10px;
+width:50%;
+}
+
 main{flex:1;overflow-y:auto;padding:10px;}
 .msg{margin:8px;max-width:85%;}
 .user{text-align:right;margin-left:auto;}
@@ -78,6 +90,15 @@ margin-bottom:10px;background:#444;color:#fff;
 </header>
 
 <div id="infoBar">取得中...</div>
+
+<!-- 🔥 好感度 -->
+<div id="affectionWrap">
+好感度 ❤️ <span id="affectionText">50</span>
+<div style="background:#ddd;border-radius:10px;">
+<div id="affectionBar"></div>
+</div>
+</div>
+
 <main id="chat"></main>
 
 <footer>
@@ -115,7 +136,6 @@ margin-bottom:10px;background:#444;color:#fff;
 <label><input type="checkbox" id="voiceToggle"> 音声ON</label>
 
 <select id="voiceType" class="menuInput">
-<option value="normal">通常</option>
 <option value="female">女性</option>
 <option value="male">男性</option>
 <option value="slow">ゆっくり</option>
@@ -123,11 +143,13 @@ margin-bottom:10px;background:#444;color:#fff;
 <option value="ultraslow">超ゆっくり</option>
 </select>
 
-<!-- 🔥追加（UI崩さない最小） -->
 <select id="voiceEngine" class="menuInput">
 <option value="local">ローカル音声</option>
 <option value="openai">高品質音声</option>
 </select>
+
+<!-- 🔥課金 -->
+<button class="menuBtn" onclick="buyPremium()">💎 プレミアム解放</button>
 
 <button class="menuBtn" onclick="saveSettings()">保存</button>
 <button class="menuBtn" onclick="closeMenu()">閉じる</button>
@@ -138,25 +160,20 @@ margin-bottom:10px;background:#444;color:#fff;
 <script>
 const chat=document.getElementById("chat");
 const input=document.getElementById("input");
-const infoBar=document.getElementById("infoBar");
-const avatar=document.getElementById("avatar");
 
-const apiKey=document.getElementById("apiKey");
-const userName=document.getElementById("userName");
-const charName=document.getElementById("charName");
-const systemPrompt=document.getElementById("systemPrompt");
-const voiceToggle=document.getElementById("voiceToggle");
-const voiceTypeSelect=document.getElementById("voiceType");
-const voiceEngineSelect=document.getElementById("voiceEngine");
-const avatarUpload=document.getElementById("avatarUpload");
-const menu=document.getElementById("menu");
+/* ===== 状態 ===== */
+let history=JSON.parse(localStorage.getItem("chatHistory"))||[];
+let affection=parseInt(localStorage.getItem("affection")||"50");
+let mood=localStorage.getItem("mood")||"normal";
+let isPremium=localStorage.getItem("isPremium")==="true";
 
-let voiceOn=false;
-let voiceType="normal";
-let voiceEngine="local";
-let history=[];
+/* ===== UI更新 ===== */
+function updateAffectionUI(){
+document.getElementById("affectionText").innerText=affection;
+document.getElementById("affectionBar").style.width=affection+"%";
+}
 
-/* 表示 */
+/* ===== 表示 ===== */
 function add(t,c){
 const d=document.createElement("div");
 d.className="msg "+c;
@@ -165,64 +182,16 @@ chat.appendChild(d);
 chat.scrollTop=chat.scrollHeight;
 }
 
-/* 🔥 音声（完全版） */
-async function speak(text){
-if(!voiceOn)return;
-
-/* ローカル */
-if(voiceEngine==="local"){
-speechSynthesis.cancel();
-
-const u=new SpeechSynthesisUtterance(text);
-u.lang="ja-JP";
-
-switch(voiceType){
-case "female": u.pitch=1.3; break;
-case "male": u.pitch=0.6; u.rate=0.85; break;
-case "slow": u.rate=0.7; break;
-case "veryslow": u.rate=0.5; break;
-case "ultraslow": u.rate=0.3; break;
-default: u.rate=1.0;
-}
-
-speechSynthesis.speak(u);
-return;
-}
-
-/* OpenAI */
-if(voiceEngine==="openai"){
-const key=localStorage.getItem("apiKey");
-if(!key)return;
-
-try{
-const res=await fetch("https://api.openai.com/v1/audio/speech",{
-method:"POST",
-headers:{
-"Authorization":"Bearer "+key,
-"Content-Type":"application/json"
-},
-body:JSON.stringify({
-model:"gpt-4o-mini-tts",
-voice:"alloy",
-input:text
-})
-});
-const blob=await res.blob();
-const url=URL.createObjectURL(blob);
-new Audio(url).play();
-}catch(e){console.log(e);}
+/* ===== 課金 ===== */
+function buyPremium(){
+if(confirm("プレミアム解放する？")){
+localStorage.setItem("isPremium","true");
+isPremium=true;
+add("プレミアム解放されたよ😊","ai");
 }
 }
 
-/* 名前 */
-function formatReply(text){
-const name=localStorage.getItem("userName");
-if(!name)return text;
-if(Math.random()<0.3)return name+"さん、"+text;
-return text;
-}
-
-/* AI */
+/* ===== AI ===== */
 async function send(){
 const t=input.value.trim();
 if(!t)return;
@@ -230,14 +199,34 @@ if(!t)return;
 add(t,"user");
 input.value="";
 
+/* 制限 */
+if(!isPremium){
+let limit=parseInt(localStorage.getItem("limit")||"20");
+if(limit<=0){
+add("今日はここまで…プレミアムで続き話そう😊","ai");
+return;
+}
+limit--;
+localStorage.setItem("limit",limit);
+}
+
+/* 感情変化 */
+if(t.includes("好き")||t.includes("ありがとう")){
+affection+=5; mood="happy";
+}
+if(t.includes("嫌い")){
+affection-=10; mood="sad";
+}
+if(!isPremium && affection>70)affection=70;
+
+localStorage.setItem("affection",affection);
+localStorage.setItem("mood",mood);
+
+updateAffectionUI();
+
+/* 通信 */
 const key=localStorage.getItem("apiKey");
 if(!key){add("APIキー未設定","ai");return;}
-
-add("考え中...","ai");
-
-const char=localStorage.getItem("charName")||"美咲";
-const prompt=localStorage.getItem("systemPrompt")||"";
-const env=localStorage.getItem("envData")||"";
 
 const res=await fetch("https://api.openai.com/v1/chat/completions",{
 method:"POST",
@@ -248,7 +237,7 @@ headers:{
 body:JSON.stringify({
 model:"gpt-4o-mini",
 messages:[
-{role:"system",content:`あなたは${char}です。\n${prompt}\n現在の状況:${env}`},
+{role:"system",content:`感情:${mood} 好感度:${affection}`},
 ...history,
 {role:"user",content:t}
 ]
@@ -258,52 +247,20 @@ messages:[
 const data=await res.json();
 let reply=data.choices?.[0]?.message?.content||"エラー";
 
-reply=formatReply(reply);
+/* 感情演出 */
+if(mood==="love") reply+="…ずっと一緒にいたい😊";
+if(mood==="sad") reply="ちょっと寂しい…"+reply;
+
 add(reply,"ai");
-speak(reply);
 
 history.push({role:"user",content:t});
 history.push({role:"assistant",content:reply});
 localStorage.setItem("chatHistory",JSON.stringify(history));
 }
 
-/* メニュー */
-function openMenu(){
-menu.classList.add("active");
-apiKey.value=localStorage.getItem("apiKey")||"";
-userName.value=localStorage.getItem("userName")||"";
-charName.value=localStorage.getItem("charName")||"";
-systemPrompt.value=localStorage.getItem("systemPrompt")||"";
-voiceToggle.checked=localStorage.getItem("voiceOn")==="true";
-voiceTypeSelect.value=localStorage.getItem("voiceType")||"normal";
-voiceEngineSelect.value=localStorage.getItem("voiceEngine")||"local";
-}
-
-function saveSettings(){
-localStorage.setItem("apiKey",apiKey.value);
-localStorage.setItem("userName",userName.value);
-localStorage.setItem("charName",charName.value);
-localStorage.setItem("systemPrompt",systemPrompt.value);
-localStorage.setItem("voiceOn",voiceToggle.checked);
-localStorage.setItem("voiceType",voiceTypeSelect.value);
-localStorage.setItem("voiceEngine",voiceEngineSelect.value);
-
-voiceOn=voiceToggle.checked;
-voiceType=voiceTypeSelect.value;
-voiceEngine=voiceEngineSelect.value;
-
-add("保存しました😊","ai");
-closeMenu();
-}
-
-function closeMenu(){menu.classList.remove("active");}
-
 /* 起動 */
 window.onload=()=>{
-voiceOn=localStorage.getItem("voiceOn")==="true";
-voiceType=localStorage.getItem("voiceType")||"normal";
-voiceEngine=localStorage.getItem("voiceEngine")||"local";
-history=JSON.parse(localStorage.getItem("chatHistory"))||[];
+updateAffectionUI();
 };
 </script>
 
