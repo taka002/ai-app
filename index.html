@@ -47,6 +47,7 @@ button{border:none;border-radius:10px;padding:10px;}
 <input id="input" placeholder="話しかけてください">
 <button onclick="send()">➤</button>
 <button onclick="openNews()">📰</button>
+<button onclick="openTransit()">🚃</button>
 <button onclick="openSettings()">⚙</button>
 </div>
 </div>
@@ -161,16 +162,34 @@ add("通信エラー","ai");
 }
 }
 
-/* ===== ニュース（外部） ===== */
+/* ===== ニュース ===== */
 function openNews(){
 const keyword = locationText.replace("📍","");
 
-const choice = confirm("OKでYahooニュース\nキャンセルでNewsPicks");
+const choice = confirm("OK→Yahooニュース\nキャンセル→NewsPicks");
 
 if(choice){
 window.open(`https://news.yahoo.co.jp/search?p=${encodeURIComponent(keyword)}`);
 }else{
 window.open(`https://newspicks.com/search?q=${encodeURIComponent(keyword)}`);
+}
+}
+
+/* ===== 乗換 ===== */
+function openTransit(){
+const choice = prompt("1:Yahoo\n2:NAVITIME\n3:ジョルダン");
+
+if(choice==="1"){
+window.open("https://transit.yahoo.co.jp/");
+}
+else if(choice==="2"){
+window.open("https://www.navitime.co.jp/");
+}
+else if(choice==="3"){
+window.open("https://www.jorudan.co.jp/");
+}
+else{
+add("キャンセルしました","ai");
 }
 }
 
