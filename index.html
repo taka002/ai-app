@@ -14,17 +14,23 @@ height:100vh;display:flex;flex-direction:column;
 }
 #character{height:30vh;}
 #character img{width:100%;height:100%;object-fit:cover;}
+
 #infoBar{text-align:center;font-size:13px;padding:6px;background:#fff8;}
-#chat{flex:1;overflow:auto;padding:10px;padding-bottom:100px;}
+
+#chat{flex:1;overflow:auto;padding:10px;padding-bottom:120px;}
 .msg{max-width:85%;margin:8px;}
 .user{margin-left:auto;text-align:right;}
 .ai{text-align:left;}
 .bubble{display:inline-block;padding:12px;border-radius:16px;background:#fff;}
 .user .bubble{background:#0072ff;color:#fff;}
 
-#bottom{position:fixed;bottom:0;width:100%;background:#fff;padding:8px;}
+#bottom{
+position:fixed;bottom:0;width:100%;
+background:#fff;padding:8px;
+}
 #controls{display:flex;gap:6px;}
-#input{flex:1;padding:10px;border-radius:20px;border:none;}
+#input{flex:1;padding:12px;border-radius:20px;border:none;}
+
 button{border:none;border-radius:10px;padding:10px;}
 
 /* モーダル */
@@ -50,6 +56,16 @@ display:flex;flex-direction:column;
 justify-content:center;align-items:center;
 border-radius:12px;
 }
+
+/* 🔍 検索ボックス */
+.searchBox{
+width:100%;
+padding:14px;
+border-radius:12px;
+border:none;
+margin-bottom:10px;
+font-size:16px;
+}
 </style>
 </head>
 
@@ -66,13 +82,19 @@ border-radius:12px;
 <div id="controls">
 <input id="input" placeholder="話しかけてください">
 <button onclick="send()">➤</button>
-<button id="micBtn">🎤</button>
 <button onclick="openSettings()">⚙</button>
 </div>
 </div>
 
+<!-- モーダル -->
 <div id="modal">
 <div id="modalContent">
+
+<h3>🔍 Google検索</h3>
+<input id="searchInput" class="searchBox" placeholder="検索ワード入力">
+<button onclick="searchGoogle()">検索</button>
+
+<hr>
 
 <h3>メニュー</h3>
 <div class="menuGrid">
@@ -82,6 +104,7 @@ border-radius:12px;
 <button onclick="openCalendar()">📅<br>予定</button>
 <button onclick="openGmail()">📧<br>メール</button>
 <button onclick="openLine()">💬<br>LINE</button>
+<button onclick="openYouTube()">▶️<br>YouTube</button>
 </div>
 
 <hr>
@@ -107,8 +130,6 @@ const apiKey=document.getElementById("apiKey");
 const voiceToggle=document.getElementById("voiceToggle");
 
 let voiceOn=localStorage.getItem("voiceOn")==="true";
-
-/* 🔥 記憶 */
 let history = JSON.parse(localStorage.getItem("chatHistory")) || [];
 
 let locationText="";
@@ -142,20 +163,20 @@ chat.scrollTop=chat.scrollHeight;
 /* 挨拶 */
 function greeting(){
 const h=new Date().getHours();
-if(h<5) return "まだ夜ですね。無理しないでくださいね";
+if(h<5) return "まだ夜ですね";
 if(h<11) return "おはようございます☀️";
 if(h<17) return "こんにちは😊";
 if(h<22) return "こんばんは🌙";
-return "夜遅いですね。ゆっくり休んでください";
+return "夜遅いですね";
 }
 
 /* 天気 */
 function weatherComment(){
 if(weatherCode===0) return "いい天気ですね☀️";
 if(weatherCode<=3) return "曇り気味ですね☁️";
-if(weatherCode<=67) return "雨ですね☔ 足元気をつけて";
+if(weatherCode<=67) return "雨ですね☔";
 if(weatherCode<=77) return "寒そうですね❄️";
-return "天気荒れ気味⚡ 無理しないで";
+return "天気荒れ気味⚡";
 }
 
 /* ChatGPT */
@@ -199,29 +220,21 @@ add("通信エラー","ai");
 }
 }
 
-/* 🎤 音声入力 */
-const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-if(SpeechRecognition){
-const recognition = new SpeechRecognition();
-recognition.lang="ja-JP";
-
-document.getElementById("micBtn").onclick=()=>{
-recognition.start();
-};
-
-recognition.onresult=(e)=>{
-input.value=e.results[0][0].transcript;
-send();
-};
+/* Google検索 */
+function searchGoogle(){
+const q=document.getElementById("searchInput").value;
+if(!q)return;
+window.open(`https://www.google.com/search?q=${encodeURIComponent(q)}`);
 }
 
 /* 外部リンク */
-function openNews(){modal.style.display="none";window.open("https://news.yahoo.co.jp/");}
-function openTransit(){modal.style.display="none";window.open("https://transit.yahoo.co.jp/");}
-function openMap(){modal.style.display="none";window.open("https://www.google.com/maps");}
-function openCalendar(){modal.style.display="none";window.open("https://calendar.google.com/");}
-function openGmail(){modal.style.display="none";window.open("https://mail.google.com/");}
-function openLine(){modal.style.display="none";window.open("https://line.me");}
+function openNews(){window.open("https://news.yahoo.co.jp/");}
+function openTransit(){window.open("https://transit.yahoo.co.jp/");}
+function openMap(){window.open("https://www.google.com/maps");}
+function openCalendar(){window.open("https://calendar.google.com/");}
+function openGmail(){window.open("https://mail.google.com/");}
+function openLine(){window.open("https://line.me");}
+function openYouTube(){window.open("https://www.youtube.com");}
 
 /* 位置 */
 function getLocation(){
@@ -255,7 +268,6 @@ window.onload=()=>{
 add(greeting(),"ai");
 speak(greeting());
 
-/* 履歴復元 */
 history.forEach(h=>{
 add(h.content, h.role==="user"?"user":"ai");
 });
