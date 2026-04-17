@@ -18,9 +18,11 @@ flex-direction:column;
 padding-bottom:60px;
 }
 
+/* ===== 上 ===== */
 header{height:28vh;}
 header img{width:100%;height:100%;object-fit:cover;}
 
+/* ===== 情報 ===== */
 #infoBar{
 text-align:center;
 font-size:11px;
@@ -28,18 +30,23 @@ padding:4px;
 background:rgba(255,255,255,0.6);
 }
 
+/* ===== チャット ===== */
 main{flex:1;overflow-y:auto;padding:10px;}
 .msg{margin:8px;max-width:85%;}
 .user{text-align:right;margin-left:auto;}
 .ai{text-align:left;}
 
 .bubble{
-padding:10px;
-border-radius:16px;
+padding:12px;
+border-radius:18px;
 background:#fff;
 }
-.user .bubble{background:#0072ff;color:#fff;}
+.user .bubble{
+background:#0072ff;
+color:#fff;
+}
 
+/* ===== 下バー ===== */
 footer{
 position:fixed;
 bottom:0;width:100%;
@@ -57,7 +64,7 @@ gap:6px;
 }
 
 #input{
-width:58%;
+width:55%;
 height:36px;
 border-radius:20px;
 border:none;
@@ -65,16 +72,17 @@ padding:8px;
 }
 
 .dockBtn{
-width:40px;height:36px;
-border:none;border-radius:10px;
+width:42px;height:36px;
+border:none;border-radius:12px;
 background:#eee;
 }
 
+/* ===== メニュー ===== */
 #menu{
 position:fixed;
 bottom:-100%;
 width:100%;
-height:88%;
+height:90%;
 background:#111;
 color:#fff;
 display:flex;
@@ -91,48 +99,60 @@ overflow:auto;
 padding:20px;
 }
 
+/* 検索 */
 #searchBox{
 width:100%;
 height:48px;
-border-radius:12px;
+border-radius:14px;
 border:none;
 padding:10px;
 margin-bottom:10px;
 }
 
+/* ボタン */
 .menuBtn{
 width:100%;
-height:44px;
+height:46px;
 border:none;
-border-radius:10px;
-margin-bottom:10px;
+border-radius:12px;
+margin-bottom:12px;
 background:#444;
 color:#fff;
 }
 
+/* アプリ */
 .menuGrid{
 display:grid;
 grid-template-columns:repeat(3,1fr);
-gap:12px;
+gap:14px;
+margin-bottom:20px;
 }
 
 .menuItem{
-height:90px;
+height:100px;
 background:#333;
-border-radius:16px;
+border-radius:18px;
 display:flex;
 flex-direction:column;
 justify-content:center;
 align-items:center;
+font-size:14px;
 }
 
+/* 設定 */
 .menuInput{
 width:100%;
-height:44px;
-border-radius:10px;
+height:46px;
+border-radius:12px;
 border:none;
-padding:10px;
-margin-bottom:10px;
+padding:12px;
+margin-bottom:12px;
+}
+
+/* テキストエリア */
+textarea.menuInput{
+height:90px;
+resize:none;
 }
 </style>
 </head>
@@ -140,7 +160,9 @@ margin-bottom:10px;
 <body>
 
 <header><img src="normal.png"></header>
+
 <div id="infoBar"></div>
+
 <main id="chat"></main>
 
 <footer>
@@ -152,7 +174,7 @@ margin-bottom:10px;
 </div>
 </footer>
 
-<!-- メニュー -->
+<!-- ===== メニュー ===== -->
 <div id="menu">
 <div id="menuTop">
 
@@ -175,10 +197,11 @@ margin-bottom:10px;
 <input id="apiKey" class="menuInput" placeholder="OpenAI APIキー">
 
 <textarea id="systemPrompt" class="menuInput"
-placeholder="キャラ設定（例：優しいお姉さん、短く話す）"
-style="height:80px;"></textarea>
+placeholder="キャラ設定（例：優しいお姉さん、短く話す）"></textarea>
 
-<label><input type="checkbox" id="voiceToggle"> 音声ON</label>
+<label>
+<input type="checkbox" id="voiceToggle"> 音声ON
+</label>
 
 <select id="voiceEngine" class="menuInput">
 <option value="local">ローカル音声</option>
@@ -207,13 +230,26 @@ const input=document.getElementById("input");
 const menu=document.getElementById("menu");
 const micBtn=document.getElementById("micBtn");
 
+/* ===== 状態 ===== */
 let voiceOn=localStorage.getItem("voiceOn")==="true";
 let voiceType=localStorage.getItem("voiceType")||"normal";
 let voiceEngine=localStorage.getItem("voiceEngine")||"local";
 let elevenKey=localStorage.getItem("elevenKey")||"";
 let history=JSON.parse(localStorage.getItem("chatHistory"))||[];
 
-/* 表示 */
+let voices=[];
+
+/* ===== 音声初期化 ===== */
+speechSynthesis.onvoiceschanged=()=>{
+voices=speechSynthesis.getVoices();
+};
+
+/* スマホ対策 */
+document.body.addEventListener("click",()=>{
+speechSynthesis.resume();
+});
+
+/* ===== 表示 ===== */
 function add(t,c){
 const d=document.createElement("div");
 d.className="msg "+c;
@@ -222,21 +258,24 @@ chat.appendChild(d);
 chat.scrollTop=chat.scrollHeight;
 }
 
-/* 音声 */
+/* ===== 音声 ===== */
 async function speak(text){
-
 if(!voiceOn)return;
 
 /* ローカル */
 if(voiceEngine==="local"){
 speechSynthesis.cancel();
+
 const u=new SpeechSynthesisUtterance(text);
 u.lang="ja-JP";
 
+const ja=voices.find(v=>v.lang.includes("ja"));
+if(ja) u.voice=ja;
+
 if(voiceType==="female"){u.pitch=1.4;}
-else if(voiceType==="male"){u.pitch=0.7;}
-else if(voiceType==="slow"){u.rate=0.7;}
-else if(voiceType==="veryslow"){u.rate=0.5;}
+if(voiceType==="male"){u.pitch=0.7;}
+if(voiceType==="slow"){u.rate=0.7;}
+if(voiceType==="veryslow"){u.rate=0.5;}
 
 speechSynthesis.speak(u);
 return;
@@ -244,8 +283,12 @@ return;
 
 /* ElevenLabs */
 if(voiceEngine==="eleven"){
-if(!elevenKey){add("ElevenLabsキー未設定","ai");return;}
+if(!elevenKey){
+add("ElevenLabsキー未設定","ai");
+return;
+}
 
+try{
 const res=await fetch("https://api.elevenlabs.io/v1/text-to-speech/EXAVITQu4vr4xnSDxMaL",{
 method:"POST",
 headers:{
@@ -261,10 +304,14 @@ model_id:"eleven_multilingual_v2"
 const blob=await res.blob();
 const url=URL.createObjectURL(blob);
 new Audio(url).play();
+
+}catch{
+add("音声エラー","ai");
+}
 }
 }
 
-/* Chat */
+/* ===== Chat ===== */
 async function send(){
 const t=input.value.trim();
 if(!t)return;
@@ -277,6 +324,7 @@ if(!key){add("APIキー未設定","ai");return;}
 
 add("考え中...","ai");
 
+try{
 const res=await fetch("https://api.openai.com/v1/chat/completions",{
 method:"POST",
 headers:{
@@ -302,9 +350,13 @@ speak(reply);
 history.push({role:"user",content:t});
 history.push({role:"assistant",content:reply});
 localStorage.setItem("chatHistory",JSON.stringify(history));
+
+}catch{
+add("通信エラー","ai");
+}
 }
 
-/* 音声入力 */
+/* ===== 音声入力 ===== */
 if(window.SpeechRecognition||window.webkitSpeechRecognition){
 const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
 const rec=new SR();
@@ -318,9 +370,10 @@ send();
 };
 }
 
-/* メニュー */
+/* ===== メニュー ===== */
 function openMenu(){
 menu.classList.add("active");
+
 apiKey.value=localStorage.getItem("apiKey")||"";
 voiceToggle.checked=voiceOn;
 voiceType.value=voiceType;
@@ -329,7 +382,9 @@ elevenKey.value=localStorage.getItem("elevenKey")||"";
 systemPrompt.value=localStorage.getItem("systemPrompt")||"";
 }
 
-function closeMenu(){menu.classList.remove("active");}
+function closeMenu(){
+menu.classList.remove("active");
+}
 
 function saveSettings(){
 localStorage.setItem("apiKey",apiKey.value);
@@ -347,7 +402,7 @@ add("保存しました","ai");
 closeMenu();
 }
 
-/* 外部 */
+/* ===== 外部 ===== */
 function openNews(){window.open("https://news.yahoo.co.jp/");}
 function openMap(){window.open("https://maps.google.com");}
 function openWeather(){window.open("https://weather.yahoo.co.jp/");}
@@ -362,8 +417,9 @@ const q=document.getElementById("searchBox").value;
 if(q) window.open("https://www.google.com/search?q="+encodeURIComponent(q));
 }
 
-/* 起動 */
+/* ===== 起動 ===== */
 window.onload=()=>{
+voices=speechSynthesis.getVoices();
 add("こんにちは😊","ai");
 };
 </script>
