@@ -18,6 +18,7 @@ flex-direction:column;
 padding-bottom:60px;
 }
 
+/* 上 */
 header{height:28vh;}
 header img{width:100%;height:100%;object-fit:cover;}
 
@@ -70,6 +71,7 @@ border:none;border-radius:10px;
 background:#eee;
 }
 
+/* メニュー */
 #menu{
 position:fixed;
 bottom:-100%;
@@ -139,7 +141,10 @@ margin-bottom:10px;
 
 <body>
 
-<header><img src="normal.png"></header>
+<header>
+<img id="avatar" src="normal.png">
+</header>
+
 <div id="infoBar"></div>
 <main id="chat"></main>
 
@@ -160,27 +165,27 @@ margin-bottom:10px;
 <button class="menuBtn" onclick="searchGoogle()">検索</button>
 
 <div class="menuGrid">
-
 <div class="menuItem" onclick="openNews()">📰<br>ニュース</div>
 <div class="menuItem" onclick="openMap()">🗺<br>地図</div>
 <div class="menuItem" onclick="openWeather()">☀️<br>天気</div>
-
 <div class="menuItem" onclick="openTransit()">🚃<br>乗換</div>
 <div class="menuItem" onclick="openCalendar()">📅<br>予定</div>
 <div class="menuItem" onclick="openGmail()">📧<br>メール</div>
-
 <div class="menuItem" onclick="openLine()">💬<br>LINE</div>
 <div class="menuItem" onclick="openYouTube()">▶<br>YouTube</div>
-
 </div>
 
 <h3>設定</h3>
 
 <input id="apiKey" class="menuInput" placeholder="APIキー">
 
-<textarea id="systemPrompt" class="menuInput" 
-placeholder="キャラ設定（例：優しいお姉さん、短く話す）"
-style="height:80px;"></textarea>
+<input id="userName" class="menuInput" placeholder="あなたの名前">
+
+<input id="charName" class="menuInput" placeholder="キャラ名（例：美咲）">
+
+<textarea id="systemPrompt" class="menuInput" placeholder="キャラ設定"></textarea>
+
+<input type="file" id="avatarUpload" class="menuInput">
 
 <label>
 <input type="checkbox" id="voiceToggle"> 音声ON
@@ -191,6 +196,8 @@ style="height:80px;"></textarea>
 <option value="female">女性っぽい</option>
 <option value="male">男性っぽい</option>
 <option value="slow">ゆっくり</option>
+<option value="veryslow">かなりゆっくり</option>
+<option value="ultraslow">超ゆっくり</option>
 </select>
 
 <button class="menuBtn" onclick="saveSettings()">保存</button>
@@ -204,10 +211,20 @@ const chat=document.getElementById("chat");
 const input=document.getElementById("input");
 const menu=document.getElementById("menu");
 const micBtn=document.getElementById("micBtn");
+const avatar=document.getElementById("avatar");
 
 let voiceOn=localStorage.getItem("voiceOn")==="true";
 let voiceType=localStorage.getItem("voiceType")||"normal";
 let history=JSON.parse(localStorage.getItem("chatHistory"))||[];
+
+let voices=[];
+speechSynthesis.onvoiceschanged=()=>{
+voices=speechSynthesis.getVoices();
+};
+
+document.body.addEventListener("click",()=>{
+speechSynthesis.resume();
+});
 
 /* 表示 */
 function add(t,c){
@@ -226,18 +243,19 @@ speechSynthesis.cancel();
 const u=new SpeechSynthesisUtterance(text);
 u.lang="ja-JP";
 
+const ja=voices.find(v=>v.lang.includes("ja"));
+if(ja)u.voice=ja;
+
 if(voiceType==="female"){u.pitch=1.4;}
 else if(voiceType==="male"){u.pitch=0.7;}
 else if(voiceType==="slow"){u.rate=0.7;}
+else if(voiceType==="veryslow"){u.rate=0.5;}
+else if(voiceType==="ultraslow"){u.rate=0.4;}
 
 speechSynthesis.speak(u);
 }
 
-document.body.addEventListener("click",()=>{
-speechSynthesis.resume();
-});
-
-/* ChatGPT */
+/* Chat */
 async function send(){
 const t=input.value.trim();
 if(!t)return;
@@ -250,7 +268,9 @@ if(!key){add("APIキー未設定","ai");return;}
 
 add("考え中...","ai");
 
-try{
+const userName=localStorage.getItem("userName")||"";
+const charName=localStorage.getItem("charName")||"美咲";
+
 const res=await fetch("https://api.openai.com/v1/chat/completions",{
 method:"POST",
 headers:{
@@ -262,7 +282,7 @@ model:"gpt-4o-mini",
 messages:[
 {
 role:"system",
-content: localStorage.getItem("systemPrompt") || "優しく話す"
+content:`あなたは${charName}です。${userName}さんに優しく話す。` + (localStorage.getItem("systemPrompt")||"")
 },
 ...history,
 {role:"user",content:t}
@@ -271,7 +291,9 @@ content: localStorage.getItem("systemPrompt") || "優しく話す"
 });
 
 const data=await res.json();
-const reply=data.choices?.[0]?.message?.content||"エラー";
+let reply=data.choices?.[0]?.message?.content||"エラー";
+
+if(userName) reply=`${userName}さん、${reply}`;
 
 add(reply,"ai");
 speak(reply);
@@ -279,33 +301,20 @@ speak(reply);
 history.push({role:"user",content:t});
 history.push({role:"assistant",content:reply});
 localStorage.setItem("chatHistory",JSON.stringify(history));
-
-}catch{
-add("通信エラー","ai");
-}
 }
 
-/* 音声入力 */
-if(window.SpeechRecognition||window.webkitSpeechRecognition){
-const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
-const rec=new SR();
-rec.lang="ja-JP";
+/* 画像変更 */
+document.getElementById("avatarUpload").addEventListener("change",e=>{
+const file=e.target.files[0];
+if(!file)return;
 
-micBtn.onclick=()=>rec.start();
-
-rec.onresult=e=>{
-input.value=e.results[0][0].transcript;
-send();
+const reader=new FileReader();
+reader.onload=ev=>{
+avatar.src=ev.target.result;
+localStorage.setItem("avatar",ev.target.result);
 };
-}
-
-/* 検索 */
-function searchGoogle(){
-const q=document.getElementById("searchBox").value;
-if(q){
-window.open("https://www.google.com/search?q="+encodeURIComponent(q));
-}
-}
+reader.readAsDataURL(file);
+});
 
 /* メニュー */
 function openMenu(){
@@ -313,6 +322,8 @@ menu.classList.add("active");
 apiKey.value=localStorage.getItem("apiKey")||"";
 voiceToggle.checked=voiceOn;
 voiceType.value=voiceType;
+userName.value=localStorage.getItem("userName")||"";
+charName.value=localStorage.getItem("charName")||"";
 systemPrompt.value=localStorage.getItem("systemPrompt")||"";
 }
 
@@ -325,6 +336,8 @@ localStorage.setItem("apiKey",apiKey.value);
 localStorage.setItem("voiceOn",voiceToggle.checked);
 localStorage.setItem("voiceType",voiceType.value);
 localStorage.setItem("systemPrompt",systemPrompt.value);
+localStorage.setItem("userName",userName.value);
+localStorage.setItem("charName",charName.value);
 
 voiceOn=voiceToggle.checked;
 voiceType=voiceType.value;
@@ -343,8 +356,18 @@ function openGmail(){window.open("https://mail.google.com/");}
 function openLine(){window.open("https://line.me");}
 function openYouTube(){window.open("https://youtube.com");}
 
+function searchGoogle(){
+const q=document.getElementById("searchBox").value;
+if(q) window.open("https://www.google.com/search?q="+encodeURIComponent(q));
+}
+
 /* 起動 */
 window.onload=()=>{
+voices=speechSynthesis.getVoices();
+
+const saved=localStorage.getItem("avatar");
+if(saved) avatar.src=saved;
+
 add("こんにちは😊","ai");
 };
 </script>
