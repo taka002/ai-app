@@ -7,6 +7,7 @@
 
 <style>
 *{box-sizing:border-box;}
+
 body{
 margin:0;
 font-family:sans-serif;
@@ -16,8 +17,10 @@ display:flex;
 flex-direction:column;
 }
 
-/* ===== 上 ===== */
-header{height:28vh;}
+/* ===== 上：キャラ ===== */
+header{
+height:28vh;
+}
 header img{
 width:100%;
 height:100%;
@@ -29,8 +32,7 @@ object-fit:cover;
 text-align:center;
 font-size:12px;
 padding:4px;
-background:rgba(255,255,255,0.6);
-backdrop-filter:blur(6px);
+background:rgba(255,255,255,0.7);
 }
 
 /* ===== チャット ===== */
@@ -38,75 +40,97 @@ main{
 flex:1;
 overflow-y:auto;
 padding:10px;
-padding-bottom:60px;
+padding-bottom:70px;
 }
+
 .msg{margin:8px;max-width:85%;}
 .user{text-align:right;margin-left:auto;}
 .ai{text-align:left;}
+
 .bubble{
 display:inline-block;
-padding:12px;
+padding:10px 12px;
 border-radius:16px;
 background:#fff;
+font-size:14px;
 }
+
 .user .bubble{
 background:#0072ff;
 color:#fff;
 }
 
-/* ===== 下（完全最適化） ===== */
+/* ===== 下バー（完全安定） ===== */
 footer{
 position:fixed;
-bottom:env(safe-area-inset-bottom);
+bottom:0;
 width:100%;
 background:#ffffffee;
-backdrop-filter:blur(10px);
-padding:4px 6px;
+padding:6px;
 border-top:1px solid #ccc;
 z-index:100;
 }
 
 #dock{
 display:flex;
-gap:4px;
 align-items:center;
+gap:6px;
 }
 
 #input{
 flex:1;
-height:32px;
-padding:6px 10px;
-border-radius:18px;
+height:34px;
+padding:8px;
+border-radius:20px;
 border:none;
-font-size:13px;
-}
-
-button{
-width:34px;
-height:32px;
-border:none;
-border-radius:8px;
-background:#eee;
 font-size:14px;
-display:flex;
-align-items:center;
-justify-content:center;
 }
 
-/* ===== メニュー ===== */
+/* 下ボタン専用 */
+.dockBtn{
+width:34px;
+height:34px;
+border:none;
+border-radius:10px;
+background:#eee;
+}
+
+/* ===== メニュー（完全修正版） ===== */
 #menu{
 position:fixed;
-top:0;left:0;
-width:100%;height:100%;
+top:0;
+left:0;
+width:100%;
+height:100%;
 background:#111;
 color:#fff;
 display:none;
 flex-direction:column;
-overflow:auto;
+overflow-y:auto;
 padding:20px;
 z-index:200;
 }
 
+/* 検索 */
+#searchBox{
+width:100%;
+height:48px;
+border-radius:12px;
+border:none;
+padding:10px;
+font-size:16px;
+margin-bottom:10px;
+}
+
+.menuBtn{
+width:100%;
+height:48px;
+border:none;
+border-radius:10px;
+margin-bottom:15px;
+}
+
+/* グリッド */
 .menuGrid{
 display:grid;
 grid-template-columns:repeat(3,1fr);
@@ -114,24 +138,26 @@ gap:12px;
 margin-bottom:20px;
 }
 
-.menuGrid button{
+.menuItem{
 height:90px;
 background:#333;
-color:#fff;
 border-radius:16px;
 display:flex;
 flex-direction:column;
 justify-content:center;
 align-items:center;
+font-size:14px;
 }
 
-#searchBox{
+/* 設定 */
+.menuInput{
 width:100%;
-padding:14px;
-border-radius:12px;
+height:44px;
+border-radius:10px;
 border:none;
+padding:10px;
+margin-bottom:10px;
 font-size:16px;
-margin-bottom:15px;
 }
 </style>
 </head>
@@ -149,40 +175,35 @@ margin-bottom:15px;
 <footer>
 <div id="dock">
 <input id="input" placeholder="話しかけてください">
-<button onclick="send()">➤</button>
-<button id="micBtn">🎤</button>
-<button onclick="openMenu()">☰</button>
+<button class="dockBtn" onclick="send()">➤</button>
+<button class="dockBtn" id="micBtn">🎤</button>
+<button class="dockBtn" onclick="openMenu()">☰</button>
 </div>
 </footer>
 
-<!-- メニュー -->
+<!-- ===== メニュー ===== -->
 <div id="menu">
 
 <input id="searchBox" placeholder="Google検索">
-<button onclick="searchGoogle()">検索</button>
-
-<hr>
+<button class="menuBtn" onclick="searchGoogle()">検索</button>
 
 <div class="menuGrid">
-<button onclick="openNews()">📰<br>ニュース</button>
-<button onclick="openTransit()">🚃<br>乗換</button>
-<button onclick="openMap()">🗺<br>地図</button>
-<button onclick="openCalendar()">📅<br>予定</button>
-<button onclick="openGmail()">📧<br>メール</button>
-<button onclick="openLine()">💬<br>LINE</button>
-<button onclick="openYouTube()">▶<br>YouTube</button>
+<div class="menuItem" onclick="openNews()">📰<br>ニュース</div>
+<div class="menuItem" onclick="openTransit()">🚃<br>乗換</div>
+<div class="menuItem" onclick="openMap()">🗺<br>地図</div>
+<div class="menuItem" onclick="openCalendar()">📅<br>予定</div>
+<div class="menuItem" onclick="openGmail()">📧<br>メール</div>
+<div class="menuItem" onclick="openLine()">💬<br>LINE</div>
+<div class="menuItem" onclick="openYouTube()">▶<br>YouTube</div>
 </div>
 
-<hr>
-
 <h3>設定</h3>
-<input id="apiKey" placeholder="APIキー">
-<br><br>
+<input id="apiKey" class="menuInput" placeholder="APIキー">
 <label><input type="checkbox" id="voiceToggle"> 音声ON</label>
+
 <br><br>
-<button onclick="saveSettings()">保存</button>
-<br><br>
-<button onclick="closeMenu()">閉じる</button>
+<button class="menuBtn" onclick="saveSettings()">保存</button>
+<button class="menuBtn" onclick="closeMenu()">閉じる</button>
 
 </div>
 
@@ -195,23 +216,10 @@ const menu=document.getElementById("menu");
 let voiceOn=localStorage.getItem("voiceOn")==="true";
 let history=JSON.parse(localStorage.getItem("chatHistory"))||[];
 
-let locationText="";
-let weatherText="";
-let weatherCode=null;
-let lat=null;
-let lon=null;
+let lat=null, lon=null;
+let locationText="", weatherText="";
 
-/* ===== 音声 ===== */
-function speak(text){
-if(!voiceOn) return;
-speechSynthesis.cancel();
-const uttr=new SpeechSynthesisUtterance(text);
-uttr.lang="ja-JP";
-speechSynthesis.speak(uttr);
-}
-document.body.addEventListener("click",()=>speechSynthesis.resume());
-
-/* ===== 表示＋保存 ===== */
+/* ===== 表示 ===== */
 function add(t,c){
 const d=document.createElement("div");
 d.className="msg "+c;
@@ -223,6 +231,17 @@ history.push({role:c==="user"?"user":"assistant",content:t});
 if(history.length>50) history.shift();
 localStorage.setItem("chatHistory",JSON.stringify(history));
 }
+
+/* ===== 音声 ===== */
+function speak(text){
+if(!voiceOn) return;
+speechSynthesis.cancel();
+const u=new SpeechSynthesisUtterance(text);
+u.lang="ja-JP";
+speechSynthesis.speak(u);
+}
+
+document.body.onclick=()=>speechSynthesis.resume();
 
 /* ===== ChatGPT ===== */
 async function send(){
@@ -258,25 +277,20 @@ add("通信エラー","ai");
 }
 }
 
-/* ===== 🎤 音声入力 ===== */
-if ("webkitSpeechRecognition" in window || "SpeechRecognition" in window){
-const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-const rec = new SR();
+/* ===== 音声入力 ===== */
+if(window.SpeechRecognition || window.webkitSpeechRecognition){
+const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+const rec=new SR();
 rec.lang="ja-JP";
 
-micBtn.onclick=()=>{
-try{rec.start();add("🎤 聞いてます...", "ai");}catch(e){}
-};
+micBtn.onclick=()=>{try{rec.start();}catch{}};
 
 rec.onresult=e=>{
 input.value=e.results[0][0].transcript;
 send();
 };
-
-rec.onerror=()=>add("音声エラー","ai");
-
 }else{
-micBtn.onclick=()=>add("音声非対応端末","ai");
+micBtn.onclick=()=>add("音声非対応","ai");
 }
 
 /* ===== メニュー ===== */
@@ -286,12 +300,7 @@ function closeMenu(){menu.style.display="none";}
 /* ===== 外部 ===== */
 function openNews(){window.open("https://news.yahoo.co.jp/");}
 function openTransit(){window.open("https://transit.yahoo.co.jp/");}
-function openMap(){
-if(lat && lon){
-window.open(`https://www.google.com/maps?q=${lat},${lon}`);
-}else{
-window.open("https://www.google.com/maps");
-}}
+function openMap(){window.open("https://www.google.com/maps");}
 function openCalendar(){window.open("https://calendar.google.com/");}
 function openGmail(){window.open("https://mail.google.com/");}
 function openLine(){window.open("https://line.me");}
@@ -299,63 +308,20 @@ function openYouTube(){window.open("https://www.youtube.com");}
 
 /* ===== Google検索 ===== */
 function searchGoogle(){
-const q=searchBox.value;
+const q=document.getElementById("searchBox").value;
 if(q) window.open("https://www.google.com/search?q="+encodeURIComponent(q));
-}
-
-/* ===== 天気 ===== */
-function weatherComment(){
-if(weatherCode===0) return "いい天気ですね☀️";
-if(weatherCode<=3) return "曇り気味ですね☁️";
-if(weatherCode<=67) return "雨ですね☔";
-return "天気荒れ気味⚡";
-}
-
-/* ===== 位置 ===== */
-function getLocation(){
-navigator.geolocation.getCurrentPosition(async pos=>{
-lat=pos.coords.latitude;
-lon=pos.coords.longitude;
-
-const w=await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true`);
-const wd=await w.json();
-
-weatherCode=wd.current_weather.weathercode;
-weatherText=`🌤${wd.current_weather.temperature}℃`;
-locationText="📍現在地";
-
-add(weatherComment(),"ai");
-});
 }
 
 /* ===== 時刻 ===== */
 setInterval(()=>{
-const now=new Date();
-infoBar.innerHTML=`${now.toLocaleString()}<br>${locationText} ${weatherText}`;
+infoBar.innerHTML=new Date().toLocaleString()+"<br>"+locationText+" "+weatherText;
 },1000);
 
 /* ===== 起動 ===== */
 window.onload=()=>{
-history.forEach(h=>{
-const c=h.role==="user"?"user":"ai";
-const d=document.createElement("div");
-d.className="msg "+c;
-d.innerHTML=`<div class="bubble">${h.content}</div>`;
-chat.appendChild(d);
-});
+history.forEach(h=>add(h.content,h.role==="user"?"user":"ai"));
 add("こんにちは😊","ai");
-speak("こんにちは");
-getLocation();
 };
-
-/* ===== 設定 ===== */
-function saveSettings(){
-localStorage.setItem("apiKey",apiKey.value);
-localStorage.setItem("voiceOn",voiceToggle.checked);
-voiceOn=voiceToggle.checked;
-menu.style.display="none";
-add("保存しました","ai");
-}
 </script>
 
 </body>
