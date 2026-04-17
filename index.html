@@ -3,100 +3,157 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>美咲AI 完全版</title>
+<title>美咲AI</title>
 
 <style>
 *{box-sizing:border-box;}
 body{
-margin:0;font-family:sans-serif;
+margin:0;
+font-family:sans-serif;
 background:linear-gradient(135deg,#6ec6ff,#a0e0ff);
-height:100vh;display:flex;flex-direction:column;
+height:100vh;
+display:flex;
+flex-direction:column;
 }
-#character{height:30vh;}
-#character img{width:100%;height:100%;object-fit:cover;}
 
-#infoBar{text-align:center;font-size:13px;padding:6px;background:#fff8;}
+/* ===== 上：キャラ固定 ===== */
+header{
+height:30vh;
+position:relative;
+}
+header img{
+width:100%;
+height:100%;
+object-fit:cover;
+}
+#infoBar{
+position:absolute;
+bottom:0;
+width:100%;
+background:#ffffffcc;
+text-align:center;
+font-size:14px;
+padding:6px;
+}
 
-#chat{flex:1;overflow:auto;padding:10px;padding-bottom:120px;}
-.msg{max-width:85%;margin:8px;}
-.user{margin-left:auto;text-align:right;}
+/* ===== 中央：チャット ===== */
+main{
+flex:1;
+overflow-y:auto;
+padding:10px;
+padding-bottom:80px;
+}
+.msg{margin:8px;max-width:85%;}
+.user{text-align:right;margin-left:auto;}
 .ai{text-align:left;}
-.bubble{display:inline-block;padding:12px;border-radius:16px;background:#fff;}
-.user .bubble{background:#0072ff;color:#fff;}
-
-#bottom{
-position:fixed;bottom:0;width:100%;
-background:#fff;padding:8px;
+.bubble{
+display:inline-block;
+padding:12px;
+border-radius:16px;
+background:#fff;
 }
-#controls{display:flex;gap:6px;}
-#input{flex:1;padding:12px;border-radius:20px;border:none;}
-
-button{border:none;border-radius:10px;padding:10px;}
-
-/* モーダル */
-#modal{
-position:fixed;width:100%;height:100%;
-display:none;background:#0008;
-justify-content:center;align-items:center;
-}
-#modalContent{
-background:#222;color:#fff;
-padding:20px;border-radius:12px;width:90%;
+.user .bubble{
+background:#0072ff;
+color:#fff;
 }
 
-/* メニュー */
+/* ===== 下：ドック ===== */
+footer{
+position:fixed;
+bottom:0;
+width:100%;
+background:#ffffffdd;
+backdrop-filter:blur(10px);
+padding:8px;
+}
+#dock{
+display:flex;
+gap:6px;
+align-items:center;
+}
+#input{
+flex:1;
+padding:10px;
+border-radius:20px;
+border:none;
+}
+button{
+border:none;
+border-radius:12px;
+padding:10px;
+background:#eee;
+}
+
+/* ===== メニュー ===== */
+#menu{
+position:fixed;
+top:0;
+left:0;
+width:100%;
+height:100%;
+background:#111;
+color:#fff;
+display:none;
+flex-direction:column;
+overflow:auto;
+padding:20px;
+}
+
 .menuGrid{
 display:grid;
 grid-template-columns:repeat(3,1fr);
-gap:10px;margin-bottom:20px;
-}
-.menuGrid button{
-background:#333;color:#fff;height:80px;
-display:flex;flex-direction:column;
-justify-content:center;align-items:center;
-border-radius:12px;
+gap:12px;
+margin-bottom:20px;
 }
 
-/* 🔍 検索ボックス */
-.searchBox{
+.menuGrid button{
+height:90px;
+background:#333;
+color:#fff;
+border-radius:16px;
+font-size:14px;
+display:flex;
+flex-direction:column;
+justify-content:center;
+align-items:center;
+}
+
+#searchBox{
 width:100%;
 padding:14px;
 border-radius:12px;
 border:none;
-margin-bottom:10px;
 font-size:16px;
+margin-bottom:15px;
 }
 </style>
 </head>
 
 <body>
 
-<div id="character">
+<header>
 <img src="normal.png">
-</div>
-
 <div id="infoBar"></div>
-<div id="chat"></div>
+</header>
 
-<div id="bottom">
-<div id="controls">
+<main id="chat"></main>
+
+<footer>
+<div id="dock">
 <input id="input" placeholder="話しかけてください">
 <button onclick="send()">➤</button>
-<button onclick="openSettings()">⚙</button>
+<button onclick="openMenu()">☰</button>
 </div>
-</div>
+</footer>
 
-<!-- モーダル -->
-<div id="modal">
-<div id="modalContent">
+<!-- ===== メニュー画面 ===== -->
+<div id="menu">
 
-<h3>🔍 Google検索</h3>
-<input id="searchInput" class="searchBox" placeholder="検索ワード入力">
+<input id="searchBox" placeholder="Google検索">
 <button onclick="searchGoogle()">検索</button>
 
 <hr>
 
-<h3>メニュー</h3>
 <div class="menuGrid">
 <button onclick="openNews()">📰<br>ニュース</button>
 <button onclick="openTransit()">🚃<br>乗換</button>
@@ -104,7 +161,7 @@ font-size:16px;
 <button onclick="openCalendar()">📅<br>予定</button>
 <button onclick="openGmail()">📧<br>メール</button>
 <button onclick="openLine()">💬<br>LINE</button>
-<button onclick="openYouTube()">▶️<br>YouTube</button>
+<button onclick="openYouTube()">▶<br>YouTube</button>
 </div>
 
 <hr>
@@ -113,45 +170,28 @@ font-size:16px;
 <input id="apiKey" placeholder="APIキー">
 <br><br>
 <label><input type="checkbox" id="voiceToggle"> 音声ON</label>
-
 <br><br>
 <button onclick="saveSettings()">保存</button>
+<br><br>
+<button onclick="closeMenu()">閉じる</button>
 
-</div>
 </div>
 
 <script>
 const chat=document.getElementById("chat");
 const input=document.getElementById("input");
 const infoBar=document.getElementById("infoBar");
-
-const modal=document.getElementById("modal");
-const apiKey=document.getElementById("apiKey");
-const voiceToggle=document.getElementById("voiceToggle");
+const menu=document.getElementById("menu");
 
 let voiceOn=localStorage.getItem("voiceOn")==="true";
-let history = JSON.parse(localStorage.getItem("chatHistory")) || [];
+let history=JSON.parse(localStorage.getItem("chatHistory"))||[];
 
 let locationText="";
 let weatherText="";
-let weatherCode=null;
 let lat=null;
 let lon=null;
 
-/* 音声 */
-function speak(text){
-if(!voiceOn) return;
-speechSynthesis.cancel();
-speechSynthesis.speak(new SpeechSynthesisUtterance(text));
-}
-
-/* 時刻 */
-setInterval(()=>{
-const now=new Date();
-infoBar.innerHTML=now.toLocaleString()+"<br>"+locationText+" "+weatherText;
-},1000);
-
-/* 表示 */
+/* ===== 表示 ===== */
 function add(t,c){
 const d=document.createElement("div");
 d.className="msg "+c;
@@ -160,26 +200,7 @@ chat.appendChild(d);
 chat.scrollTop=chat.scrollHeight;
 }
 
-/* 挨拶 */
-function greeting(){
-const h=new Date().getHours();
-if(h<5) return "まだ夜ですね";
-if(h<11) return "おはようございます☀️";
-if(h<17) return "こんにちは😊";
-if(h<22) return "こんばんは🌙";
-return "夜遅いですね";
-}
-
-/* 天気 */
-function weatherComment(){
-if(weatherCode===0) return "いい天気ですね☀️";
-if(weatherCode<=3) return "曇り気味ですね☁️";
-if(weatherCode<=67) return "雨ですね☔";
-if(weatherCode<=77) return "寒そうですね❄️";
-return "天気荒れ気味⚡";
-}
-
-/* ChatGPT */
+/* ===== ChatGPT ===== */
 async function send(){
 const t=input.value.trim();
 if(!t)return;
@@ -210,83 +231,76 @@ const data=await res.json();
 const reply=data.choices?.[0]?.message?.content||"エラー";
 
 add(reply,"ai");
-speak(reply);
 
 history.push({role:"assistant",content:reply});
-localStorage.setItem("chatHistory", JSON.stringify(history));
+localStorage.setItem("chatHistory",JSON.stringify(history));
 
-}catch(e){
+}catch{
 add("通信エラー","ai");
 }
 }
 
-/* Google検索 */
-function searchGoogle(){
-const q=document.getElementById("searchInput").value;
-if(!q)return;
-window.open(`https://www.google.com/search?q=${encodeURIComponent(q)}`);
-}
+/* ===== メニュー ===== */
+function openMenu(){menu.style.display="flex";}
+function closeMenu(){menu.style.display="none";}
 
-/* 外部リンク */
+/* ===== 外部 ===== */
 function openNews(){window.open("https://news.yahoo.co.jp/");}
 function openTransit(){window.open("https://transit.yahoo.co.jp/");}
-function openMap(){window.open("https://www.google.com/maps");}
+function openMap(){
+if(lat && lon){
+window.open(`https://www.google.com/maps?q=${lat},${lon}`);
+}else{
+window.open("https://www.google.com/maps");
+}}
 function openCalendar(){window.open("https://calendar.google.com/");}
 function openGmail(){window.open("https://mail.google.com/");}
 function openLine(){window.open("https://line.me");}
 function openYouTube(){window.open("https://www.youtube.com");}
 
-/* 位置 */
+/* ===== Google検索 ===== */
+function searchGoogle(){
+const q=document.getElementById("searchBox").value;
+if(q) window.open("https://www.google.com/search?q="+encodeURIComponent(q));
+}
+
+/* ===== 位置 ===== */
 function getLocation(){
 navigator.geolocation.getCurrentPosition(async pos=>{
 lat=pos.coords.latitude;
 lon=pos.coords.longitude;
 
-const geo=await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json`);
-const g=await geo.json();
-
-const city=g.address.city||g.address.town||g.address.village||"";
-locationText=`📍${city}`;
-
 const w=await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true`);
 const wd=await w.json();
 
-weatherCode=wd.current_weather.weathercode;
 weatherText=`🌤${wd.current_weather.temperature}℃`;
+locationText="📍現在地";
 
-add(`現在地：${locationText}<br>${weatherText}`,"ai");
-
-const comment=weatherComment();
-add(comment,"ai");
-speak(comment);
-
-});
+},()=>{locationText="位置不明";});
 }
 
-/* 起動 */
+/* ===== 時刻 ===== */
+setInterval(()=>{
+const now=new Date();
+infoBar.innerHTML=now.toLocaleString()+"<br>"+locationText+" "+weatherText;
+},1000);
+
+/* ===== 起動 ===== */
 window.onload=()=>{
-add(greeting(),"ai");
-speak(greeting());
+add("こんにちは😊","ai");
 
 history.forEach(h=>{
-add(h.content, h.role==="user"?"user":"ai");
+add(h.content,h.role==="user"?"user":"ai");
 });
 
 getLocation();
 };
 
-/* 設定 */
-function openSettings(){
-modal.style.display="flex";
-apiKey.value=localStorage.getItem("apiKey")||"";
-voiceToggle.checked=voiceOn;
-}
-
+/* ===== 設定 ===== */
 function saveSettings(){
-localStorage.setItem("apiKey",apiKey.value);
-localStorage.setItem("voiceOn",voiceToggle.checked);
-voiceOn=voiceToggle.checked;
-modal.style.display="none";
+localStorage.setItem("apiKey",document.getElementById("apiKey").value);
+localStorage.setItem("voiceOn",document.getElementById("voiceToggle").checked);
+menu.style.display="none";
 add("保存しました","ai");
 }
 </script>
