@@ -131,9 +131,7 @@ const avatarUpload=document.getElementById("avatarUpload");
 let voiceOn=false;
 let history=[];
 
-/* 🔥 ①追加：状態フラグ */
 let isListening=false;
-let isSpeaking=false;
 let rec=null;
 
 /* ===== 表示 ===== */
@@ -149,12 +147,9 @@ chat.scrollTop=chat.scrollHeight;
 async function speak(text){
 if(!voiceOn)return;
 
-isSpeaking=true;
-
 const key=localStorage.getItem("apiKey");
 if(!key)return;
 
-speechSynthesis.cancel();
 speechSynthesis.speak(new SpeechSynthesisUtterance(" "));
 
 try{
@@ -172,13 +167,10 @@ input:text
 });
 
 const audio=new Audio(URL.createObjectURL(await res.blob()));
-audio.onended=()=>{ isSpeaking=false; };
 await audio.play();
 
 }catch{
-const uttr = new SpeechSynthesisUtterance(text);
-uttr.onend=()=>{ isSpeaking=false; };
-speechSynthesis.speak(uttr);
+speechSynthesis.speak(new SpeechSynthesisUtterance(text));
 }
 }
 
@@ -224,13 +216,21 @@ history.push({role:"user",content:t});
 history.push({role:"assistant",content:reply});
 }
 
-/* ===== 🎤 1回だけ会話モード ===== */
+/* ===== 🎤 完全会話モード ===== */
 if(window.SpeechRecognition||window.webkitSpeechRecognition){
 
 rec=new (window.SpeechRecognition||window.webkitSpeechRecognition)();
 rec.lang="ja-JP";
+rec.continuous=false;
+rec.interimResults=false;
 
-/* 🎤ボタン */
+const startTalks=[
+"どうしたの？😊",
+"うん、聞くよ",
+"なにかあった？",
+"呼んだ？"
+];
+
 document.getElementById("micBtn").onclick=()=>{
 
 if(!isListening){
@@ -238,34 +238,42 @@ if(!isListening){
 isListening=true;
 try{rec.start();}catch{}
 
-add("話していいよ😊","ai");
-speak("話していいよ");
+const msg=startTalks[Math.floor(Math.random()*startTalks.length)];
+add(msg,"ai");
+speak(msg);
 
 }else{
 
 isListening=false;
 rec.stop();
-add("停止したよ","ai");
+add("会話モードOFF","ai");
 
 }
 };
 
-/* 🔥 ②修正：AIの声は無視 */
+/* 音声結果 */
 rec.onresult=e=>{
-if(isSpeaking) return;
-
-const text=e.results[0][0].transcript;
-
-input.value=text;
+input.value=e.results[0][0].transcript;
 send();
-
-/* 🔥 ③修正：1回で終了 */
-isListening=false;
-rec.stop();
 };
 
-/* 🔥 ④再起動しない（削除済み） */
-rec.onend=()=>{};
+/* 🔥 絶対途切れない核心 */
+rec.onend=()=>{
+if(isListening){
+setTimeout(()=>{
+try{rec.start();}catch{}
+},300);
+}
+};
+
+/* 🔥 エラー復旧 */
+rec.onerror=()=>{
+if(isListening){
+setTimeout(()=>{
+try{rec.start();}catch{}
+},800);
+}
+};
 
 }
 
