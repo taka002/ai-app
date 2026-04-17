@@ -3,11 +3,10 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>美咲AI 完全版</title>
+<title>美咲AI</title>
 
 <style>
 *{box-sizing:border-box;}
-
 body{
 margin:0;
 font-family:sans-serif;
@@ -17,139 +16,86 @@ display:flex;
 flex-direction:column;
 }
 
-/* ===== 上：キャラ ===== */
-header{
-height:28vh;
-}
+/* 上 */
+header{height:30vh;}
 header img{
 width:100%;
 height:100%;
 object-fit:cover;
 }
 
-/* ===== 情報バー ===== */
+/* 天気バーのみ */
 #infoBar{
 text-align:center;
-font-size:12px;
-padding:4px;
+font-size:13px;
+padding:6px;
 background:rgba(255,255,255,0.7);
 }
 
-/* ===== チャット ===== */
+/* チャット */
 main{
 flex:1;
 overflow-y:auto;
 padding:10px;
-padding-bottom:70px;
+padding-bottom:80px;
 }
-
 .msg{margin:8px;max-width:85%;}
 .user{text-align:right;margin-left:auto;}
 .ai{text-align:left;}
-
 .bubble{
 display:inline-block;
-padding:10px 12px;
+padding:12px;
 border-radius:16px;
 background:#fff;
-font-size:14px;
 }
-
 .user .bubble{
 background:#0072ff;
 color:#fff;
 }
 
-/* ===== 下バー（完全安定） ===== */
-footer{
+/* 🎤 浮かせる */
+#micBtn{
 position:fixed;
-bottom:0;
-width:100%;
-background:#ffffffee;
-padding:6px;
-border-top:1px solid #ccc;
+bottom:20px;
+right:20px;
+width:60px;
+height:60px;
+border-radius:50%;
+background:#0072ff;
+color:#fff;
+font-size:22px;
+border:none;
 z-index:100;
 }
 
-#dock{
-display:flex;
-align-items:center;
-gap:6px;
-}
-
-#input{
-flex:1;
-height:34px;
-padding:8px;
-border-radius:20px;
+/* ⚙ 設定ボタン */
+#menuBtn{
+position:fixed;
+bottom:20px;
+left:20px;
+width:50px;
+height:50px;
+border-radius:50%;
+background:#333;
+color:#fff;
 border:none;
-font-size:14px;
+z-index:100;
 }
 
-/* 下ボタン専用 */
-.dockBtn{
-width:34px;
-height:34px;
-border:none;
-border-radius:10px;
-background:#eee;
-}
-
-/* ===== メニュー（完全修正版） ===== */
+/* メニュー */
 #menu{
 position:fixed;
-top:0;
-left:0;
-width:100%;
-height:100%;
+top:0;left:0;
+width:100%;height:100%;
 background:#111;
 color:#fff;
 display:none;
 flex-direction:column;
-overflow-y:auto;
+overflow:auto;
 padding:20px;
 z-index:200;
 }
 
-/* 検索 */
-#searchBox{
-width:100%;
-height:48px;
-border-radius:12px;
-border:none;
-padding:10px;
-font-size:16px;
-margin-bottom:10px;
-}
-
-.menuBtn{
-width:100%;
-height:48px;
-border:none;
-border-radius:10px;
-margin-bottom:15px;
-}
-
-/* グリッド */
-.menuGrid{
-display:grid;
-grid-template-columns:repeat(3,1fr);
-gap:12px;
-margin-bottom:20px;
-}
-
-.menuItem{
-height:90px;
-background:#333;
-border-radius:16px;
-display:flex;
-flex-direction:column;
-justify-content:center;
-align-items:center;
-font-size:14px;
-}
-
-/* 設定 */
 .menuInput{
 width:100%;
 height:44px;
@@ -157,7 +103,13 @@ border-radius:10px;
 border:none;
 padding:10px;
 margin-bottom:10px;
-font-size:16px;
+}
+.menuBtn{
+width:100%;
+height:44px;
+border:none;
+border-radius:10px;
+margin-bottom:10px;
 }
 </style>
 </head>
@@ -172,54 +124,35 @@ font-size:16px;
 
 <main id="chat"></main>
 
-<footer>
-<div id="dock">
-<input id="input" placeholder="話しかけてください">
-<button class="dockBtn" onclick="send()">➤</button>
-<button class="dockBtn" id="micBtn">🎤</button>
-<button class="dockBtn" onclick="openMenu()">☰</button>
-</div>
-</footer>
+<!-- 🎤 -->
+<button id="micBtn">🎤</button>
 
-<!-- ===== メニュー ===== -->
+<!-- ⚙ -->
+<button id="menuBtn" onclick="openMenu()">⚙</button>
+
+<!-- 設定 -->
 <div id="menu">
-
-<input id="searchBox" placeholder="Google検索">
-<button class="menuBtn" onclick="searchGoogle()">検索</button>
-
-<div class="menuGrid">
-<div class="menuItem" onclick="openNews()">📰<br>ニュース</div>
-<div class="menuItem" onclick="openTransit()">🚃<br>乗換</div>
-<div class="menuItem" onclick="openMap()">🗺<br>地図</div>
-<div class="menuItem" onclick="openCalendar()">📅<br>予定</div>
-<div class="menuItem" onclick="openGmail()">📧<br>メール</div>
-<div class="menuItem" onclick="openLine()">💬<br>LINE</div>
-<div class="menuItem" onclick="openYouTube()">▶<br>YouTube</div>
-</div>
-
 <h3>設定</h3>
 <input id="apiKey" class="menuInput" placeholder="APIキー">
 <label><input type="checkbox" id="voiceToggle"> 音声ON</label>
-
 <br><br>
 <button class="menuBtn" onclick="saveSettings()">保存</button>
 <button class="menuBtn" onclick="closeMenu()">閉じる</button>
-
 </div>
 
 <script>
 const chat=document.getElementById("chat");
-const input=document.getElementById("input");
 const infoBar=document.getElementById("infoBar");
-const menu=document.getElementById("menu");
 
 let voiceOn=localStorage.getItem("voiceOn")==="true";
 let history=JSON.parse(localStorage.getItem("chatHistory"))||[];
 
-let lat=null, lon=null;
-let locationText="", weatherText="";
+let weatherText="";
+let weatherCode=null;
+let lat=null;
+let lon=null;
 
-/* ===== 表示 ===== */
+/* 表示 */
 function add(t,c){
 const d=document.createElement("div");
 d.className="msg "+c;
@@ -229,10 +162,11 @@ chat.scrollTop=chat.scrollHeight;
 
 history.push({role:c==="user"?"user":"assistant",content:t});
 if(history.length>50) history.shift();
+
 localStorage.setItem("chatHistory",JSON.stringify(history));
 }
 
-/* ===== 音声 ===== */
+/* 音声 */
 function speak(text){
 if(!voiceOn) return;
 speechSynthesis.cancel();
@@ -240,16 +174,11 @@ const u=new SpeechSynthesisUtterance(text);
 u.lang="ja-JP";
 speechSynthesis.speak(u);
 }
-
 document.body.onclick=()=>speechSynthesis.resume();
 
-/* ===== ChatGPT ===== */
-async function send(){
-const t=input.value.trim();
-if(!t)return;
-
-add(t,"user");
-input.value="";
+/* ChatGPT */
+async function send(text){
+add(text,"user");
 
 const key=localStorage.getItem("apiKey");
 if(!key){add("APIキー未設定","ai");return;}
@@ -266,6 +195,7 @@ model:"gpt-4o-mini",
 messages:history
 })
 });
+
 const data=await res.json();
 const reply=data.choices?.[0]?.message?.content||"エラー";
 
@@ -277,51 +207,72 @@ add("通信エラー","ai");
 }
 }
 
-/* ===== 音声入力 ===== */
+/* 🎤 音声入力（自動送信） */
 if(window.SpeechRecognition || window.webkitSpeechRecognition){
 const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
 const rec=new SR();
 rec.lang="ja-JP";
 
-micBtn.onclick=()=>{try{rec.start();}catch{}};
+document.getElementById("micBtn").onclick=()=>{
+try{
+rec.start();
+add("🎤 聞いてます...", "ai");
+}catch(e){}
+};
 
 rec.onresult=e=>{
-input.value=e.results[0][0].transcript;
-send();
+const text=e.results[0][0].transcript;
+send(text); // 🔥自動送信
 };
-}else{
-micBtn.onclick=()=>add("音声非対応","ai");
 }
 
-/* ===== メニュー ===== */
-function openMenu(){menu.style.display="flex";}
-function closeMenu(){menu.style.display="none";}
-
-/* ===== 外部 ===== */
-function openNews(){window.open("https://news.yahoo.co.jp/");}
-function openTransit(){window.open("https://transit.yahoo.co.jp/");}
-function openMap(){window.open("https://www.google.com/maps");}
-function openCalendar(){window.open("https://calendar.google.com/");}
-function openGmail(){window.open("https://mail.google.com/");}
-function openLine(){window.open("https://line.me");}
-function openYouTube(){window.open("https://www.youtube.com");}
-
-/* ===== Google検索 ===== */
-function searchGoogle(){
-const q=document.getElementById("searchBox").value;
-if(q) window.open("https://www.google.com/search?q="+encodeURIComponent(q));
+/* 天気 */
+function weatherComment(){
+if(weatherCode===0) return "☀️ 晴れ";
+if(weatherCode<=3) return "☁️ 曇り";
+if(weatherCode<=67) return "☔ 雨";
+return "⚡ 荒れ気味";
 }
 
-/* ===== 時刻 ===== */
-setInterval(()=>{
-infoBar.innerHTML=new Date().toLocaleString()+"<br>"+locationText+" "+weatherText;
-},1000);
+function getLocation(){
+navigator.geolocation.getCurrentPosition(async pos=>{
+lat=pos.coords.latitude;
+lon=pos.coords.longitude;
 
-/* ===== 起動 ===== */
+const w=await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true`);
+const wd=await w.json();
+
+weatherCode=wd.current_weather.weathercode;
+weatherText=`${weatherComment()} ${wd.current_weather.temperature}℃`;
+
+infoBar.innerHTML=weatherText;
+
+});
+}
+
+/* 起動 */
 window.onload=()=>{
 history.forEach(h=>add(h.content,h.role==="user"?"user":"ai"));
 add("こんにちは😊","ai");
+speak("こんにちは");
+
+getLocation();
 };
+
+/* 設定 */
+function openMenu(){
+menu.style.display="flex";
+document.getElementById("apiKey").value=localStorage.getItem("apiKey")||"";
+document.getElementById("voiceToggle").checked=voiceOn;
+}
+function closeMenu(){menu.style.display="none";}
+function saveSettings(){
+localStorage.setItem("apiKey",document.getElementById("apiKey").value);
+localStorage.setItem("voiceOn",document.getElementById("voiceToggle").checked);
+voiceOn=document.getElementById("voiceToggle").checked;
+menu.style.display="none";
+add("保存しました","ai");
+}
 </script>
 
 </body>
