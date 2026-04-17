@@ -85,7 +85,6 @@ margin-bottom:10px;background:#444;color:#fff;
 <div id="menu">
 <div id="menuTop">
 
-<!-- 🔥 アプリ復活 -->
 <div class="menuGrid">
 <div class="menuItem" onclick="openNews()">📰<br>ニュース</div>
 <div class="menuItem" onclick="openMap()">🗺<br>地図</div>
@@ -132,11 +131,10 @@ const avatarUpload=document.getElementById("avatarUpload");
 let voiceOn=false;
 let history=[];
 
-/* 🔥 会話モード */
 let isListening=false;
 let rec=null;
 
-/* 表示 */
+/* ===== 表示 ===== */
 function add(t,c){
 const d=document.createElement("div");
 d.className="msg "+c;
@@ -218,11 +216,13 @@ history.push({role:"user",content:t});
 history.push({role:"assistant",content:reply});
 }
 
-/* ===== 🎤 会話モード ===== */
+/* ===== 🎤 完全会話モード ===== */
 if(window.SpeechRecognition||window.webkitSpeechRecognition){
 
 rec=new (window.SpeechRecognition||window.webkitSpeechRecognition)();
 rec.lang="ja-JP";
+rec.continuous=false;
+rec.interimResults=false;
 
 const startTalks=[
 "どうしたの？😊",
@@ -234,26 +234,44 @@ const startTalks=[
 document.getElementById("micBtn").onclick=()=>{
 
 if(!isListening){
-rec.start();
+
 isListening=true;
+try{rec.start();}catch{}
 
 const msg=startTalks[Math.floor(Math.random()*startTalks.length)];
 add(msg,"ai");
 speak(msg);
 
 }else{
-rec.stop();
+
 isListening=false;
+rec.stop();
 add("会話モードOFF","ai");
+
 }
 };
 
+/* 音声結果 */
 rec.onresult=e=>{
 input.value=e.results[0][0].transcript;
 send();
+};
 
+/* 🔥 絶対途切れない核心 */
+rec.onend=()=>{
 if(isListening){
-setTimeout(()=>rec.start(),600);
+setTimeout(()=>{
+try{rec.start();}catch{}
+},300);
+}
+};
+
+/* 🔥 エラー復旧 */
+rec.onerror=()=>{
+if(isListening){
+setTimeout(()=>{
+try{rec.start();}catch{}
+},800);
 }
 };
 
