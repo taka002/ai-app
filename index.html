@@ -7,7 +7,6 @@
 
 <style>
 *{box-sizing:border-box;}
-
 body{
 margin:0;
 font-family:sans-serif;
@@ -18,12 +17,16 @@ flex-direction:column;
 padding-bottom:60px;
 }
 
-header{height:28vh;}
+header{height:28vh;position:relative;}
 header img{width:100%;height:100%;object-fit:cover;}
+#avatarUpload{
+position:absolute;bottom:10px;right:10px;
+background:#fff;border-radius:8px;
+}
 
 #infoBar{
 text-align:center;
-font-size:11px;
+font-size:12px;
 padding:4px;
 background:rgba(255,255,255,0.6);
 }
@@ -34,80 +37,55 @@ main{flex:1;overflow-y:auto;padding:10px;}
 .ai{text-align:left;}
 
 .bubble{
-padding:10px;
-border-radius:16px;
-background:#fff;
+padding:10px;border-radius:16px;background:#fff;
 }
 .user .bubble{background:#0072ff;color:#fff;}
 
 footer{
-position:fixed;
-bottom:0;width:100%;
-background:#fff;
-padding:6px;
-display:flex;
-justify-content:center;
+position:fixed;bottom:0;width:100%;
+background:#fff;padding:6px;display:flex;justify-content:center;
 }
 
-#dock{
-width:100%;
-max-width:600px;
-display:flex;
-gap:6px;
-}
-
+#dock{width:100%;max-width:600px;display:flex;gap:6px;}
 #input{
-width:58%;
-height:36px;
-border-radius:20px;
-border:none;
-padding:8px;
+width:58%;height:36px;border-radius:20px;border:none;padding:8px;
 }
 
 .dockBtn{
-width:40px;height:36px;
-border:none;border-radius:10px;
-background:#eee;
+width:40px;height:36px;border:none;border-radius:10px;background:#eee;
 }
 
+/* メニュー */
 #menu{
-position:fixed;
-bottom:-100%;
-width:100%;
-height:88%;
-background:#111;
-color:#fff;
-display:flex;
-flex-direction:column;
+position:fixed;bottom:-100%;width:100%;height:88%;
+background:#111;color:#fff;
+display:flex;flex-direction:column;
 border-radius:20px 20px 0 0;
-transition:.3s;
-z-index:1000;
+transition:.3s;z-index:1000;
 }
 #menu.active{bottom:0;}
 
-#menuTop{
-flex:1;
-overflow:auto;
-padding:20px;
+#menuTop{flex:1;overflow:auto;padding:20px;}
+
+.menuGrid{
+display:grid;
+grid-template-columns:repeat(3,1fr);
+gap:12px;margin-bottom:20px;
+}
+
+.menuItem{
+height:90px;background:#333;border-radius:16px;
+display:flex;flex-direction:column;justify-content:center;align-items:center;
 }
 
 .menuInput{
-width:100%;
-height:44px;
-border-radius:10px;
-border:none;
-padding:10px;
-margin-bottom:10px;
+width:100%;height:44px;border-radius:10px;border:none;
+padding:10px;margin-bottom:10px;
 }
 
 .menuBtn{
-width:100%;
-height:44px;
-border:none;
-border-radius:10px;
-margin-bottom:10px;
-background:#444;
-color:#fff;
+width:100%;height:44px;border:none;border-radius:10px;
+margin-bottom:10px;background:#444;color:#fff;
 }
 </style>
 </head>
@@ -116,9 +94,10 @@ color:#fff;
 
 <header>
 <img id="avatar" src="normal.png">
+<input type="file" id="avatarUpload">
 </header>
 
-<div id="infoBar"></div>
+<div id="infoBar">取得中...</div>
 <main id="chat"></main>
 
 <footer>
@@ -133,19 +112,26 @@ color:#fff;
 <div id="menu">
 <div id="menuTop">
 
+<div class="menuGrid">
+<div class="menuItem" onclick="openNews()">📰<br>ニュース</div>
+<div class="menuItem" onclick="openMap()">🗺<br>地図</div>
+<div class="menuItem" onclick="openWeather()">☀️<br>天気</div>
+<div class="menuItem" onclick="openTransit()">🚃<br>乗換</div>
+<div class="menuItem" onclick="openCalendar()">📅<br>予定</div>
+<div class="menuItem" onclick="openGmail()">📧<br>メール</div>
+<div class="menuItem" onclick="openLine()">💬<br>LINE</div>
+<div class="menuItem" onclick="openYouTube()">▶<br>YouTube</div>
+</div>
+
 <h3>設定</h3>
 
 <input id="apiKey" class="menuInput" placeholder="APIキー">
 <input id="userName" class="menuInput" placeholder="あなたの名前">
 <input id="charName" class="menuInput" placeholder="キャラ名">
 
-<textarea id="systemPrompt" class="menuInput" placeholder="キャラ設定"></textarea>
+<textarea id="systemPrompt" class="menuInput" style="height:80px;" placeholder="キャラ設定"></textarea>
 
-<input type="file" id="avatarUpload" class="menuInput">
-
-<label>
-<input type="checkbox" id="voiceToggle"> 音声ON
-</label>
+<label><input type="checkbox" id="voiceToggle"> 音声ON</label>
 
 <select id="voiceType" class="menuInput">
 <option value="normal">通常</option>
@@ -163,26 +149,16 @@ color:#fff;
 </div>
 
 <script>
-const chat = document.getElementById("chat");
-const input = document.getElementById("input");
-const menu = document.getElementById("menu");
-const micBtn = document.getElementById("micBtn");
-const avatar = document.getElementById("avatar");
+const chat=document.getElementById("chat");
+const input=document.getElementById("input");
+const infoBar=document.getElementById("infoBar");
+const avatar=document.getElementById("avatar");
 
-/* 設定要素 */
-const apiKey = document.getElementById("apiKey");
-const userNameInput = document.getElementById("userName");
-const charNameInput = document.getElementById("charName");
-const systemPromptInput = document.getElementById("systemPrompt");
-const voiceToggle = document.getElementById("voiceToggle");
-const voiceTypeSelect = document.getElementById("voiceType");
-const avatarUpload = document.getElementById("avatarUpload");
+let voiceOn=localStorage.getItem("voiceOn")==="true";
+let voiceType=localStorage.getItem("voiceType")||"normal";
+let history=JSON.parse(localStorage.getItem("chatHistory"))||[];
 
-let voiceOn = localStorage.getItem("voiceOn") === "true";
-let voiceType = localStorage.getItem("voiceType") || "normal";
-let history = JSON.parse(localStorage.getItem("chatHistory")) || [];
-
-/* ===== 表示 ===== */
+/* 表示 */
 function add(t,c){
 const d=document.createElement("div");
 d.className="msg "+c;
@@ -191,7 +167,7 @@ chat.appendChild(d);
 chat.scrollTop=chat.scrollHeight;
 }
 
-/* ===== 音声 ===== */
+/* 音声 */
 function speak(text){
 if(!voiceOn)return;
 
@@ -200,37 +176,25 @@ const u=new SpeechSynthesisUtterance(text);
 u.lang="ja-JP";
 
 switch(voiceType){
-case "female": u.pitch=1.4; break;
-case "male": u.pitch=0.7; break;
-case "slow": u.rate=0.6; break;
-case "veryslow": u.rate=0.45; break;
-case "ultraslow": u.rate=0.3; break;
+case "female":u.pitch=1.4;break;
+case "male":u.pitch=0.7;break;
+case "slow":u.rate=0.6;break;
+case "veryslow":u.rate=0.45;break;
+case "ultraslow":u.rate=0.3;break;
 }
 
 speechSynthesis.speak(u);
 }
 
-document.body.onclick=()=>speechSynthesis.resume();
-
-/* ===== 名前呼び ===== */
+/* 名前 */
 function formatReply(text){
-const name = localStorage.getItem("userName") || "";
-
-if(!name) return text;
-
-if(!localStorage.getItem("firstTalk")){
-localStorage.setItem("firstTalk","1");
-return name+"さん、"+text;
-}
-
-if(Math.random()<0.3){
-return name+"さん、"+text;
-}
-
+const name=localStorage.getItem("userName");
+if(!name)return text;
+if(Math.random()<0.3)return name+"さん、"+text;
 return text;
 }
 
-/* ===== ChatGPT ===== */
+/* AI */
 async function send(){
 const t=input.value.trim();
 if(!t)return;
@@ -243,9 +207,8 @@ if(!key){add("APIキー未設定","ai");return;}
 
 add("考え中...","ai");
 
-const name=localStorage.getItem("userName")||"";
-const charName=localStorage.getItem("charName")||"美咲";
-const basePrompt=localStorage.getItem("systemPrompt")||"";
+const char=localStorage.getItem("charName")||"美咲";
+const prompt=localStorage.getItem("systemPrompt")||"";
 
 const res=await fetch("https://api.openai.com/v1/chat/completions",{
 method:"POST",
@@ -256,10 +219,7 @@ headers:{
 body:JSON.stringify({
 model:"gpt-4o-mini",
 messages:[
-{
-role:"system",
-content:`あなたの名前は${charName}です。ユーザーは${name}。\n${basePrompt}`
-},
+{role:"system",content:`あなたは${char}です。\n${prompt}`},
 ...history,
 {role:"user",content:t}
 ]
@@ -279,78 +239,103 @@ history.push({role:"assistant",content:reply});
 localStorage.setItem("chatHistory",JSON.stringify(history));
 }
 
-/* ===== 音声入力 ===== */
+/* 音声入力 */
 if(window.SpeechRecognition||window.webkitSpeechRecognition){
 const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
 const rec=new SR();
 rec.lang="ja-JP";
-
 micBtn.onclick=()=>rec.start();
-
 rec.onresult=e=>{
 input.value=e.results[0][0].transcript;
 send();
 };
 }
 
-/* ===== 画像変更 ===== */
-avatarUpload.addEventListener("change", e=>{
-const file = e.target.files[0];
-if(!file) return;
+/* 天気＋位置 */
+async function loadEnv(){
+navigator.geolocation.getCurrentPosition(async pos=>{
+const lat=pos.coords.latitude;
+const lon=pos.coords.longitude;
 
-const reader = new FileReader();
-reader.onload = ev=>{
-avatar.src = ev.target.result;
-localStorage.setItem("avatar", ev.target.result);
+const res=await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true`);
+const data=await res.json();
+
+const temp=data.current_weather.temperature;
+const time=new Date().toLocaleTimeString();
+
+infoBar.innerText=`${temp}℃ / ${time}`;
+
+startTalk(temp,time);
+});
+}
+
+/* 起動会話 */
+function startTalk(temp,time){
+const name=localStorage.getItem("userName")||"";
+const char=localStorage.getItem("charName")||"美咲";
+
+let msg=`${char}だよ😊 `;
+if(name)msg+=name+"さん、";
+msg+=`${time}だね。今${temp}℃だよ`;
+
+add(msg,"ai");
+speak(msg);
+}
+
+/* 画像 */
+avatarUpload.onchange=e=>{
+const file=e.target.files[0];
+const reader=new FileReader();
+reader.onload=ev=>{
+avatar.src=ev.target.result;
+localStorage.setItem("avatar",ev.target.result);
 };
 reader.readAsDataURL(file);
-});
+};
 
-/* ===== メニュー ===== */
+/* メニュー */
 function openMenu(){
 menu.classList.add("active");
-
-apiKey.value = localStorage.getItem("apiKey") || "";
-voiceToggle.checked = voiceOn;
-voiceTypeSelect.value = voiceType;
-systemPromptInput.value = localStorage.getItem("systemPrompt") || "";
-userNameInput.value = localStorage.getItem("userName") || "";
-charNameInput.value = localStorage.getItem("charName") || "";
+apiKey.value=localStorage.getItem("apiKey")||"";
+userName.value=localStorage.getItem("userName")||"";
+charName.value=localStorage.getItem("charName")||"";
+systemPrompt.value=localStorage.getItem("systemPrompt")||"";
+voiceToggle.checked=voiceOn;
+voiceType.value=voiceType;
 }
 
-function closeMenu(){
-menu.classList.remove("active");
-}
+function closeMenu(){menu.classList.remove("active");}
 
 function saveSettings(){
-localStorage.setItem("apiKey", apiKey.value);
-localStorage.setItem("voiceOn", voiceToggle.checked);
-localStorage.setItem("voiceType", voiceTypeSelect.value);
-localStorage.setItem("systemPrompt", systemPromptInput.value);
-localStorage.setItem("userName", userNameInput.value);
-localStorage.setItem("charName", charNameInput.value);
+localStorage.setItem("apiKey",apiKey.value);
+localStorage.setItem("userName",userName.value);
+localStorage.setItem("charName",charName.value);
+localStorage.setItem("systemPrompt",systemPrompt.value);
+localStorage.setItem("voiceOn",voiceToggle.checked);
+localStorage.setItem("voiceType",voiceType.value);
 
-voiceOn = voiceToggle.checked;
-voiceType = voiceTypeSelect.value;
+voiceOn=voiceToggle.checked;
+voiceType=voiceType.value;
 
 add("保存しました😊","ai");
 closeMenu();
 }
 
-/* ===== 起動 ===== */
-window.onload=()=>{
-const name=localStorage.getItem("userName")||"";
-const charName=localStorage.getItem("charName")||"美咲";
+/* アプリ */
+function openNews(){window.open("https://news.yahoo.co.jp/");}
+function openMap(){window.open("https://maps.google.com");}
+function openWeather(){window.open("https://weather.yahoo.co.jp/");}
+function openTransit(){window.open("https://transit.yahoo.co.jp/");}
+function openCalendar(){window.open("https://calendar.google.com/");}
+function openGmail(){window.open("https://mail.google.com/");}
+function openLine(){window.open("https://line.me");}
+function openYouTube(){window.open("https://youtube.com");}
 
-/* 画像復元 */
+/* 起動 */
+window.onload=()=>{
 const saved=localStorage.getItem("avatar");
 if(saved) avatar.src=saved;
-
-if(name){
-add(`${charName}だよ😊 ${name}さん、こんにちは！`,"ai");
-}else{
-add(`${charName}だよ😊 こんにちは！`,"ai");
-}
+loadEnv();
 };
 </script>
 
