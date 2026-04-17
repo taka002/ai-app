@@ -16,115 +16,52 @@ display:flex;
 flex-direction:column;
 }
 
-/* ===== 上：キャラ固定 ===== */
-header{
-height:30vh;
-position:relative;
-}
-header img{
-width:100%;
-height:100%;
-object-fit:cover;
-}
+/* 上 */
+header{height:30vh;position:relative;}
+header img{width:100%;height:100%;object-fit:cover;}
 #infoBar{
-position:absolute;
-bottom:0;
-width:100%;
-background:#ffffffcc;
-text-align:center;
-font-size:14px;
-padding:6px;
+position:absolute;bottom:0;width:100%;
+background:#ffffffcc;text-align:center;
+font-size:14px;padding:6px;
 }
 
-/* ===== 中央：チャット ===== */
-main{
-flex:1;
-overflow-y:auto;
-padding:10px;
-padding-bottom:80px;
-}
+/* チャット */
+main{flex:1;overflow-y:auto;padding:10px;padding-bottom:80px;}
 .msg{margin:8px;max-width:85%;}
 .user{text-align:right;margin-left:auto;}
 .ai{text-align:left;}
-.bubble{
-display:inline-block;
-padding:12px;
-border-radius:16px;
-background:#fff;
-}
-.user .bubble{
-background:#0072ff;
-color:#fff;
-}
+.bubble{display:inline-block;padding:12px;border-radius:16px;background:#fff;}
+.user .bubble{background:#0072ff;color:#fff;}
 
-/* ===== 下：ドック ===== */
+/* 下 */
 footer{
-position:fixed;
-bottom:0;
-width:100%;
-background:#ffffffdd;
-backdrop-filter:blur(10px);
+position:fixed;bottom:0;width:100%;
+background:#ffffffdd;backdrop-filter:blur(10px);
 padding:8px;
 }
-#dock{
-display:flex;
-gap:6px;
-align-items:center;
-}
-#input{
-flex:1;
-padding:10px;
-border-radius:20px;
-border:none;
-}
-button{
-border:none;
-border-radius:12px;
-padding:10px;
-background:#eee;
-}
+#dock{display:flex;gap:6px;}
+#input{flex:1;padding:10px;border-radius:20px;border:none;}
+button{border:none;border-radius:12px;padding:10px;background:#eee;}
 
-/* ===== メニュー ===== */
+/* メニュー */
 #menu{
-position:fixed;
-top:0;
-left:0;
-width:100%;
-height:100%;
-background:#111;
-color:#fff;
-display:none;
-flex-direction:column;
-overflow:auto;
-padding:20px;
+position:fixed;top:0;left:0;width:100%;height:100%;
+background:#111;color:#fff;display:none;
+flex-direction:column;overflow:auto;padding:20px;
 }
-
 .menuGrid{
-display:grid;
-grid-template-columns:repeat(3,1fr);
-gap:12px;
-margin-bottom:20px;
+display:grid;grid-template-columns:repeat(3,1fr);
+gap:12px;margin-bottom:20px;
 }
-
 .menuGrid button{
-height:90px;
-background:#333;
-color:#fff;
+height:90px;background:#333;color:#fff;
 border-radius:16px;
-font-size:14px;
-display:flex;
-flex-direction:column;
-justify-content:center;
-align-items:center;
+display:flex;flex-direction:column;
+justify-content:center;align-items:center;
 }
-
 #searchBox{
-width:100%;
-padding:14px;
-border-radius:12px;
-border:none;
-font-size:16px;
-margin-bottom:15px;
+width:100%;padding:14px;border-radius:12px;
+border:none;font-size:16px;margin-bottom:15px;
 }
 </style>
 </head>
@@ -146,7 +83,7 @@ margin-bottom:15px;
 </div>
 </footer>
 
-<!-- ===== メニュー画面 ===== -->
+<!-- メニュー -->
 <div id="menu">
 
 <input id="searchBox" placeholder="Google検索">
@@ -188,10 +125,25 @@ let history=JSON.parse(localStorage.getItem("chatHistory"))||[];
 
 let locationText="";
 let weatherText="";
+let weatherCode=null;
 let lat=null;
 let lon=null;
 
-/* ===== 表示 ===== */
+/* ===== 音声 ===== */
+function speak(text){
+if(!voiceOn) return;
+speechSynthesis.cancel();
+const uttr=new SpeechSynthesisUtterance(text);
+uttr.lang="ja-JP";
+speechSynthesis.speak(uttr);
+}
+
+/* Android対策 */
+document.body.addEventListener("click",()=>{
+speechSynthesis.resume();
+});
+
+/* 表示 */
 function add(t,c){
 const d=document.createElement("div");
 d.className="msg "+c;
@@ -200,7 +152,15 @@ chat.appendChild(d);
 chat.scrollTop=chat.scrollHeight;
 }
 
-/* ===== ChatGPT ===== */
+/* 天気コメント */
+function weatherComment(){
+if(weatherCode===0) return "いい天気ですね☀️";
+if(weatherCode<=3) return "曇り気味ですね☁️";
+if(weatherCode<=67) return "雨ですね☔ 足元気をつけて";
+return "天気荒れ気味⚡ 無理しないで";
+}
+
+/* ChatGPT */
 async function send(){
 const t=input.value.trim();
 if(!t)return;
@@ -231,6 +191,7 @@ const data=await res.json();
 const reply=data.choices?.[0]?.message?.content||"エラー";
 
 add(reply,"ai");
+speak(reply);
 
 history.push({role:"assistant",content:reply});
 localStorage.setItem("chatHistory",JSON.stringify(history));
@@ -240,11 +201,11 @@ add("通信エラー","ai");
 }
 }
 
-/* ===== メニュー ===== */
+/* メニュー */
 function openMenu(){menu.style.display="flex";}
 function closeMenu(){menu.style.display="none";}
 
-/* ===== 外部 ===== */
+/* 外部 */
 function openNews(){window.open("https://news.yahoo.co.jp/");}
 function openTransit(){window.open("https://transit.yahoo.co.jp/");}
 function openMap(){
@@ -258,13 +219,13 @@ function openGmail(){window.open("https://mail.google.com/");}
 function openLine(){window.open("https://line.me");}
 function openYouTube(){window.open("https://www.youtube.com");}
 
-/* ===== Google検索 ===== */
+/* Google検索 */
 function searchGoogle(){
 const q=document.getElementById("searchBox").value;
 if(q) window.open("https://www.google.com/search?q="+encodeURIComponent(q));
 }
 
-/* ===== 位置 ===== */
+/* 位置 */
 function getLocation(){
 navigator.geolocation.getCurrentPosition(async pos=>{
 lat=pos.coords.latitude;
@@ -273,21 +234,27 @@ lon=pos.coords.longitude;
 const w=await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true`);
 const wd=await w.json();
 
+weatherCode=wd.current_weather.weathercode;
 weatherText=`🌤${wd.current_weather.temperature}℃`;
 locationText="📍現在地";
 
-},()=>{locationText="位置不明";});
+const msg=weatherComment();
+add(msg,"ai");
+speak(msg);
+
+});
 }
 
-/* ===== 時刻 ===== */
+/* 時刻 */
 setInterval(()=>{
 const now=new Date();
 infoBar.innerHTML=now.toLocaleString()+"<br>"+locationText+" "+weatherText;
 },1000);
 
-/* ===== 起動 ===== */
+/* 起動 */
 window.onload=()=>{
 add("こんにちは😊","ai");
+speak("こんにちは");
 
 history.forEach(h=>{
 add(h.content,h.role==="user"?"user":"ai");
@@ -296,10 +263,11 @@ add(h.content,h.role==="user"?"user":"ai");
 getLocation();
 };
 
-/* ===== 設定 ===== */
+/* 設定 */
 function saveSettings(){
 localStorage.setItem("apiKey",document.getElementById("apiKey").value);
 localStorage.setItem("voiceOn",document.getElementById("voiceToggle").checked);
+voiceOn=document.getElementById("voiceToggle").checked;
 menu.style.display="none";
 add("保存しました","ai");
 }
