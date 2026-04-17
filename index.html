@@ -79,6 +79,7 @@ display:flex;
 flex-direction:column;
 border-radius:20px 20px 0 0;
 transition:.3s;
+z-index:200;
 }
 #menu.active{bottom:0;}
 
@@ -90,6 +91,7 @@ grid-template-columns:repeat(3,1fr);
 gap:12px;
 }
 
+/* アイコン */
 .menuItem{
 height:90px;
 background:#333;
@@ -101,7 +103,7 @@ align-items:center;
 position:relative;
 }
 
-/* 🔥ぷるぷる */
+/* ぷるぷる */
 .editMode .menuItem{
 animation:wiggle 0.2s infinite;
 }
@@ -124,6 +126,7 @@ align-items:center;
 font-size:12px;
 }
 
+/* UI */
 .menuInput{
 width:100%;height:44px;
 border-radius:10px;
@@ -160,23 +163,38 @@ background:#444;color:#fff;
 <div id="menu">
 <div id="menuTop">
 
+<!-- 🔥 Google検索 -->
+<input id="searchBox" class="menuInput" placeholder="Google検索">
+<button class="menuBtn" onclick="searchGoogle()">検索</button>
+
 <div class="menuGrid" id="grid">
 
-<div class="menuItem" data-id="news" onclick="openNews()">📰<br>ニュース</div>
-<div class="menuItem" data-id="map" onclick="openMap()">🗺<br>地図</div>
-<div class="menuItem" data-id="weather" onclick="openWeather()">☀️<br>天気</div>
+<div class="menuItem" onclick="openNews()">📰<br>ニュース</div>
+<div class="menuItem" onclick="openMap()">🗺<br>地図</div>
+<div class="menuItem" onclick="openWeather()">☀️<br>天気</div>
 
-<div class="menuItem" data-id="transit" onclick="openTransit()">🚃<br>乗換</div>
-<div class="menuItem" data-id="calendar" onclick="openCalendar()">📅<br>予定</div>
-<div class="menuItem" data-id="gmail" onclick="openGmail()">📧<br>メール</div>
+<div class="menuItem" onclick="openTransit()">🚃<br>乗換</div>
+<div class="menuItem" onclick="openCalendar()">📅<br>予定</div>
+<div class="menuItem" onclick="openGmail()">📧<br>メール</div>
 
-<div class="menuItem" data-id="youtube" onclick="openYouTube()">▶<br>YouTube</div>
+<div class="menuItem" onclick="openYouTube()">▶<br>YouTube</div>
 
 </div>
 
 <h3>設定</h3>
+
 <input id="apiKey" class="menuInput" placeholder="APIキー">
-<label><input type="checkbox" id="voiceToggle"> 音声ON</label>
+
+<label>
+<input type="checkbox" id="voiceToggle"> 音声ON
+</label>
+
+<!-- 🔥 音声タイプ -->
+<select id="voiceType" class="menuInput">
+<option value="normal">通常</option>
+<option value="female">女性っぽい</option>
+<option value="slow">ゆっくり</option>
+</select>
 
 <button class="menuBtn" onclick="saveSettings()">保存</button>
 <button class="menuBtn" onclick="closeMenu()">閉じる</button>
@@ -188,9 +206,9 @@ background:#444;color:#fff;
 const chat=document.getElementById("chat");
 const input=document.getElementById("input");
 const menu=document.getElementById("menu");
-const grid=document.getElementById("grid");
 
 let voiceOn=localStorage.getItem("voiceOn")==="true";
+let voiceType=localStorage.getItem("voiceType")||"normal";
 let history=JSON.parse(localStorage.getItem("chatHistory"))||[];
 
 let editMode=false;
@@ -201,23 +219,33 @@ const d=document.createElement("div");
 d.className="msg "+c;
 d.innerHTML=`<div class="bubble">${t}</div>`;
 chat.appendChild(d);
+chat.scrollTop=chat.scrollHeight;
 }
 
-/* 音声 */
+/* 🔥 音声（強化版） */
 function speak(t){
 if(!voiceOn)return;
+
 speechSynthesis.cancel();
+
 const u=new SpeechSynthesisUtterance(t);
 u.lang="ja-JP";
+
+if(voiceType==="female"){u.pitch=1.4;u.rate=1.05;}
+else if(voiceType==="slow"){u.rate=0.85;}
+
 speechSynthesis.speak(u);
 }
+
 document.body.onclick=()=>speechSynthesis.resume();
 
 /* Chat */
 async function send(){
 const t=input.value.trim();
 if(!t)return;
-add(t,"user");input.value="";
+
+add(t,"user");
+input.value="";
 
 const key=localStorage.getItem("apiKey");
 if(!key){add("APIキー未設定","ai");return;}
@@ -240,17 +268,35 @@ speak(reply);
 /* メニュー */
 function openMenu(){
 menu.classList.add("active");
+
 apiKey.value=localStorage.getItem("apiKey")||"";
 voiceToggle.checked=voiceOn;
+voiceType.value=voiceType;
 }
-function closeMenu(){menu.classList.remove("active");}
+
+function closeMenu(){
+menu.classList.remove("active");
+disableEdit();
+}
 
 function saveSettings(){
 localStorage.setItem("apiKey",apiKey.value);
 localStorage.setItem("voiceOn",voiceToggle.checked);
+localStorage.setItem("voiceType",voiceType.value);
+
 voiceOn=voiceToggle.checked;
+voiceType=voiceType.value;
+
 add("保存しました","ai");
 closeMenu();
+}
+
+/* Google検索 */
+function searchGoogle(){
+const q=document.getElementById("searchBox").value;
+if(q){
+window.open("https://www.google.com/search?q="+encodeURIComponent(q));
+}
 }
 
 /* 外部 */
@@ -273,21 +319,37 @@ if(item.querySelector(".deleteBtn"))return;
 const del=document.createElement("div");
 del.className="deleteBtn";
 del.innerText="×";
+
 del.onclick=(e)=>{
 e.stopPropagation();
 item.remove();
 };
+
 item.appendChild(del);
 });
+}
+
+function disableEdit(){
+editMode=false;
+document.body.classList.remove("editMode");
+document.querySelectorAll(".deleteBtn").forEach(d=>d.remove());
 }
 
 /* 長押し */
 document.querySelectorAll(".menuItem").forEach(item=>{
 let t;
+
 item.addEventListener("touchstart",()=>{
 t=setTimeout(enableEdit,500);
 });
+
 item.addEventListener("touchend",()=>clearTimeout(t));
+
+item.addEventListener("click",()=>{
+if(editMode){
+disableEdit();
+}
+});
 });
 
 /* スワイプ閉じる */
@@ -298,6 +360,7 @@ startY=e.touches[0].clientY;
 menu.addEventListener("touchmove",e=>{
 if(e.touches[0].clientY-startY>80){
 menu.classList.remove("active");
+disableEdit();
 }
 });
 
