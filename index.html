@@ -140,7 +140,7 @@ const avatarUpload=document.getElementById("avatarUpload");
 let voiceOn=false;
 let history=[];
 
-/* 表示 */
+/* ===== 表示 ===== */
 function add(t,c){
 const d=document.createElement("div");
 d.className="msg "+c;
@@ -149,14 +149,13 @@ chat.appendChild(d);
 chat.scrollTop=chat.scrollHeight;
 }
 
-/* ===== 🔥 音声（必ず出る安定版） ===== */
+/* ===== 音声 ===== */
 async function speak(text){
 if(!voiceOn)return;
 
 const key=localStorage.getItem("apiKey");
 if(!key)return;
 
-/* 先にローカルでロック解除 */
 speechSynthesis.cancel();
 speechSynthesis.speak(new SpeechSynthesisUtterance(" "));
 
@@ -174,19 +173,15 @@ input:text
 })
 });
 
-if(!res.ok) throw new Error();
-
 const audio=new Audio(URL.createObjectURL(await res.blob()));
 await audio.play();
 
-}catch(e){
-console.log("音声fallback",e);
-/* fallback */
+}catch{
 speechSynthesis.speak(new SpeechSynthesisUtterance(text));
 }
 }
 
-/* ===== 🔥 AI（プロンプト強化版） ===== */
+/* ===== AI ===== */
 async function send(){
 const t=input.value.trim();
 if(!t)return;
@@ -207,25 +202,10 @@ headers:{
 },
 body:JSON.stringify({
 model:"gpt-4o-mini",
-temperature:0.7,
 messages:[
 {
 role:"system",
-content:`
-あなたは絶対にキャラを崩さないAIです。
-
-【人格】
-${localStorage.getItem("systemPrompt") || "優しい女性"}
-
-【ルール】
-・人格を維持
-・口調固定
-・性格を変えない
-・AIっぽい説明禁止
-・自然な会話のみ
-
-絶対に守ること
-`
+content:`あなたは${localStorage.getItem("systemPrompt")||"優しい女性"}`
 },
 ...history,
 {role:"user",content:t}
@@ -244,18 +224,58 @@ history.push({role:"assistant",content:reply});
 localStorage.setItem("chatHistory",JSON.stringify(history));
 }
 
+/* ===== 🔥 intent判定 ===== */
+function detectIntent(text){
+text=text.toLowerCase();
+
+if(text.includes("地図")) return "map";
+if(text.includes("youtube")) return "youtube";
+if(text.includes("ニュース")) return "news";
+if(text.includes("天気")) return "weather";
+if(text.includes("乗換")) return "transit";
+if(text.includes("メール")) return "mail";
+
+return "chat";
+}
+
+/* ===== 🔥 入力処理 ===== */
+function handleInput(text){
+
+const intent=detectIntent(text);
+
+if(intent==="map"){ openMap(); speak("地図を開くね"); return; }
+if(intent==="youtube"){ openYouTube(); speak("ユーチューブ開くね"); return; }
+if(intent==="news"){ openNews(); speak("ニュースだよ"); return; }
+if(intent==="weather"){ openWeather(); speak("天気を見るね"); return; }
+
+input.value=text;
+send();
+}
+
 /* 🎤 */
 if(window.SpeechRecognition||window.webkitSpeechRecognition){
 const rec=new (window.SpeechRecognition||window.webkitSpeechRecognition)();
 rec.lang="ja-JP";
+
 document.getElementById("micBtn").onclick=()=>rec.start();
+
 rec.onresult=e=>{
-input.value=e.results[0][0].transcript;
-send();
+const text=e.results[0][0].transcript;
+handleInput(text);
 };
 }
 
-/* 画像変更 */
+/* ===== アプリ ===== */
+function openNews(){window.open("https://news.yahoo.co.jp/");}
+function openMap(){window.open("https://maps.google.com");}
+function openWeather(){window.open("https://weather.yahoo.co.jp/");}
+function openTransit(){window.open("https://transit.yahoo.co.jp/");}
+function openCalendar(){window.open("https://calendar.google.com/");}
+function openGmail(){window.open("https://mail.google.com/");}
+function openLine(){window.open("https://line.me");}
+function openYouTube(){window.open("https://youtube.com");}
+
+/* ===== 画像 ===== */
 avatarUpload.onchange=e=>{
 const reader=new FileReader();
 reader.onload=ev=>{
@@ -265,7 +285,7 @@ localStorage.setItem("avatar",ev.target.result);
 reader.readAsDataURL(e.target.files[0]);
 };
 
-/* メニュー */
+/* ===== メニュー ===== */
 function openMenu(){
 menu.classList.add("active");
 apiKey.value=localStorage.getItem("apiKey")||"";
@@ -278,9 +298,7 @@ function saveSettings(){
 localStorage.setItem("apiKey",apiKey.value);
 localStorage.setItem("systemPrompt",systemPrompt.value);
 localStorage.setItem("voiceOn",voiceToggle.checked);
-
 voiceOn=voiceToggle.checked;
-
 add("保存😊","ai");
 closeMenu();
 }
@@ -289,7 +307,6 @@ closeMenu();
 window.onload=()=>{
 voiceOn=localStorage.getItem("voiceOn")==="true";
 history=JSON.parse(localStorage.getItem("chatHistory"))||[];
-
 const saved=localStorage.getItem("avatar");
 if(saved) avatar.src=saved;
 };
