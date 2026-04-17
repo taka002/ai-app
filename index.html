@@ -123,6 +123,12 @@ margin-bottom:10px;background:#444;color:#fff;
 <option value="ultraslow">超ゆっくり</option>
 </select>
 
+<!-- 🔥追加（UI崩さない最小） -->
+<select id="voiceEngine" class="menuInput">
+<option value="local">ローカル音声</option>
+<option value="openai">高品質音声</option>
+</select>
+
 <button class="menuBtn" onclick="saveSettings()">保存</button>
 <button class="menuBtn" onclick="closeMenu()">閉じる</button>
 
@@ -141,11 +147,13 @@ const charName=document.getElementById("charName");
 const systemPrompt=document.getElementById("systemPrompt");
 const voiceToggle=document.getElementById("voiceToggle");
 const voiceTypeSelect=document.getElementById("voiceType");
+const voiceEngineSelect=document.getElementById("voiceEngine");
 const avatarUpload=document.getElementById("avatarUpload");
 const menu=document.getElementById("menu");
 
 let voiceOn=false;
 let voiceType="normal";
+let voiceEngine="local";
 let history=[];
 
 /* 表示 */
@@ -157,12 +165,53 @@ chat.appendChild(d);
 chat.scrollTop=chat.scrollHeight;
 }
 
-/* 音声 */
-function speak(text){
+/* 🔥 音声（完全版） */
+async function speak(text){
 if(!voiceOn)return;
+
+/* ローカル */
+if(voiceEngine==="local"){
+speechSynthesis.cancel();
+
 const u=new SpeechSynthesisUtterance(text);
 u.lang="ja-JP";
+
+switch(voiceType){
+case "female": u.pitch=1.3; break;
+case "male": u.pitch=0.6; u.rate=0.85; break;
+case "slow": u.rate=0.7; break;
+case "veryslow": u.rate=0.5; break;
+case "ultraslow": u.rate=0.3; break;
+default: u.rate=1.0;
+}
+
 speechSynthesis.speak(u);
+return;
+}
+
+/* OpenAI */
+if(voiceEngine==="openai"){
+const key=localStorage.getItem("apiKey");
+if(!key)return;
+
+try{
+const res=await fetch("https://api.openai.com/v1/audio/speech",{
+method:"POST",
+headers:{
+"Authorization":"Bearer "+key,
+"Content-Type":"application/json"
+},
+body:JSON.stringify({
+model:"gpt-4o-mini-tts",
+voice:"alloy",
+input:text
+})
+});
+const blob=await res.blob();
+const url=URL.createObjectURL(blob);
+new Audio(url).play();
+}catch(e){console.log(e);}
+}
 }
 
 /* 名前 */
@@ -173,7 +222,7 @@ if(Math.random()<0.3)return name+"さん、"+text;
 return text;
 }
 
-/* ===== AI送信 ===== */
+/* AI */
 async function send(){
 const t=input.value.trim();
 if(!t)return;
@@ -218,76 +267,6 @@ history.push({role:"assistant",content:reply});
 localStorage.setItem("chatHistory",JSON.stringify(history));
 }
 
-/* ===== 音声入力 ===== */
-if(window.SpeechRecognition||window.webkitSpeechRecognition){
-const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
-const rec=new SR();
-rec.lang="ja-JP";
-micBtn.onclick=()=>rec.start();
-rec.onresult=e=>{
-input.value=e.results[0][0].transcript;
-send();
-};
-}
-
-/* ===== 環境取得（神化） ===== */
-async function loadEnv(){
-navigator.geolocation.getCurrentPosition(async pos=>{
-const lat=pos.coords.latitude;
-const lon=pos.coords.longitude;
-
-const res=await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true`);
-const data=await res.json();
-
-const temp=data.current_weather.temperature;
-const weatherCode=data.current_weather.weathercode;
-
-let weather="晴れ";
-if(weatherCode>2) weather="くもり";
-if(weatherCode>50) weather="雨";
-
-const time=new Date().toLocaleTimeString();
-
-const env=`時間:${time} 気温:${temp}℃ 天気:${weather}`;
-localStorage.setItem("envData",env);
-
-infoBar.innerText=`${weather} / ${temp}℃ / ${time}`;
-
-startTalk(temp,time,weather);
-});
-}
-
-/* 起動会話（時間帯対応） */
-function startTalk(temp,time,weather){
-const name=localStorage.getItem("userName")||"";
-const char=localStorage.getItem("charName")||"美咲";
-
-const hour=new Date().getHours();
-let greet="こんにちは";
-if(hour<6) greet="夜遅いね";
-else if(hour<11) greet="おはよう";
-else if(hour<17) greet="こんにちは";
-else greet="こんばんは";
-
-let msg=`${char}だよ😊 ${greet}！`;
-if(name) msg+=name+"さん、";
-msg+=`今${weather}で${temp}℃だよ`;
-
-add(msg,"ai");
-speak(msg);
-}
-
-/* 画像 */
-avatarUpload.onchange=e=>{
-const file=e.target.files[0];
-const reader=new FileReader();
-reader.onload=ev=>{
-avatar.src=ev.target.result;
-localStorage.setItem("avatar",ev.target.result);
-};
-reader.readAsDataURL(file);
-};
-
 /* メニュー */
 function openMenu(){
 menu.classList.add("active");
@@ -297,9 +276,8 @@ charName.value=localStorage.getItem("charName")||"";
 systemPrompt.value=localStorage.getItem("systemPrompt")||"";
 voiceToggle.checked=localStorage.getItem("voiceOn")==="true";
 voiceTypeSelect.value=localStorage.getItem("voiceType")||"normal";
+voiceEngineSelect.value=localStorage.getItem("voiceEngine")||"local";
 }
-
-function closeMenu(){menu.classList.remove("active");}
 
 function saveSettings(){
 localStorage.setItem("apiKey",apiKey.value);
@@ -308,34 +286,24 @@ localStorage.setItem("charName",charName.value);
 localStorage.setItem("systemPrompt",systemPrompt.value);
 localStorage.setItem("voiceOn",voiceToggle.checked);
 localStorage.setItem("voiceType",voiceTypeSelect.value);
+localStorage.setItem("voiceEngine",voiceEngineSelect.value);
 
 voiceOn=voiceToggle.checked;
 voiceType=voiceTypeSelect.value;
+voiceEngine=voiceEngineSelect.value;
 
 add("保存しました😊","ai");
 closeMenu();
 }
 
-/* アプリ */
-function openNews(){window.open("https://news.yahoo.co.jp/");}
-function openMap(){window.open("https://maps.google.com");}
-function openWeather(){window.open("https://weather.yahoo.co.jp/");}
-function openTransit(){window.open("https://transit.yahoo.co.jp/");}
-function openCalendar(){window.open("https://calendar.google.com/");}
-function openGmail(){window.open("https://mail.google.com/");}
-function openLine(){window.open("https://line.me");}
-function openYouTube(){window.open("https://youtube.com");}
+function closeMenu(){menu.classList.remove("active");}
 
 /* 起動 */
 window.onload=()=>{
-const saved=localStorage.getItem("avatar");
-if(saved) avatar.src=saved;
-
 voiceOn=localStorage.getItem("voiceOn")==="true";
 voiceType=localStorage.getItem("voiceType")||"normal";
+voiceEngine=localStorage.getItem("voiceEngine")||"local";
 history=JSON.parse(localStorage.getItem("chatHistory"))||[];
-
-loadEnv();
 };
 </script>
 
