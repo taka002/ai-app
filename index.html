@@ -149,12 +149,16 @@ chat.appendChild(d);
 chat.scrollTop=chat.scrollHeight;
 }
 
-/* ===== 高品質音声 ===== */
+/* ===== 🔥 音声（必ず出る安定版） ===== */
 async function speak(text){
 if(!voiceOn)return;
 
 const key=localStorage.getItem("apiKey");
 if(!key)return;
+
+/* 先にローカルでロック解除 */
+speechSynthesis.cancel();
+speechSynthesis.speak(new SpeechSynthesisUtterance(" "));
 
 try{
 const res=await fetch("https://api.openai.com/v1/audio/speech",{
@@ -176,11 +180,13 @@ const audio=new Audio(URL.createObjectURL(await res.blob()));
 await audio.play();
 
 }catch(e){
-console.log("音声失敗",e);
+console.log("音声fallback",e);
+/* fallback */
+speechSynthesis.speak(new SpeechSynthesisUtterance(text));
 }
 }
 
-/* ===== AI ===== */
+/* ===== 🔥 AI（プロンプト強化版） ===== */
 async function send(){
 const t=input.value.trim();
 if(!t)return;
@@ -201,12 +207,25 @@ headers:{
 },
 body:JSON.stringify({
 model:"gpt-4o-mini",
+temperature:0.7,
 messages:[
 {
 role:"system",
-content:`あなたは優しい女性AIです。
-${localStorage.getItem("systemPrompt")||""}
-キャラを崩さない`
+content:`
+あなたは絶対にキャラを崩さないAIです。
+
+【人格】
+${localStorage.getItem("systemPrompt") || "優しい女性"}
+
+【ルール】
+・人格を維持
+・口調固定
+・性格を変えない
+・AIっぽい説明禁止
+・自然な会話のみ
+
+絶対に守ること
+`
 },
 ...history,
 {role:"user",content:t}
