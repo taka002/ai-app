@@ -23,7 +23,7 @@ height:100vh;display:flex;flex-direction:column;
 .user .bubble{background:#0072ff;color:#fff;}
 
 #bottom{position:fixed;bottom:0;width:100%;background:#fff;padding:8px;}
-#controls{display:flex;gap:6px;}
+#controls{display:flex;gap:6px;flex-wrap:wrap;}
 #input{flex:1;padding:10px;border-radius:20px;border:none;}
 
 button{border:none;border-radius:10px;padding:10px;}
@@ -49,6 +49,8 @@ button{border:none;border-radius:10px;padding:10px;}
 <button onclick="openNews()">📰</button>
 <button onclick="openTransit()">🚃</button>
 <button onclick="openMap()">🗺</button>
+<button onclick="openCalendar()">📅</button>
+<button onclick="openGmail()">📧</button>
 <button onclick="openSettings()">⚙</button>
 </div>
 </div>
@@ -116,7 +118,7 @@ if(h<22) return "こんばんは🌙";
 return "夜遅いですね";
 }
 
-/* ===== 天気コメント ===== */
+/* ===== 天気 ===== */
 function weatherComment(){
 if(weatherCode===0) return "今日は快晴☀️";
 if(weatherCode<=3) return "ちょっと曇り☁️";
@@ -152,11 +154,6 @@ messages:history
 })
 });
 
-if(!res.ok){
-add("エラー："+res.status,"ai");
-return;
-}
-
 const data=await res.json();
 add(data.choices?.[0]?.message?.content||"エラー","ai");
 
@@ -165,24 +162,20 @@ add("通信エラー","ai");
 }
 }
 
-/* ===== ニュース ===== */
+/* ===== 外部リンク ===== */
 function openNews(){
 const keyword = locationText.replace("📍","");
-
-if(confirm("OK→Yahooニュース\nキャンセル→NewsPicks")){
+if(confirm("OK→Yahoo\nキャンセル→NewsPicks")){
 window.open(`https://news.yahoo.co.jp/search?p=${encodeURIComponent(keyword)}`);
 }else{
 window.open(`https://newspicks.com/search?q=${encodeURIComponent(keyword)}`);
 }
 }
 
-/* ===== 乗換（Yahoo固定） ===== */
 function openTransit(){
-const from = locationText.replace("📍","") || "現在地";
-window.open(`https://transit.yahoo.co.jp/search/result?from=${encodeURIComponent(from)}`);
+window.open("https://transit.yahoo.co.jp/");
 }
 
-/* ===== Googleマップ ===== */
 function openMap(){
 if(lat && lon){
 window.open(`https://www.google.com/maps?q=${lat},${lon}`);
@@ -191,13 +184,20 @@ window.open("https://www.google.com/maps");
 }
 }
 
+function openCalendar(){
+window.open("https://calendar.google.com/");
+}
+
+function openGmail(){
+window.open("https://mail.google.com/");
+}
+
 /* ===== 位置＋天気 ===== */
 function getLocation(){
 navigator.geolocation.getCurrentPosition(async pos=>{
 lat=pos.coords.latitude;
 lon=pos.coords.longitude;
 
-try{
 const geo=await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json`);
 const g=await geo.json();
 
@@ -212,10 +212,6 @@ weatherText=`🌤${wd.current_weather.temperature}℃`;
 
 add(`現在地：${locationText}<br>${weatherText}`,"ai");
 add(weatherComment(),"ai");
-
-}catch(e){
-add("天気取得失敗","ai");
-}
 
 },()=>add("位置情報の許可が必要","ai"));
 }
