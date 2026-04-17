@@ -18,11 +18,9 @@ flex-direction:column;
 padding-bottom:60px;
 }
 
-/* ===== 上 ===== */
 header{height:28vh;}
 header img{width:100%;height:100%;object-fit:cover;}
 
-/* ===== 情報 ===== */
 #infoBar{
 text-align:center;
 font-size:11px;
@@ -30,23 +28,18 @@ padding:4px;
 background:rgba(255,255,255,0.6);
 }
 
-/* ===== チャット ===== */
 main{flex:1;overflow-y:auto;padding:10px;}
 .msg{margin:8px;max-width:85%;}
 .user{text-align:right;margin-left:auto;}
 .ai{text-align:left;}
 
 .bubble{
-padding:12px;
-border-radius:18px;
+padding:10px;
+border-radius:16px;
 background:#fff;
 }
-.user .bubble{
-background:#0072ff;
-color:#fff;
-}
+.user .bubble{background:#0072ff;color:#fff;}
 
-/* ===== 下バー ===== */
 footer{
 position:fixed;
 bottom:0;width:100%;
@@ -64,7 +57,7 @@ gap:6px;
 }
 
 #input{
-width:55%;
+width:58%;
 height:36px;
 border-radius:20px;
 border:none;
@@ -72,17 +65,16 @@ padding:8px;
 }
 
 .dockBtn{
-width:42px;height:36px;
-border:none;border-radius:12px;
+width:40px;height:36px;
+border:none;border-radius:10px;
 background:#eee;
 }
 
-/* ===== メニュー ===== */
 #menu{
 position:fixed;
 bottom:-100%;
 width:100%;
-height:90%;
+height:88%;
 background:#111;
 color:#fff;
 display:flex;
@@ -99,60 +91,48 @@ overflow:auto;
 padding:20px;
 }
 
-/* 検索 */
 #searchBox{
 width:100%;
 height:48px;
-border-radius:14px;
+border-radius:12px;
 border:none;
 padding:10px;
 margin-bottom:10px;
 }
 
-/* ボタン */
 .menuBtn{
 width:100%;
-height:46px;
+height:44px;
 border:none;
-border-radius:12px;
-margin-bottom:12px;
+border-radius:10px;
+margin-bottom:10px;
 background:#444;
 color:#fff;
 }
 
-/* アプリ */
 .menuGrid{
 display:grid;
 grid-template-columns:repeat(3,1fr);
-gap:14px;
-margin-bottom:20px;
+gap:12px;
 }
 
 .menuItem{
-height:100px;
+height:90px;
 background:#333;
-border-radius:18px;
+border-radius:16px;
 display:flex;
 flex-direction:column;
 justify-content:center;
 align-items:center;
-font-size:14px;
 }
 
-/* 設定 */
 .menuInput{
 width:100%;
-height:46px;
-border-radius:12px;
+height:44px;
+border-radius:10px;
 border:none;
-padding:12px;
-margin-bottom:12px;
-}
-
-/* テキストエリア */
-textarea.menuInput{
-height:90px;
-resize:none;
+padding:10px;
+margin-bottom:10px;
 }
 </style>
 </head>
@@ -160,9 +140,7 @@ resize:none;
 <body>
 
 <header><img src="normal.png"></header>
-
 <div id="infoBar"></div>
-
 <main id="chat"></main>
 
 <footer>
@@ -174,7 +152,7 @@ resize:none;
 </div>
 </footer>
 
-<!-- ===== メニュー ===== -->
+<!-- メニュー -->
 <div id="menu">
 <div id="menuTop">
 
@@ -182,40 +160,37 @@ resize:none;
 <button class="menuBtn" onclick="searchGoogle()">検索</button>
 
 <div class="menuGrid">
+
 <div class="menuItem" onclick="openNews()">📰<br>ニュース</div>
 <div class="menuItem" onclick="openMap()">🗺<br>地図</div>
 <div class="menuItem" onclick="openWeather()">☀️<br>天気</div>
+
 <div class="menuItem" onclick="openTransit()">🚃<br>乗換</div>
 <div class="menuItem" onclick="openCalendar()">📅<br>予定</div>
 <div class="menuItem" onclick="openGmail()">📧<br>メール</div>
+
 <div class="menuItem" onclick="openLine()">💬<br>LINE</div>
 <div class="menuItem" onclick="openYouTube()">▶<br>YouTube</div>
+
 </div>
 
 <h3>設定</h3>
 
-<input id="apiKey" class="menuInput" placeholder="OpenAI APIキー">
+<input id="apiKey" class="menuInput" placeholder="APIキー">
 
-<textarea id="systemPrompt" class="menuInput"
-placeholder="キャラ設定（例：優しいお姉さん、短く話す）"></textarea>
+<textarea id="systemPrompt" class="menuInput" 
+placeholder="キャラ設定（例：優しいお姉さん、短く話す）"
+style="height:80px;"></textarea>
 
 <label>
 <input type="checkbox" id="voiceToggle"> 音声ON
 </label>
-
-<select id="voiceEngine" class="menuInput">
-<option value="local">ローカル音声</option>
-<option value="eleven">ElevenLabs</option>
-</select>
-
-<input id="elevenKey" class="menuInput" placeholder="ElevenLabs APIキー">
 
 <select id="voiceType" class="menuInput">
 <option value="normal">通常</option>
 <option value="female">女性っぽい</option>
 <option value="male">男性っぽい</option>
 <option value="slow">ゆっくり</option>
-<option value="veryslow">かなりゆっくり</option>
 </select>
 
 <button class="menuBtn" onclick="saveSettings()">保存</button>
@@ -230,26 +205,11 @@ const input=document.getElementById("input");
 const menu=document.getElementById("menu");
 const micBtn=document.getElementById("micBtn");
 
-/* ===== 状態 ===== */
 let voiceOn=localStorage.getItem("voiceOn")==="true";
 let voiceType=localStorage.getItem("voiceType")||"normal";
-let voiceEngine=localStorage.getItem("voiceEngine")||"local";
-let elevenKey=localStorage.getItem("elevenKey")||"";
 let history=JSON.parse(localStorage.getItem("chatHistory"))||[];
 
-let voices=[];
-
-/* ===== 音声初期化 ===== */
-speechSynthesis.onvoiceschanged=()=>{
-voices=speechSynthesis.getVoices();
-};
-
-/* スマホ対策 */
-document.body.addEventListener("click",()=>{
-speechSynthesis.resume();
-});
-
-/* ===== 表示 ===== */
+/* 表示 */
 function add(t,c){
 const d=document.createElement("div");
 d.className="msg "+c;
@@ -258,60 +218,26 @@ chat.appendChild(d);
 chat.scrollTop=chat.scrollHeight;
 }
 
-/* ===== 音声 ===== */
-async function speak(text){
+/* 音声 */
+function speak(text){
 if(!voiceOn)return;
 
-/* ローカル */
-if(voiceEngine==="local"){
 speechSynthesis.cancel();
-
 const u=new SpeechSynthesisUtterance(text);
 u.lang="ja-JP";
 
-const ja=voices.find(v=>v.lang.includes("ja"));
-if(ja) u.voice=ja;
-
 if(voiceType==="female"){u.pitch=1.4;}
-if(voiceType==="male"){u.pitch=0.7;}
-if(voiceType==="slow"){u.rate=0.7;}
-if(voiceType==="veryslow"){u.rate=0.5;}
+else if(voiceType==="male"){u.pitch=0.7;}
+else if(voiceType==="slow"){u.rate=0.7;}
 
 speechSynthesis.speak(u);
-return;
 }
 
-/* ElevenLabs */
-if(voiceEngine==="eleven"){
-if(!elevenKey){
-add("ElevenLabsキー未設定","ai");
-return;
-}
-
-try{
-const res=await fetch("https://api.elevenlabs.io/v1/text-to-speech/EXAVITQu4vr4xnSDxMaL",{
-method:"POST",
-headers:{
-"xi-api-key":elevenKey,
-"Content-Type":"application/json"
-},
-body:JSON.stringify({
-text:text,
-model_id:"eleven_multilingual_v2"
-})
+document.body.addEventListener("click",()=>{
+speechSynthesis.resume();
 });
 
-const blob=await res.blob();
-const url=URL.createObjectURL(blob);
-new Audio(url).play();
-
-}catch{
-add("音声エラー","ai");
-}
-}
-}
-
-/* ===== Chat ===== */
+/* ChatGPT */
 async function send(){
 const t=input.value.trim();
 if(!t)return;
@@ -334,8 +260,11 @@ headers:{
 body:JSON.stringify({
 model:"gpt-4o-mini",
 messages:[
-{role:"system",content:localStorage.getItem("systemPrompt")||"優しく話す"},
-...history.slice(-20),
+{
+role:"system",
+content: localStorage.getItem("systemPrompt") || "優しく話す"
+},
+...history,
 {role:"user",content:t}
 ]
 })
@@ -356,7 +285,7 @@ add("通信エラー","ai");
 }
 }
 
-/* ===== 音声入力 ===== */
+/* 音声入力 */
 if(window.SpeechRecognition||window.webkitSpeechRecognition){
 const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
 const rec=new SR();
@@ -370,15 +299,20 @@ send();
 };
 }
 
-/* ===== メニュー ===== */
+/* 検索 */
+function searchGoogle(){
+const q=document.getElementById("searchBox").value;
+if(q){
+window.open("https://www.google.com/search?q="+encodeURIComponent(q));
+}
+}
+
+/* メニュー */
 function openMenu(){
 menu.classList.add("active");
-
 apiKey.value=localStorage.getItem("apiKey")||"";
 voiceToggle.checked=voiceOn;
 voiceType.value=voiceType;
-voiceEngine.value=voiceEngine;
-elevenKey.value=localStorage.getItem("elevenKey")||"";
 systemPrompt.value=localStorage.getItem("systemPrompt")||"";
 }
 
@@ -390,19 +324,16 @@ function saveSettings(){
 localStorage.setItem("apiKey",apiKey.value);
 localStorage.setItem("voiceOn",voiceToggle.checked);
 localStorage.setItem("voiceType",voiceType.value);
-localStorage.setItem("voiceEngine",voiceEngine.value);
-localStorage.setItem("elevenKey",elevenKey.value);
 localStorage.setItem("systemPrompt",systemPrompt.value);
 
 voiceOn=voiceToggle.checked;
 voiceType=voiceType.value;
-voiceEngine=voiceEngine.value;
 
 add("保存しました","ai");
 closeMenu();
 }
 
-/* ===== 外部 ===== */
+/* 外部 */
 function openNews(){window.open("https://news.yahoo.co.jp/");}
 function openMap(){window.open("https://maps.google.com");}
 function openWeather(){window.open("https://weather.yahoo.co.jp/");}
@@ -412,14 +343,8 @@ function openGmail(){window.open("https://mail.google.com/");}
 function openLine(){window.open("https://line.me");}
 function openYouTube(){window.open("https://youtube.com");}
 
-function searchGoogle(){
-const q=document.getElementById("searchBox").value;
-if(q) window.open("https://www.google.com/search?q="+encodeURIComponent(q));
-}
-
-/* ===== 起動 ===== */
+/* 起動 */
 window.onload=()=>{
-voices=speechSynthesis.getVoices();
 add("こんにちは😊","ai");
 };
 </script>
