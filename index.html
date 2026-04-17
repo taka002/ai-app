@@ -152,7 +152,6 @@ margin-bottom:10px;
 </div>
 </footer>
 
-<!-- メニュー -->
 <div id="menu">
 <div id="menuTop">
 
@@ -160,26 +159,24 @@ margin-bottom:10px;
 <button class="menuBtn" onclick="searchGoogle()">検索</button>
 
 <div class="menuGrid">
-
 <div class="menuItem" onclick="openNews()">📰<br>ニュース</div>
 <div class="menuItem" onclick="openMap()">🗺<br>地図</div>
 <div class="menuItem" onclick="openWeather()">☀️<br>天気</div>
-
 <div class="menuItem" onclick="openTransit()">🚃<br>乗換</div>
 <div class="menuItem" onclick="openCalendar()">📅<br>予定</div>
 <div class="menuItem" onclick="openGmail()">📧<br>メール</div>
-
 <div class="menuItem" onclick="openLine()">💬<br>LINE</div>
 <div class="menuItem" onclick="openYouTube()">▶<br>YouTube</div>
-
 </div>
 
 <h3>設定</h3>
 
 <input id="apiKey" class="menuInput" placeholder="APIキー">
+<input id="userName" class="menuInput" placeholder="あなたの名前">
+<input id="charName" class="menuInput" placeholder="キャラ名（例：美咲）">
 
-<textarea id="systemPrompt" class="menuInput" 
-placeholder="キャラ設定（例：優しいお姉さん、短く話す）"
+<textarea id="systemPrompt" class="menuInput"
+placeholder="キャラ設定"
 style="height:80px;"></textarea>
 
 <label>
@@ -191,6 +188,8 @@ style="height:80px;"></textarea>
 <option value="female">女性っぽい</option>
 <option value="male">男性っぽい</option>
 <option value="slow">ゆっくり</option>
+<option value="veryslow">かなりゆっくり</option>
+<option value="ultraslow">超ゆっくり</option>
 </select>
 
 <button class="menuBtn" onclick="saveSettings()">保存</button>
@@ -209,7 +208,7 @@ let voiceOn=localStorage.getItem("voiceOn")==="true";
 let voiceType=localStorage.getItem("voiceType")||"normal";
 let history=JSON.parse(localStorage.getItem("chatHistory"))||[];
 
-/* 表示 */
+/* ===== 表示 ===== */
 function add(t,c){
 const d=document.createElement("div");
 d.className="msg "+c;
@@ -218,7 +217,7 @@ chat.appendChild(d);
 chat.scrollTop=chat.scrollHeight;
 }
 
-/* 音声 */
+/* ===== 音声 ===== */
 function speak(text){
 if(!voiceOn)return;
 
@@ -226,18 +225,40 @@ speechSynthesis.cancel();
 const u=new SpeechSynthesisUtterance(text);
 u.lang="ja-JP";
 
-if(voiceType==="female"){u.pitch=1.4;}
-else if(voiceType==="male"){u.pitch=0.7;}
-else if(voiceType==="slow"){u.rate=0.7;}
+switch(voiceType){
+case "female": u.pitch=1.4; break;
+case "male": u.pitch=0.7; break;
+case "slow": u.rate=0.6; break;
+case "veryslow": u.rate=0.45; break;
+case "ultraslow": u.rate=0.3; break;
+}
 
 speechSynthesis.speak(u);
 }
 
-document.body.addEventListener("click",()=>{
-speechSynthesis.resume();
-});
+document.body.onclick=()=>speechSynthesis.resume();
 
-/* ChatGPT */
+/* ===== 名前呼びロジック ===== */
+function formatReply(text){
+const userName=localStorage.getItem("userName")||"";
+
+if(!userName) return text;
+
+/* 初回 */
+if(!localStorage.getItem("firstTalk")){
+localStorage.setItem("firstTalk","1");
+return userName+"さん、"+text;
+}
+
+/* ランダム */
+if(Math.random()<0.3){
+return userName+"さん、"+text;
+}
+
+return text;
+}
+
+/* ===== ChatGPT ===== */
 async function send(){
 const t=input.value.trim();
 if(!t)return;
@@ -250,7 +271,10 @@ if(!key){add("APIキー未設定","ai");return;}
 
 add("考え中...","ai");
 
-try{
+const userName=localStorage.getItem("userName")||"";
+const charName=localStorage.getItem("charName")||"美咲";
+const basePrompt=localStorage.getItem("systemPrompt")||"";
+
 const res=await fetch("https://api.openai.com/v1/chat/completions",{
 method:"POST",
 headers:{
@@ -262,7 +286,7 @@ model:"gpt-4o-mini",
 messages:[
 {
 role:"system",
-content: localStorage.getItem("systemPrompt") || "優しく話す"
+content:`あなたの名前は${charName}です。ユーザーは${userName}。自然に会話する。\n${basePrompt}`
 },
 ...history,
 {role:"user",content:t}
@@ -271,7 +295,10 @@ content: localStorage.getItem("systemPrompt") || "優しく話す"
 });
 
 const data=await res.json();
-const reply=data.choices?.[0]?.message?.content||"エラー";
+let reply=data.choices?.[0]?.message?.content||"エラー";
+
+/* 名前付け */
+reply=formatReply(reply);
 
 add(reply,"ai");
 speak(reply);
@@ -279,13 +306,9 @@ speak(reply);
 history.push({role:"user",content:t});
 history.push({role:"assistant",content:reply});
 localStorage.setItem("chatHistory",JSON.stringify(history));
-
-}catch{
-add("通信エラー","ai");
-}
 }
 
-/* 音声入力 */
+/* ===== 音声入力 ===== */
 if(window.SpeechRecognition||window.webkitSpeechRecognition){
 const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
 const rec=new SR();
@@ -299,21 +322,15 @@ send();
 };
 }
 
-/* 検索 */
-function searchGoogle(){
-const q=document.getElementById("searchBox").value;
-if(q){
-window.open("https://www.google.com/search?q="+encodeURIComponent(q));
-}
-}
-
-/* メニュー */
+/* ===== メニュー ===== */
 function openMenu(){
 menu.classList.add("active");
 apiKey.value=localStorage.getItem("apiKey")||"";
 voiceToggle.checked=voiceOn;
 voiceType.value=voiceType;
 systemPrompt.value=localStorage.getItem("systemPrompt")||"";
+userName.value=localStorage.getItem("userName")||"";
+charName.value=localStorage.getItem("charName")||"";
 }
 
 function closeMenu(){
@@ -325,15 +342,17 @@ localStorage.setItem("apiKey",apiKey.value);
 localStorage.setItem("voiceOn",voiceToggle.checked);
 localStorage.setItem("voiceType",voiceType.value);
 localStorage.setItem("systemPrompt",systemPrompt.value);
+localStorage.setItem("userName",userName.value);
+localStorage.setItem("charName",charName.value);
 
 voiceOn=voiceToggle.checked;
 voiceType=voiceType.value;
 
-add("保存しました","ai");
+add("保存しました😊","ai");
 closeMenu();
 }
 
-/* 外部 */
+/* ===== 外部 ===== */
 function openNews(){window.open("https://news.yahoo.co.jp/");}
 function openMap(){window.open("https://maps.google.com");}
 function openWeather(){window.open("https://weather.yahoo.co.jp/");}
@@ -343,9 +362,21 @@ function openGmail(){window.open("https://mail.google.com/");}
 function openLine(){window.open("https://line.me");}
 function openYouTube(){window.open("https://youtube.com");}
 
-/* 起動 */
+function searchGoogle(){
+const q=document.getElementById("searchBox").value;
+if(q) window.open("https://www.google.com/search?q="+encodeURIComponent(q));
+}
+
+/* ===== 起動 ===== */
 window.onload=()=>{
-add("こんにちは😊","ai");
+const userName=localStorage.getItem("userName")||"";
+const charName=localStorage.getItem("charName")||"美咲";
+
+if(userName){
+add(`${charName}だよ😊 ${userName}さん、こんにちは！`,"ai");
+}else{
+add(`${charName}だよ😊 こんにちは！`,"ai");
+}
 };
 </script>
 
