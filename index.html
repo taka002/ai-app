@@ -1,80 +1,205 @@
-<!-- ★変更点：音声コマンド・ナビ・天気更新 追加済み 完全版 -->
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>美咲AI 完全版</title>
+
+<style>
+*{box-sizing:border-box;}
+body{
+margin:0;font-family:sans-serif;
+background:linear-gradient(135deg,#6ec6ff,#a0e0ff);
+height:100vh;display:flex;flex-direction:column;
+}
+#character{height:30vh;}
+#character img{width:100%;height:100%;object-fit:cover;}
+#infoBar{text-align:center;font-size:13px;padding:6px;background:#fff8;}
+#chat{flex:1;overflow:auto;padding:10px;padding-bottom:100px;}
+.msg{max-width:85%;margin:8px;}
+.user{margin-left:auto;text-align:right;}
+.ai{text-align:left;}
+.bubble{display:inline-block;padding:12px;border-radius:16px;background:#fff;}
+.user .bubble{background:#0072ff;color:#fff;}
+
+#bottom{position:fixed;bottom:0;width:100%;background:#fff;padding:8px;}
+#controls{display:flex;gap:6px;}
+#input{flex:1;padding:10px;border-radius:20px;border:none;}
+button{border:none;border-radius:10px;padding:10px;}
+
+/* モーダル */
+#modal{
+position:fixed;width:100%;height:100%;
+display:none;background:#0008;
+justify-content:center;align-items:center;
+}
+#modalContent{
+background:#222;color:#fff;
+padding:20px;border-radius:12px;width:90%;
+}
+
+/* メニュー */
+.menuGrid{
+display:grid;
+grid-template-columns:repeat(3,1fr);
+gap:10px;margin-bottom:20px;
+}
+.menuGrid button{
+background:#333;color:#fff;height:80px;
+display:flex;flex-direction:column;
+justify-content:center;align-items:center;
+border-radius:12px;
+}
+</style>
+</head>
+
+<body>
+
+<div id="character">
+<img src="normal.png">
+</div>
+
+<div id="infoBar"></div>
+<div id="chat"></div>
+
+<div id="bottom">
+<div id="controls">
+<input id="input" placeholder="話しかけてください">
+<button onclick="send()">➤</button>
+<button id="micBtn">🎤</button>
+<button onclick="openSettings()">⚙</button>
+</div>
+</div>
+
+<div id="modal">
+<div id="modalContent">
+
+<h3>メニュー</h3>
+<div class="menuGrid">
+<button onclick="openNews()">📰<br>ニュース</button>
+<button onclick="openTransit()">🚃<br>乗換</button>
+<button onclick="openMap()">🗺<br>地図</button>
+<button onclick="openCalendar()">📅<br>予定</button>
+<button onclick="openGmail()">📧<br>メール</button>
+<button onclick="openLine()">💬<br>LINE</button>
+</div>
+
+<hr>
+
+<h3>設定</h3>
+<input id="apiKey" placeholder="APIキー">
+<br><br>
+<label><input type="checkbox" id="voiceToggle"> 音声ON</label>
+
+<br><br>
+<button onclick="saveSettings()">保存</button>
+
+</div>
+</div>
+
 <script>
+const chat=document.getElementById("chat");
+const input=document.getElementById("input");
+const infoBar=document.getElementById("infoBar");
 
-/* ===== コマンド処理 ===== */
-function handleVoiceCommand(text){
+const modal=document.getElementById("modal");
+const apiKey=document.getElementById("apiKey");
+const voiceToggle=document.getElementById("voiceToggle");
 
-text = text.toLowerCase();
+let voiceOn=localStorage.getItem("voiceOn")==="true";
 
-/* ニュース */
-if(text.includes("ニュース")){
-openNews();
-return true;
+/* 🔥 記憶 */
+let history = JSON.parse(localStorage.getItem("chatHistory")) || [];
+
+let locationText="";
+let weatherText="";
+let weatherCode=null;
+let lat=null;
+let lon=null;
+
+/* 音声 */
+function speak(text){
+if(!voiceOn) return;
+speechSynthesis.cancel();
+speechSynthesis.speak(new SpeechSynthesisUtterance(text));
 }
 
-/* 地図 */
-if(text.includes("地図") || text.includes("マップ")){
-openMap();
-return true;
+/* 時刻 */
+setInterval(()=>{
+const now=new Date();
+infoBar.innerHTML=now.toLocaleString()+"<br>"+locationText+" "+weatherText;
+},1000);
+
+/* 表示 */
+function add(t,c){
+const d=document.createElement("div");
+d.className="msg "+c;
+d.innerHTML=`<div class="bubble">${t}</div>`;
+chat.appendChild(d);
+chat.scrollTop=chat.scrollHeight;
 }
 
-/* 乗換 */
-if(text.includes("乗換") || text.includes("電車")){
-openTransit();
-return true;
-}
-
-/* LINE */
-if(text.includes("line")){
-openLine();
-return true;
-}
-
-/* 家ナビ */
-if(text.includes("家まで") || text.includes("帰る")){
-openHomeNav();
-return true;
-}
-
-/* 予定 */
-if(text.includes("予定") || text.includes("スケジュール")){
-openCalendar();
-return true;
+/* 挨拶 */
+function greeting(){
+const h=new Date().getHours();
+if(h<5) return "まだ夜ですね。無理しないでくださいね";
+if(h<11) return "おはようございます☀️";
+if(h<17) return "こんにちは😊";
+if(h<22) return "こんばんは🌙";
+return "夜遅いですね。ゆっくり休んでください";
 }
 
 /* 天気 */
-if(text.includes("天気")){
-refreshWeather();
-return true;
+function weatherComment(){
+if(weatherCode===0) return "いい天気ですね☀️";
+if(weatherCode<=3) return "曇り気味ですね☁️";
+if(weatherCode<=67) return "雨ですね☔ 足元気をつけて";
+if(weatherCode<=77) return "寒そうですね❄️";
+return "天気荒れ気味⚡ 無理しないで";
 }
 
-return false;
+/* ChatGPT */
+async function send(){
+const t=input.value.trim();
+if(!t)return;
+
+add(t,"user");
+input.value="";
+
+const key=localStorage.getItem("apiKey");
+if(!key){add("APIキー未設定","ai");return;}
+
+history.push({role:"user",content:t});
+if(history.length>20) history.shift();
+
+try{
+const res=await fetch("https://api.openai.com/v1/chat/completions",{
+method:"POST",
+headers:{
+"Content-Type":"application/json",
+"Authorization":"Bearer "+key
+},
+body:JSON.stringify({
+model:"gpt-4o-mini",
+messages:history
+})
+});
+
+const data=await res.json();
+const reply=data.choices?.[0]?.message?.content||"エラー";
+
+add(reply,"ai");
+speak(reply);
+
+history.push({role:"assistant",content:reply});
+localStorage.setItem("chatHistory", JSON.stringify(history));
+
+}catch(e){
+add("通信エラー","ai");
+}
 }
 
-/* ===== 家ナビ ===== */
-function openHomeNav(){
-
-const home = localStorage.getItem("homeAddress");
-
-if(!home){
-const inputHome = prompt("自宅の住所を入力してください");
-if(!inputHome) return;
-
-localStorage.setItem("homeAddress", inputHome);
-window.open(`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(inputHome)}`);
-return;
-}
-
-window.open(`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(home)}`);
-}
-
-/* ===== 天気更新 ===== */
-function refreshWeather(){
-add("天気を更新します","ai");
-getLocation();
-}
-
-/* ===== 音声入力（強化版） ===== */
+/* 🎤 音声入力 */
 const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 if(SpeechRecognition){
 const recognition = new SpeechRecognition();
@@ -85,43 +210,74 @@ recognition.start();
 };
 
 recognition.onresult=(e)=>{
-const text = e.results[0][0].transcript;
-
-add("🎤 "+text,"user");
-
-/* コマンド優先 */
-if(handleVoiceCommand(text)){
-speak("了解です");
-return;
-}
-
-/* 通常会話 */
-input.value=text;
+input.value=e.results[0][0].transcript;
 send();
 };
 }
 
-/* ===== 起動時さらに優しく ===== */
+/* 外部リンク */
+function openNews(){modal.style.display="none";window.open("https://news.yahoo.co.jp/");}
+function openTransit(){modal.style.display="none";window.open("https://transit.yahoo.co.jp/");}
+function openMap(){modal.style.display="none";window.open("https://www.google.com/maps");}
+function openCalendar(){modal.style.display="none";window.open("https://calendar.google.com/");}
+function openGmail(){modal.style.display="none";window.open("https://mail.google.com/");}
+function openLine(){modal.style.display="none";window.open("https://line.me");}
+
+/* 位置 */
+function getLocation(){
+navigator.geolocation.getCurrentPosition(async pos=>{
+lat=pos.coords.latitude;
+lon=pos.coords.longitude;
+
+const geo=await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json`);
+const g=await geo.json();
+
+const city=g.address.city||g.address.town||g.address.village||"";
+locationText=`📍${city}`;
+
+const w=await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true`);
+const wd=await w.json();
+
+weatherCode=wd.current_weather.weathercode;
+weatherText=`🌤${wd.current_weather.temperature}℃`;
+
+add(`現在地：${locationText}<br>${weatherText}`,"ai");
+
+const comment=weatherComment();
+add(comment,"ai");
+speak(comment);
+
+});
+}
+
+/* 起動 */
 window.onload=()=>{
+add(greeting(),"ai");
+speak(greeting());
 
-const g = greeting();
-add(g,"ai");
-speak(g);
-
-/* 履歴 */
+/* 履歴復元 */
 history.forEach(h=>{
 add(h.content, h.role==="user"?"user":"ai");
 });
 
-/* 天気 */
 getLocation();
-
-/* 追加一言 */
-setTimeout(()=>{
-const msg="今日も無理せずいきましょうね";
-add(msg,"ai");
-speak(msg);
-},1500);
 };
 
+/* 設定 */
+function openSettings(){
+modal.style.display="flex";
+apiKey.value=localStorage.getItem("apiKey")||"";
+voiceToggle.checked=voiceOn;
+}
+
+function saveSettings(){
+localStorage.setItem("apiKey",apiKey.value);
+localStorage.setItem("voiceOn",voiceToggle.checked);
+voiceOn=voiceToggle.checked;
+modal.style.display="none";
+add("保存しました","ai");
+}
 </script>
+
+</body>
+</html>
