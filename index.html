@@ -51,6 +51,7 @@ button{border:none;border-radius:10px;padding:10px;}
 <button onclick="openMap()">🗺</button>
 <button onclick="openCalendar()">📅</button>
 <button onclick="openGmail()">📧</button>
+<button onclick="openLine()">💬</button> <!-- 🔥 LINE追加 -->
 <button onclick="openSettings()">⚙</button>
 </div>
 </div>
@@ -84,7 +85,7 @@ let weatherCode=null;
 let lat=null;
 let lon=null;
 
-/* ===== 音声（安定版） ===== */
+/* ===== 音声 ===== */
 function speak(text){
 if(!voiceOn) return;
 speechSynthesis.cancel();
@@ -116,7 +117,7 @@ if(h<22) return "こんばんは🌙";
 return "夜遅いですね。ゆっくり休んでください";
 }
 
-/* ===== 天気気遣い ===== */
+/* ===== 天気 ===== */
 function weatherComment(){
 if(weatherCode===0) return "今日はいい天気ですね☀️ 無理しすぎないでくださいね";
 if(weatherCode<=3) return "少し曇っていますね☁️ 体調崩さないように";
@@ -193,6 +194,11 @@ function openGmail(){
 window.open("https://mail.google.com/");
 }
 
+/* ===== 🔥 LINE ===== */
+function openLine(){
+window.open("https://line.me");
+}
+
 /* ===== 位置＋天気 ===== */
 function getLocation(){
 navigator.geolocation.getCurrentPosition(async pos=>{
@@ -217,7 +223,6 @@ const comment = weatherComment();
 add(comment,"ai");
 speak(comment);
 
-/* 優しい一言 */
 setTimeout(()=>{
 const extra="今日も無理せず、ゆっくりいきましょうね";
 add(extra,"ai");
@@ -232,7 +237,6 @@ window.onload=()=>{
 const g=greeting();
 add(g,"ai");
 speak(g);
-
 getLocation();
 };
 
