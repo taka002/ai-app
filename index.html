@@ -57,16 +57,12 @@ button{border:none;border-radius:10px;padding:10px;}
 
 <div id="modal">
 <div id="modalContent">
-
 <h3>ChatGPTキー</h3>
 <input id="apiKey">
-
 <h3>音声</h3>
 <input type="checkbox" id="voiceToggle"> ON
-
 <br><br>
 <button onclick="saveSettings()">保存</button>
-
 </div>
 </div>
 
@@ -88,6 +84,13 @@ let weatherCode=null;
 let lat=null;
 let lon=null;
 
+/* ===== 音声（安定版） ===== */
+function speak(text){
+if(!voiceOn) return;
+speechSynthesis.cancel();
+speechSynthesis.speak(new SpeechSynthesisUtterance(text));
+}
+
 /* ===== 時刻 ===== */
 setInterval(()=>{
 const now=new Date();
@@ -101,30 +104,25 @@ d.className="msg "+c;
 d.innerHTML=`<div class="bubble">${t}</div>`;
 chat.appendChild(d);
 chat.scrollTop=chat.scrollHeight;
-
-if(c==="ai" && voiceOn){
-speechSynthesis.cancel();
-speechSynthesis.speak(new SpeechSynthesisUtterance(t));
-}
 }
 
 /* ===== 挨拶 ===== */
 function greeting(){
 const h=new Date().getHours();
-if(h<5) return "まだ夜ですね";
+if(h<5) return "まだ夜ですね。無理しないでくださいね";
 if(h<11) return "おはようございます☀️";
 if(h<17) return "こんにちは😊";
 if(h<22) return "こんばんは🌙";
-return "夜遅いですね";
+return "夜遅いですね。ゆっくり休んでください";
 }
 
-/* ===== 天気 ===== */
+/* ===== 天気気遣い ===== */
 function weatherComment(){
-if(weatherCode===0) return "今日は快晴☀️";
-if(weatherCode<=3) return "ちょっと曇り☁️";
-if(weatherCode<=67) return "雨ですね☔";
-if(weatherCode<=77) return "雪かも❄️";
-return "天気荒れ気味⚡";
+if(weatherCode===0) return "今日はいい天気ですね☀️ 無理しすぎないでくださいね";
+if(weatherCode<=3) return "少し曇っていますね☁️ 体調崩さないように";
+if(weatherCode<=67) return "雨ですね☔ 足元に気をつけてくださいね";
+if(weatherCode<=77) return "寒そうですね❄️ 暖かくしてください";
+return "天気が荒れています⚡ 無理しないで過ごしましょう";
 }
 
 /* ===== ChatGPT ===== */
@@ -155,7 +153,10 @@ messages:history
 });
 
 const data=await res.json();
-add(data.choices?.[0]?.message?.content||"エラー","ai");
+const reply=data.choices?.[0]?.message?.content||"エラー";
+
+add(reply,"ai");
+speak(reply);
 
 }catch(e){
 add("通信エラー","ai");
@@ -211,14 +212,27 @@ weatherCode=wd.current_weather.weathercode;
 weatherText=`🌤${wd.current_weather.temperature}℃`;
 
 add(`現在地：${locationText}<br>${weatherText}`,"ai");
-add(weatherComment(),"ai");
+
+const comment = weatherComment();
+add(comment,"ai");
+speak(comment);
+
+/* 優しい一言 */
+setTimeout(()=>{
+const extra="今日も無理せず、ゆっくりいきましょうね";
+add(extra,"ai");
+speak(extra);
+},800);
 
 },()=>add("位置情報の許可が必要","ai"));
 }
 
 /* ===== 起動 ===== */
 window.onload=()=>{
-add(greeting(),"ai");
+const g=greeting();
+add(g,"ai");
+speak(g);
+
 getLocation();
 };
 
