@@ -104,7 +104,7 @@ margin-bottom:10px;background:#444;color:#fff;
 <div class="menuItem" onclick="openYouTube()">▶<br>YouTube</div>
 </div>
 
-<!-- 🔥 キャラ切替 -->
+<!-- キャラ -->
 <h3>キャラ切替</h3>
 <div class="menuGrid">
 <div class="menuItem" onclick="setCharacter('misaki')">😊<br>美咲</div>
@@ -119,6 +119,9 @@ margin-bottom:10px;background:#444;color:#fff;
 <input id="charName" class="menuInput" placeholder="キャラ名">
 
 <textarea id="systemPrompt" class="menuInput" style="height:80px;" placeholder="キャラ設定"></textarea>
+
+<!-- 🔥 画像アップロード -->
+<input type="file" id="avatarUpload" class="menuInput">
 
 <label><input type="checkbox" id="voiceToggle"> 音声ON</label>
 
@@ -138,6 +141,7 @@ const chat=document.getElementById("chat");
 const input=document.getElementById("input");
 const menu=document.getElementById("menu");
 const avatar=document.getElementById("avatar");
+const avatarUpload=document.getElementById("avatarUpload");
 
 const apiKey=document.getElementById("apiKey");
 const userName=document.getElementById("userName");
@@ -150,29 +154,13 @@ let voiceOn=false;
 let voiceEngine="openai";
 let history=[];
 
-/* ===== キャラ定義 ===== */
+/* キャラ */
 const characters={
-misaki:{
-name:"美咲",
-prompt:"優しくて落ち着いた女性。丁寧に寄り添う。",
-voice:"nova",
-avatar:"normal.png"
-},
-yandere:{
-name:"みさき",
-prompt:"嫉妬深く重い愛情の女性。",
-voice:"onyx",
-avatar:"yandere.png"
-},
-amae:{
-name:"みさき",
-prompt:"甘えん坊で距離が近い女性。",
-voice:"nova",
-avatar:"amae.png"
-}
+misaki:{name:"美咲",prompt:"優しくて落ち着いた女性",voice:"nova",avatar:"normal.png"},
+yandere:{name:"みさき",prompt:"嫉妬深い女性",voice:"onyx",avatar:"yandere.png"},
+amae:{name:"みさき",prompt:"甘えん坊な女性",voice:"nova",avatar:"amae.png"}
 };
 
-/* ===== キャラ切替 ===== */
 function setCharacter(type){
 const c=characters[type];
 if(!c)return;
@@ -181,10 +169,12 @@ localStorage.setItem("charName",c.name);
 localStorage.setItem("systemPrompt",c.prompt);
 localStorage.setItem("voiceType",c.voice);
 localStorage.setItem("avatar",c.avatar);
+localStorage.setItem("voiceEngine","openai");
 
 avatar.src=c.avatar;
+voiceEngine="openai";
 
-add("キャラ変更しました😊","ai");
+add("キャラ変更😊","ai");
 closeMenu();
 }
 
@@ -197,24 +187,18 @@ chat.appendChild(d);
 chat.scrollTop=chat.scrollHeight;
 }
 
-/* 音声（1つだけ） */
+/* 🔥 音声（安定版） */
 async function speak(text){
 if(!voiceOn)return;
 
-/* ローカル */
 if(voiceEngine==="local"){
 speechSynthesis.cancel();
-const u=new SpeechSynthesisUtterance(text);
-u.lang="ja-JP";
-speechSynthesis.speak(u);
+speechSynthesis.speak(new SpeechSynthesisUtterance(text));
 return;
 }
 
-/* OpenAI */
 const key=localStorage.getItem("apiKey");
 if(!key)return;
-
-const voiceType=localStorage.getItem("voiceType")||"alloy";
 
 try{
 const res=await fetch("https://api.openai.com/v1/audio/speech",{
@@ -225,17 +209,22 @@ headers:{
 },
 body:JSON.stringify({
 model:"gpt-4o-mini-tts",
-voice:voiceType,
+voice:localStorage.getItem("voiceType")||"alloy",
 input:text
 })
 });
-const blob=await res.blob();
-const url=URL.createObjectURL(blob);
-new Audio(url).play();
-}catch(e){console.log(e);}
+
+if(!res.ok) throw new Error();
+
+const audio=new Audio(URL.createObjectURL(await res.blob()));
+audio.play().catch(()=>speechSynthesis.speak(new SpeechSynthesisUtterance(text)));
+
+}catch{
+speechSynthesis.speak(new SpeechSynthesisUtterance(text));
+}
 }
 
-/* AI送信（1つだけ） */
+/* AI */
 async function send(){
 const t=input.value.trim();
 if(!t)return;
@@ -248,9 +237,6 @@ if(!key){add("APIキー未設定","ai");return;}
 
 add("考え中...","ai");
 
-const char=localStorage.getItem("charName")||"美咲";
-const prompt=localStorage.getItem("systemPrompt")||"";
-
 const res=await fetch("https://api.openai.com/v1/chat/completions",{
 method:"POST",
 headers:{
@@ -260,7 +246,7 @@ headers:{
 body:JSON.stringify({
 model:"gpt-4o-mini",
 messages:[
-{role:"system",content:`あなたは${char}です。\n${prompt}`},
+{role:"system",content:`あなたは${localStorage.getItem("charName")||"美咲"}です。\n${localStorage.getItem("systemPrompt")||""}`},
 ...history,
 {role:"user",content:t}
 ]
@@ -268,7 +254,7 @@ messages:[
 });
 
 const data=await res.json();
-let reply=data.choices?.[0]?.message?.content||"エラー";
+const reply=data.choices?.[0]?.message?.content||"エラー";
 
 add(reply,"ai");
 speak(reply);
@@ -278,38 +264,42 @@ history.push({role:"assistant",content:reply});
 localStorage.setItem("chatHistory",JSON.stringify(history));
 }
 
-/* マイク */
+/* 🎤 */
 if(window.SpeechRecognition||window.webkitSpeechRecognition){
-const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
-const rec=new SR();
+const rec=new (window.SpeechRecognition||window.webkitSpeechRecognition)();
 rec.lang="ja-JP";
-
 document.getElementById("micBtn").onclick=()=>rec.start();
-
 rec.onresult=e=>{
 input.value=e.results[0][0].transcript;
 send();
 };
 }
 
+/* 🔥 画像アップロード */
+avatarUpload.onchange=e=>{
+const file=e.target.files[0];
+if(!file)return;
+
+const reader=new FileReader();
+reader.onload=ev=>{
+avatar.src=ev.target.result;
+localStorage.setItem("avatar",ev.target.result);
+};
+reader.readAsDataURL(file);
+};
+
 /* メニュー */
 function openMenu(){
 menu.classList.add("active");
-
 apiKey.value=localStorage.getItem("apiKey")||"";
-userName.value=localStorage.getItem("userName")||"";
-charName.value=localStorage.getItem("charName")||"";
 systemPrompt.value=localStorage.getItem("systemPrompt")||"";
 voiceToggle.checked=localStorage.getItem("voiceOn")==="true";
 voiceEngineSelect.value=localStorage.getItem("voiceEngine")||"openai";
 }
-
 function closeMenu(){menu.classList.remove("active");}
 
 function saveSettings(){
 localStorage.setItem("apiKey",apiKey.value);
-localStorage.setItem("userName",userName.value);
-localStorage.setItem("charName",charName.value);
 localStorage.setItem("systemPrompt",systemPrompt.value);
 localStorage.setItem("voiceOn",voiceToggle.checked);
 localStorage.setItem("voiceEngine",voiceEngineSelect.value);
@@ -317,19 +307,9 @@ localStorage.setItem("voiceEngine",voiceEngineSelect.value);
 voiceOn=voiceToggle.checked;
 voiceEngine=voiceEngineSelect.value;
 
-add("保存しました😊","ai");
+add("保存😊","ai");
 closeMenu();
 }
-
-/* アプリ */
-function openNews(){window.open("https://news.yahoo.co.jp/");}
-function openMap(){window.open("https://maps.google.com");}
-function openWeather(){window.open("https://weather.yahoo.co.jp/");}
-function openTransit(){window.open("https://transit.yahoo.co.jp/");}
-function openCalendar(){window.open("https://calendar.google.com/");}
-function openGmail(){window.open("https://mail.google.com/");}
-function openLine(){window.open("https://line.me");}
-function openYouTube(){window.open("https://youtube.com");}
 
 /* 起動 */
 window.onload=()=>{
@@ -337,9 +317,8 @@ voiceOn=localStorage.getItem("voiceOn")==="true";
 voiceEngine=localStorage.getItem("voiceEngine")||"openai";
 history=JSON.parse(localStorage.getItem("chatHistory"))||[];
 
-/* 画像復元 */
-const savedAvatar=localStorage.getItem("avatar");
-if(savedAvatar) avatar.src=savedAvatar;
+const saved=localStorage.getItem("avatar");
+if(saved) avatar.src=saved;
 };
 </script>
 
