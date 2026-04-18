@@ -98,12 +98,20 @@ margin-bottom:10px;background:#444;color:#fff;
 <div class="menuItem" onclick="openWeather()">☀️<br>天気</div>
 
 <div class="menuItem" onclick="openTrain()">🚆<br>電車</div>
+<div class="menuItem" onclick="openJorudan()">🚉<br>ダン</div>
 <div class="menuItem" onclick="openCalendar()">📅<br>予定</div>
-<div class="menuItem" onclick="openGmail()">📧<br>メール</div>
 
+<div class="menuItem" onclick="openGmail()">📧<br>メール</div>
 <div class="menuItem" onclick="openYouTube()">▶<br>YouTube</div>
 <div class="menuItem" onclick="openAmazon()">🛒<br>買い物</div>
+
 <div class="menuItem" onclick="openMemo()">📝<br>メモ</div>
+<div class="menuItem" onclick="openChatGPT()">🤖<br>チャット</div>
+<div class="menuItem" onclick="openGemini()">✨<br>ジェ</div>
+
+<div class="menuItem" onclick="openRakutenMag()">📚<br>マガジン</div>
+<div class="menuItem" onclick="openPrime()">🎬<br>ビデオ</div>
+<div class="menuItem" onclick="openKindle()">📖<br>キンドル</div>
 </div>
 
 <h3>設定</h3>
@@ -127,11 +135,6 @@ const input=document.getElementById("input");
 const avatar=document.getElementById("avatar");
 const menu=document.getElementById("menu");
 
-const apiKey=document.getElementById("apiKey");
-const systemPrompt=document.getElementById("systemPrompt");
-const voiceToggle=document.getElementById("voiceToggle");
-const avatarUpload=document.getElementById("avatarUpload");
-
 let voiceOn=false;
 let history=[];
 
@@ -144,34 +147,12 @@ chat.appendChild(d);
 chat.scrollTop=chat.scrollHeight;
 }
 
-/* ===== 音声 ===== */
+/* ===== 音声（安定版） ===== */
 async function speak(text){
 if(!voiceOn)return;
-const key=localStorage.getItem("apiKey");
-if(!key)return;
 
 speechSynthesis.cancel();
-
-try{
-const res=await fetch("https://api.openai.com/v1/audio/speech",{
-method:"POST",
-headers:{
-"Authorization":"Bearer "+key,
-"Content-Type":"application/json"
-},
-body:JSON.stringify({
-model:"gpt-4o-mini-tts",
-voice:"nova",
-input:text
-})
-});
-
-const audio=new Audio(URL.createObjectURL(await res.blob()));
-await audio.play();
-
-}catch{
 speechSynthesis.speak(new SpeechSynthesisUtterance(text));
-}
 }
 
 /* ===== AI ===== */
@@ -196,7 +177,7 @@ headers:{
 body:JSON.stringify({
 model:"gpt-4o-mini",
 messages:[
-{role:"system",content:`あなたは${localStorage.getItem("systemPrompt")||"優しい女性"}`},
+{role:"system",content:localStorage.getItem("systemPrompt")||"優しい女性"},
 ...history,
 {role:"user",content:t}
 ]
@@ -222,11 +203,14 @@ if(t.includes("検索")) return openSearch;
 if(t.includes("地図")) return openMap;
 if(t.includes("天気")) return openWeather;
 if(t.includes("電車")) return openTrain;
+if(t.includes("ダン")) return openJorudan;
 if(t.includes("youtube")) return openYouTube;
 if(t.includes("メール")) return openGmail;
 if(t.includes("予定")) return openCalendar;
 if(t.includes("買い物")) return openAmazon;
 if(t.includes("メモ")) return openMemo;
+if(t.includes("chatgpt")) return openChatGPT;
+if(t.includes("gemini")) return openGemini;
 
 return null;
 }
@@ -243,7 +227,9 @@ if(window.SpeechRecognition||window.webkitSpeechRecognition){
 const rec=new (window.SpeechRecognition||window.webkitSpeechRecognition)();
 rec.lang="ja-JP";
 
-document.getElementById("micBtn").onclick=()=>rec.start();
+document.getElementById("micBtn").onclick=()=>{
+try{rec.start();}catch{}
+};
 
 rec.onresult=e=>{
 handleInput(e.results[0][0].transcript);
@@ -255,11 +241,17 @@ function openSearch(){window.open("https://www.google.com/","_blank");}
 function openMap(){window.open("https://maps.google.com/","_blank");}
 function openWeather(){window.open("https://weather.yahoo.co.jp/","_blank");}
 function openTrain(){window.open("https://www.google.com/maps/dir/?api=1&travelmode=transit","_blank");}
+function openJorudan(){window.open("https://www.jorudan.co.jp/","_blank");}
 function openCalendar(){window.open("https://calendar.google.com/","_blank");}
 function openGmail(){window.open("https://mail.google.com/","_blank");}
 function openYouTube(){window.open("https://youtube.com/","_blank");}
 function openAmazon(){window.open("https://www.amazon.co.jp/","_blank");}
 function openMemo(){window.open("https://keep.google.com/","_blank");}
+function openChatGPT(){window.open("https://chat.openai.com/","_blank");}
+function openGemini(){window.open("https://gemini.google.com/","_blank");}
+function openRakutenMag(){window.open("https://magazine.rakuten.co.jp/","_blank");}
+function openPrime(){window.open("https://www.amazon.co.jp/gp/video/storefront","_blank");}
+function openKindle(){window.open("https://read.amazon.co.jp/","_blank");}
 
 /* ===== 画像 ===== */
 avatarUpload.onchange=e=>{
@@ -274,17 +266,17 @@ reader.readAsDataURL(e.target.files[0]);
 /* ===== 設定 ===== */
 function openMenu(){
 menu.classList.add("active");
-apiKey.value=localStorage.getItem("apiKey")||"";
-systemPrompt.value=localStorage.getItem("systemPrompt")||"";
-voiceToggle.checked=localStorage.getItem("voiceOn")==="true";
+document.getElementById("apiKey").value=localStorage.getItem("apiKey")||"";
+document.getElementById("systemPrompt").value=localStorage.getItem("systemPrompt")||"";
+document.getElementById("voiceToggle").checked=localStorage.getItem("voiceOn")==="true";
 }
 function closeMenu(){menu.classList.remove("active");}
 
 function saveSettings(){
-localStorage.setItem("apiKey",apiKey.value);
-localStorage.setItem("systemPrompt",systemPrompt.value);
-localStorage.setItem("voiceOn",voiceToggle.checked);
-voiceOn=voiceToggle.checked;
+localStorage.setItem("apiKey",document.getElementById("apiKey").value);
+localStorage.setItem("systemPrompt",document.getElementById("systemPrompt").value);
+localStorage.setItem("voiceOn",document.getElementById("voiceToggle").checked);
+voiceOn=document.getElementById("voiceToggle").checked;
 add("保存😊","ai");
 closeMenu();
 }
