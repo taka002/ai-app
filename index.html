@@ -93,14 +93,17 @@ margin-bottom:10px;background:#444;color:#fff;
 <div id="menuTop">
 
 <div class="menuGrid">
-<div class="menuItem" onclick="openNews()">📰<br>ニュース</div>
+<div class="menuItem" onclick="openSearch()">🔍<br>検索</div>
 <div class="menuItem" onclick="openMap()">🗺<br>地図</div>
 <div class="menuItem" onclick="openWeather()">☀️<br>天気</div>
-<div class="menuItem" onclick="openTransit()">🚃<br>乗換</div>
+
+<div class="menuItem" onclick="openTrain()">🚆<br>電車</div>
 <div class="menuItem" onclick="openCalendar()">📅<br>予定</div>
 <div class="menuItem" onclick="openGmail()">📧<br>メール</div>
-<div class="menuItem" onclick="openLine()">💬<br>LINE</div>
+
 <div class="menuItem" onclick="openYouTube()">▶<br>YouTube</div>
+<div class="menuItem" onclick="openAmazon()">🛒<br>買い物</div>
+<div class="menuItem" onclick="openMemo()">📝<br>メモ</div>
 </div>
 
 <h3>設定</h3>
@@ -141,70 +144,35 @@ chat.appendChild(d);
 chat.scrollTop=chat.scrollHeight;
 }
 
-/* ===== 🔥 intent強化 ===== */
-function detectIntent(text){
-text=text.toLowerCase();
+/* ===== 音声 ===== */
+async function speak(text){
+if(!voiceOn)return;
+const key=localStorage.getItem("apiKey");
+if(!key)return;
 
-if(text.includes("地図") || text.includes("マップ")) return "map";
-if(text.includes("youtube") || text.includes("ユーチューブ")) return "youtube";
-if(text.includes("ニュース")) return "news";
-if(text.includes("天気")) return "weather";
-if(text.includes("乗換") || text.includes("電車")) return "transit";
+speechSynthesis.cancel();
 
-if(
-text.includes("メール") ||
-text.includes("gmail") ||
-(text.includes("開いて") && text.includes("メール"))
-) return "mail";
+try{
+const res=await fetch("https://api.openai.com/v1/audio/speech",{
+method:"POST",
+headers:{
+"Authorization":"Bearer "+key,
+"Content-Type":"application/json"
+},
+body:JSON.stringify({
+model:"gpt-4o-mini-tts",
+voice:"nova",
+input:text
+})
+});
 
-if(
-text.includes("予定") ||
-text.includes("カレンダー") ||
-text.includes("スケジュール")
-) return "calendar";
+const audio=new Audio(URL.createObjectURL(await res.blob()));
+await audio.play();
 
-return "chat";
+}catch{
+speechSynthesis.speak(new SpeechSynthesisUtterance(text));
 }
-
-/* ===== 🔥 入力処理 ===== */
-function handleInput(text){
-
-const intent=detectIntent(text);
-
-/* アプリ起動 */
-if(intent==="map"){ openMap(); return; }
-if(intent==="youtube"){ openYouTube(); return; }
-if(intent==="news"){ openNews(); return; }
-if(intent==="weather"){ openWeather(); return; }
-if(intent==="mail"){ openGmail(); return; }
-if(intent==="calendar"){ openCalendar(); return; }
-
-/* 会話 */
-input.value=text;
-send();
 }
-
-/* 🎤 */
-if(window.SpeechRecognition||window.webkitSpeechRecognition){
-const rec=new (window.SpeechRecognition||window.webkitSpeechRecognition)();
-rec.lang="ja-JP";
-
-document.getElementById("micBtn").onclick=()=>rec.start();
-
-rec.onresult=e=>{
-handleInput(e.results[0][0].transcript);
-};
-}
-
-/* ===== アプリ（確実起動版） ===== */
-function openNews(){location.href="https://news.yahoo.co.jp/";}
-function openMap(){location.href="https://maps.google.com";}
-function openWeather(){location.href="https://weather.yahoo.co.jp/";}
-function openTransit(){location.href="https://transit.yahoo.co.jp/";}
-function openCalendar(){location.href="https://calendar.google.com/";}
-function openGmail(){location.href="https://mail.google.com/";}
-function openLine(){location.href="https://line.me";}
-function openYouTube(){location.href="https://youtube.com";}
 
 /* ===== AI ===== */
 async function send(){
@@ -239,12 +207,71 @@ const data=await res.json();
 const reply=data.choices?.[0]?.message?.content||"エラー";
 
 add(reply,"ai");
+speak(reply);
 
 history.push({role:"user",content:t});
 history.push({role:"assistant",content:reply});
+localStorage.setItem("chatHistory",JSON.stringify(history));
 }
 
-/* ===== メニュー ===== */
+/* ===== intent ===== */
+function detectIntent(t){
+t=t.toLowerCase();
+
+if(t.includes("検索")) return openSearch;
+if(t.includes("地図")) return openMap;
+if(t.includes("天気")) return openWeather;
+if(t.includes("電車")) return openTrain;
+if(t.includes("youtube")) return openYouTube;
+if(t.includes("メール")) return openGmail;
+if(t.includes("予定")) return openCalendar;
+if(t.includes("買い物")) return openAmazon;
+if(t.includes("メモ")) return openMemo;
+
+return null;
+}
+
+function handleInput(text){
+const fn=detectIntent(text);
+if(fn){ fn(); return; }
+input.value=text;
+send();
+}
+
+/* 🎤 */
+if(window.SpeechRecognition||window.webkitSpeechRecognition){
+const rec=new (window.SpeechRecognition||window.webkitSpeechRecognition)();
+rec.lang="ja-JP";
+
+document.getElementById("micBtn").onclick=()=>rec.start();
+
+rec.onresult=e=>{
+handleInput(e.results[0][0].transcript);
+};
+}
+
+/* ===== アプリ ===== */
+function openSearch(){window.open("https://www.google.com/","_blank");}
+function openMap(){window.open("https://maps.google.com/","_blank");}
+function openWeather(){window.open("https://weather.yahoo.co.jp/","_blank");}
+function openTrain(){window.open("https://www.google.com/maps/dir/?api=1&travelmode=transit","_blank");}
+function openCalendar(){window.open("https://calendar.google.com/","_blank");}
+function openGmail(){window.open("https://mail.google.com/","_blank");}
+function openYouTube(){window.open("https://youtube.com/","_blank");}
+function openAmazon(){window.open("https://www.amazon.co.jp/","_blank");}
+function openMemo(){window.open("https://keep.google.com/","_blank");}
+
+/* ===== 画像 ===== */
+avatarUpload.onchange=e=>{
+const reader=new FileReader();
+reader.onload=ev=>{
+avatar.src=ev.target.result;
+localStorage.setItem("avatar",ev.target.result);
+};
+reader.readAsDataURL(e.target.files[0]);
+};
+
+/* ===== 設定 ===== */
 function openMenu(){
 menu.classList.add("active");
 apiKey.value=localStorage.getItem("apiKey")||"";
@@ -262,6 +289,7 @@ add("保存😊","ai");
 closeMenu();
 }
 
+/* 起動 */
 window.onload=()=>{
 voiceOn=localStorage.getItem("voiceOn")==="true";
 history=JSON.parse(localStorage.getItem("chatHistory"))||[];
