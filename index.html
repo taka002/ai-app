@@ -19,6 +19,13 @@ padding-bottom:60px;
 header{height:28vh;}
 header img{width:100%;height:100%;object-fit:cover;}
 
+#infoBar{
+text-align:center;
+font-size:12px;
+padding:4px;
+background:rgba(255,255,255,0.6);
+}
+
 main{flex:1;overflow-y:auto;padding:10px;}
 .msg{margin:8px;max-width:85%;}
 .user{text-align:right;margin-left:auto;}
@@ -28,8 +35,7 @@ main{flex:1;overflow-y:auto;padding:10px;}
 
 footer{
 position:fixed;bottom:0;width:100%;
-background:#fff;padding:6px;
-display:flex;justify-content:center;
+background:#fff;padding:6px;display:flex;justify-content:center;
 }
 #dock{width:100%;max-width:600px;display:flex;gap:6px;}
 #input{width:58%;height:36px;border-radius:20px;border:none;padding:8px;}
@@ -38,19 +44,29 @@ display:flex;justify-content:center;
 #menu{
 position:fixed;bottom:-100%;width:100%;height:88%;
 background:#111;color:#fff;
+display:flex;flex-direction:column;
 border-radius:20px 20px 0 0;
 transition:.3s;z-index:1000;
 }
 #menu.active{bottom:0;}
+#menuTop{flex:1;overflow:auto;padding:20px;}
 
 .menuGrid{
 display:grid;
 grid-template-columns:repeat(3,1fr);
-gap:12px;padding:20px;
+gap:12px;margin-bottom:20px;
 }
 .menuItem{
 height:90px;background:#333;border-radius:16px;
 display:flex;flex-direction:column;justify-content:center;align-items:center;
+}
+.menuInput{
+width:100%;height:44px;border-radius:10px;border:none;
+padding:10px;margin-bottom:10px;
+}
+.menuBtn{
+width:100%;height:44px;border:none;border-radius:10px;
+margin-bottom:10px;background:#444;color:#fff;
 }
 </style>
 </head>
@@ -58,9 +74,10 @@ display:flex;flex-direction:column;justify-content:center;align-items:center;
 <body>
 
 <header>
-<img src="normal.png">
+<img id="avatar" src="normal.png">
 </header>
 
+<div id="infoBar"></div>
 <main id="chat"></main>
 
 <footer>
@@ -68,60 +85,71 @@ display:flex;flex-direction:column;justify-content:center;align-items:center;
 <input id="input" placeholder="話しかけてください">
 <button class="dockBtn" onclick="send()">➤</button>
 <button class="dockBtn" id="micBtn">🎤</button>
-<button class="dockBtn" onclick="menu.classList.add('active')">☰</button>
+<button class="dockBtn" onclick="openMenu()">☰</button>
 </div>
 </footer>
 
 <div id="menu">
+<div id="menuTop">
+
 <div class="menuGrid">
 
-<div class="menuItem" onclick="openSearch()">🔍検索</div>
-<div class="menuItem" onclick="openMap()">🗺地図</div>
-<div class="menuItem" onclick="openWeather()">☀️天気</div>
+<div class="menuItem" onclick="openSearch()">🔍<br>検索</div>
+<div class="menuItem" onclick="openMap()">🗺<br>地図</div>
+<div class="menuItem" onclick="openWeather()">☀️<br>天気</div>
 
-<div class="menuItem" onclick="openTrain()">🚆電車</div>
-<div class="menuItem" onclick="openCalendar()">📅予定</div>
-<div class="menuItem" onclick="openGmail()">📧メール</div>
+<div class="menuItem" onclick="openTrain()">🚆<br>電車</div>
+<div class="menuItem" onclick="openCalendar()">📅<br>予定</div>
+<div class="menuItem" onclick="openGmail()">📧<br>メール</div>
 
-<div class="menuItem" onclick="openYouTube()">▶YouTube</div>
-<div class="menuItem" onclick="openAmazon()">🛒買い物</div>
-<div class="menuItem" onclick="openMemo()">📝メモ</div>
+<div class="menuItem" onclick="openYouTube()">▶<br>YouTube</div>
+<div class="menuItem" onclick="openAmazon()">🛒<br>買い物</div>
+<div class="menuItem" onclick="openMemo()">📝<br>メモ</div>
 
-<div class="menuItem" onclick="openChatGPT()">🤖ChatGPT</div>
-<div class="menuItem" onclick="openGemini()">✨Gemini</div>
-<div class="menuItem" onclick="openPerplexity()">🔎Perplexity</div>
+<!-- ①追加 -->
+<div class="menuItem" onclick="openChatGPT()">🤖<br>ChatGPT</div>
+<div class="menuItem" onclick="openGemini()">✨<br>Gemini</div>
+<div class="menuItem" onclick="openPerplexity()">🔎<br>Perplexity</div>
 
-<div class="menuItem" onclick="openPrime()">🎬Prime</div>
-<div class="menuItem" onclick="openRakuten()">🛍楽天</div>
-<div class="menuItem" onclick="openRakutenMag()">📚楽天マガジン</div>
+<div class="menuItem" onclick="openPrime()">🎬<br>Prime</div>
+<div class="menuItem" onclick="openRakuten()">🛍<br>楽天</div>
+<div class="menuItem" onclick="openRakutenMag()">📚<br>楽天マガジン</div>
 
-<div class="menuItem" onclick="callPhone()">📞電話</div>
-<div class="menuItem" onclick="openSMS()">💬SMS</div>
+<div class="menuItem" onclick="callPhone()">📞<br>電話</div>
+<div class="menuItem" onclick="openSMS()">💬<br>SMS</div>
 
-<div class="menuItem" onclick="openCamera()">📷カメラ</div>
-<div class="menuItem" onclick="openPhotos()">🖼写真</div>
-<div class="menuItem" onclick="openSettings()">⚙️設定</div>
+<div class="menuItem" onclick="openCamera()">📷<br>カメラ</div>
+<div class="menuItem" onclick="openPhotos()">🖼<br>写真</div>
+<div class="menuItem" onclick="openSettings()">⚙️<br>設定</div>
 
-<div class="menuItem" onclick="openDAZN()">⚽DAZN</div>
-<div class="menuItem" onclick="openTVer()">📺TVer</div>
-<div class="menuItem" onclick="openDMM()">🎥DMM</div>
+<div class="menuItem" onclick="openDAZN()">⚽<br>DAZN</div>
+<div class="menuItem" onclick="openTVer()">📺<br>TVer</div>
+<div class="menuItem" onclick="openDMM()">🎥<br>DMM</div>
+
+</div>
+
+<h3>設定</h3>
+
+<input id="apiKey" class="menuInput" placeholder="APIキー">
+<textarea id="systemPrompt" class="menuInput" style="height:80px;" placeholder="キャラ設定"></textarea>
+<input type="file" id="avatarUpload" class="menuInput">
+<label><input type="checkbox" id="voiceToggle"> 音声ON</label>
+
+<button class="menuBtn" onclick="saveSettings()">保存</button>
+<button class="menuBtn" onclick="closeMenu()">閉じる</button>
 
 </div>
 </div>
 
 <script>
 
-/* ===== 音声ロック解除 ===== */
-document.body.addEventListener("click",()=>{
-speechSynthesis.speak(new SpeechSynthesisUtterance(" "));
-},{once:true});
-
 /* ===== 基本 ===== */
 const chat=document.getElementById("chat");
 const input=document.getElementById("input");
+const avatar=document.getElementById("avatar");
 const menu=document.getElementById("menu");
 
-let voiceOn=true;
+let voiceOn=false;
 let history=[];
 
 /* ===== 表示 ===== */
@@ -134,9 +162,11 @@ chat.scrollTop=chat.scrollHeight;
 }
 
 /* ===== 音声 ===== */
-function speak(t){
+async function speak(text){
+if(!voiceOn)return;
+
 speechSynthesis.cancel();
-speechSynthesis.speak(new SpeechSynthesisUtterance(t));
+speechSynthesis.speak(new SpeechSynthesisUtterance(text));
 }
 
 /* ===== AI ===== */
@@ -158,7 +188,7 @@ headers:{
 body:JSON.stringify({
 model:"gpt-4o-mini",
 messages:[
-{role:"system",content:"優しい女性"},
+{role:"system",content:localStorage.getItem("systemPrompt")||"優しい女性"},
 ...history,
 {role:"user",content:t}
 ]
@@ -184,10 +214,17 @@ if(t.includes("地図")) return openMap;
 if(t.includes("天気")) return openWeather;
 if(t.includes("電車")) return openTrain;
 if(t.includes("youtube")) return openYouTube;
+if(t.includes("メール")) return openGmail;
+if(t.includes("予定")) return openCalendar;
+if(t.includes("買い物")) return openAmazon;
+if(t.includes("メモ")) return openMemo;
 
 if(t.includes("chatgpt")) return openChatGPT;
 if(t.includes("gemini")) return openGemini;
 if(t.includes("perplexity")) return openPerplexity;
+
+if(t.includes("電話")) return callPhone;
+if(t.includes("sms")) return openSMS;
 
 return null;
 }
@@ -199,58 +236,38 @@ input.value=text;
 send();
 }
 
-/* ===== 🎤 安定版 ===== */
-let rec;
-let listening=false;
-
+/* 🎤 */
 if(window.SpeechRecognition||window.webkitSpeechRecognition){
-
-rec=new (window.SpeechRecognition||window.webkitSpeechRecognition)();
+const rec=new (window.SpeechRecognition||window.webkitSpeechRecognition)();
 rec.lang="ja-JP";
 
-document.getElementById("micBtn").onclick=()=>{
-
-if(!listening){
-rec.start();
-listening=true;
-add("聞いてるよ🎤","ai");
-}else{
-rec.stop();
-listening=false;
-}
-
-};
+document.getElementById("micBtn").onclick=()=>rec.start();
 
 rec.onresult=e=>{
 handleInput(e.results[0][0].transcript);
 };
-
-rec.onend=()=>{listening=false;}
-
 }
 
-/* ===== アプリ（ブロック回避） ===== */
-function openSearch(){location.href="https://google.com";}
-function openMap(){location.href="https://maps.google.com";}
-function openWeather(){location.href="https://weather.yahoo.co.jp";}
-function openTrain(){location.href="https://www.google.com/maps/dir/?api=1&travelmode=transit";}
-function openCalendar(){location.href="https://calendar.google.com";}
-function openGmail(){location.href="https://mail.google.com";}
-function openYouTube(){location.href="https://youtube.com";}
-function openAmazon(){location.href="https://amazon.co.jp";}
-function openMemo(){location.href="https://keep.google.com";}
+/* ===== アプリ ===== */
+function openSearch(){window.open("https://www.google.com/","_blank");}
+function openMap(){window.open("https://maps.google.com/","_blank");}
+function openWeather(){window.open("https://weather.yahoo.co.jp/","_blank");}
+function openTrain(){window.open("https://www.google.com/maps/dir/?api=1&travelmode=transit","_blank");}
+function openCalendar(){window.open("https://calendar.google.com/","_blank");}
+function openGmail(){window.open("https://mail.google.com/","_blank");}
+function openYouTube(){window.open("https://youtube.com/","_blank");}
+function openAmazon(){window.open("https://www.amazon.co.jp/","_blank");}
+function openMemo(){window.open("https://keep.google.com/","_blank");}
 
-function openChatGPT(){location.href="https://chat.openai.com";}
-function openGemini(){location.href="https://gemini.google.com";}
-function openPerplexity(){location.href="https://perplexity.ai";}
-
-function openPrime(){location.href="https://www.amazon.co.jp/gp/video";}
-function openRakuten(){location.href="https://rakuten.co.jp";}
-function openRakutenMag(){location.href="https://magazine.rakuten.co.jp";}
-
+/* 追加 */
+function openChatGPT(){window.open("https://chat.openai.com/","_blank");}
+function openGemini(){window.open("https://gemini.google.com/","_blank");}
+function openPerplexity(){window.open("https://www.perplexity.ai/","_blank");}
+function openPrime(){window.open("https://www.amazon.co.jp/gp/video/storefront","_blank");}
+function openRakuten(){window.open("https://www.rakuten.co.jp/","_blank");}
+function openRakutenMag(){window.open("https://magazine.rakuten.co.jp/","_blank");}
 function callPhone(){location.href="tel:";}
 function openSMS(){location.href="sms:";}
-
 function openCamera(){
 const i=document.createElement("input");
 i.type="file";
@@ -258,13 +275,28 @@ i.accept="image/*";
 i.capture="environment";
 i.click();
 }
+function openPhotos(){window.open("https://photos.google.com/","_blank");}
+function openSettings(){alert("設定は端末依存");}
+function openDAZN(){window.open("https://www.dazn.com/","_blank");}
+function openTVer(){window.open("https://tver.jp/","_blank");}
+function openDMM(){window.open("https://tv.dmm.com/","_blank");}
 
-function openPhotos(){location.href="https://photos.google.com";}
-function openSettings(){alert("端末設定は開けない仕様");}
+/* ===== 設定 ===== */
+function openMenu(){menu.classList.add("active");}
+function closeMenu(){menu.classList.remove("active");}
 
-function openDAZN(){location.href="https://dazn.com";}
-function openTVer(){location.href="https://tver.jp";}
-function openDMM(){location.href="https://tv.dmm.com";}
+function saveSettings(){
+localStorage.setItem("apiKey",document.getElementById("apiKey").value);
+localStorage.setItem("systemPrompt",document.getElementById("systemPrompt").value);
+localStorage.setItem("voiceOn",document.getElementById("voiceToggle").checked);
+voiceOn=document.getElementById("voiceToggle").checked;
+add("保存😊","ai");
+closeMenu();
+}
+
+window.onload=()=>{
+voiceOn=localStorage.getItem("voiceOn")==="true";
+};
 
 </script>
 
