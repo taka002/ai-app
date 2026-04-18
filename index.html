@@ -8,23 +8,13 @@
 <style>
 *{box-sizing:border-box;}
 body{
-margin:0;
-font-family:sans-serif;
+margin:0;font-family:sans-serif;
 background:linear-gradient(135deg,#6ec6ff,#a0e0ff);
-height:100dvh;
-display:flex;
-flex-direction:column;
+height:100dvh;display:flex;flex-direction:column;
 padding-bottom:60px;
 }
 header{height:28vh;}
 header img{width:100%;height:100%;object-fit:cover;}
-
-#infoBar{
-text-align:center;
-font-size:12px;
-padding:4px;
-background:rgba(255,255,255,0.6);
-}
 
 main{flex:1;overflow-y:auto;padding:10px;}
 .msg{margin:8px;max-width:85%;}
@@ -52,8 +42,7 @@ transition:.3s;z-index:1000;
 #menuTop{flex:1;overflow:auto;padding:20px;}
 
 .menuGrid{
-display:grid;
-grid-template-columns:repeat(3,1fr);
+display:grid;grid-template-columns:repeat(3,1fr);
 gap:12px;margin-bottom:20px;
 }
 .menuItem{
@@ -77,7 +66,6 @@ margin-bottom:10px;background:#444;color:#fff;
 <img id="avatar" src="normal.png">
 </header>
 
-<div id="infoBar"></div>
 <main id="chat"></main>
 
 <footer>
@@ -93,6 +81,7 @@ margin-bottom:10px;background:#444;color:#fff;
 <div id="menuTop">
 
 <div class="menuGrid">
+
 <div class="menuItem" onclick="openSearch()">🔍<br>検索</div>
 <div class="menuItem" onclick="openMap()">🗺<br>地図</div>
 <div class="menuItem" onclick="openWeather()">☀️<br>天気</div>
@@ -112,13 +101,13 @@ margin-bottom:10px;background:#444;color:#fff;
 <div class="menuItem" onclick="openRakutenMag()">📚<br>マガジン</div>
 <div class="menuItem" onclick="openPrime()">🎬<br>ビデオ</div>
 <div class="menuItem" onclick="openKindle()">📖<br>キンドル</div>
+
 </div>
 
 <h3>設定</h3>
 
 <input id="apiKey" class="menuInput" placeholder="APIキー">
-<textarea id="systemPrompt" class="menuInput" style="height:80px;" placeholder="キャラ設定"></textarea>
-<input type="file" id="avatarUpload" class="menuInput">
+<textarea id="systemPrompt" class="menuInput" style="height:80px;"></textarea>
 <label><input type="checkbox" id="voiceToggle"> 音声ON</label>
 
 <button class="menuBtn" onclick="saveSettings()">保存</button>
@@ -132,11 +121,13 @@ margin-bottom:10px;background:#444;color:#fff;
 /* ===== 基本 ===== */
 const chat=document.getElementById("chat");
 const input=document.getElementById("input");
-const avatar=document.getElementById("avatar");
 const menu=document.getElementById("menu");
 
 let voiceOn=false;
-let history=[];
+
+/* ===== 長期記憶 ===== */
+const MEMORY_KEY="misaki_memory";
+let history=JSON.parse(localStorage.getItem(MEMORY_KEY))||[];
 
 /* ===== 表示 ===== */
 function add(t,c){
@@ -147,8 +138,8 @@ chat.appendChild(d);
 chat.scrollTop=chat.scrollHeight;
 }
 
-/* ===== 音声（安定版） ===== */
-async function speak(text){
+/* ===== 音声（ブロック回避版） ===== */
+function speak(text){
 if(!voiceOn)return;
 
 speechSynthesis.cancel();
@@ -177,7 +168,10 @@ headers:{
 body:JSON.stringify({
 model:"gpt-4o-mini",
 messages:[
-{role:"system",content:localStorage.getItem("systemPrompt")||"優しい女性"},
+{
+role:"system",
+content:`あなたは${localStorage.getItem("systemPrompt")||"優しい女性"}`
+},
 ...history,
 {role:"user",content:t}
 ]
@@ -190,49 +184,34 @@ const reply=data.choices?.[0]?.message?.content||"エラー";
 add(reply,"ai");
 speak(reply);
 
+/* ===== 長期記憶保存 ===== */
 history.push({role:"user",content:t});
 history.push({role:"assistant",content:reply});
-localStorage.setItem("chatHistory",JSON.stringify(history));
+
+/* 軽量化 */
+if(history.length>40){
+history=history.slice(-40);
 }
 
-/* ===== intent ===== */
-function detectIntent(t){
-t=t.toLowerCase();
-
-if(t.includes("検索")) return openSearch;
-if(t.includes("地図")) return openMap;
-if(t.includes("天気")) return openWeather;
-if(t.includes("電車")) return openTrain;
-if(t.includes("ダン")) return openJorudan;
-if(t.includes("youtube")) return openYouTube;
-if(t.includes("メール")) return openGmail;
-if(t.includes("予定")) return openCalendar;
-if(t.includes("買い物")) return openAmazon;
-if(t.includes("メモ")) return openMemo;
-if(t.includes("chatgpt")) return openChatGPT;
-if(t.includes("gemini")) return openGemini;
-
-return null;
+localStorage.setItem(MEMORY_KEY,JSON.stringify(history));
 }
 
-function handleInput(text){
-const fn=detectIntent(text);
-if(fn){ fn(); return; }
-input.value=text;
-send();
-}
-
-/* 🎤 */
+/* ===== 音声入力 ===== */
 if(window.SpeechRecognition||window.webkitSpeechRecognition){
 const rec=new (window.SpeechRecognition||window.webkitSpeechRecognition)();
 rec.lang="ja-JP";
 
 document.getElementById("micBtn").onclick=()=>{
-try{rec.start();}catch{}
+try{
+/* 音声許可トリガー */
+speechSynthesis.speak(new SpeechSynthesisUtterance(" "));
+rec.start();
+}catch{}
 };
 
 rec.onresult=e=>{
-handleInput(e.results[0][0].transcript);
+input.value=e.results[0][0].transcript;
+send();
 };
 }
 
@@ -253,16 +232,6 @@ function openRakutenMag(){window.open("https://magazine.rakuten.co.jp/","_blank"
 function openPrime(){window.open("https://www.amazon.co.jp/gp/video/storefront","_blank");}
 function openKindle(){window.open("https://read.amazon.co.jp/","_blank");}
 
-/* ===== 画像 ===== */
-avatarUpload.onchange=e=>{
-const reader=new FileReader();
-reader.onload=ev=>{
-avatar.src=ev.target.result;
-localStorage.setItem("avatar",ev.target.result);
-};
-reader.readAsDataURL(e.target.files[0]);
-};
-
 /* ===== 設定 ===== */
 function openMenu(){
 menu.classList.add("active");
@@ -281,12 +250,8 @@ add("保存😊","ai");
 closeMenu();
 }
 
-/* 起動 */
 window.onload=()=>{
 voiceOn=localStorage.getItem("voiceOn")==="true";
-history=JSON.parse(localStorage.getItem("chatHistory"))||[];
-const saved=localStorage.getItem("avatar");
-if(saved) avatar.src=saved;
 };
 
 </script>
