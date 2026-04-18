@@ -107,9 +107,7 @@ margin-bottom:10px;background:#444;color:#fff;
 
 <input id="apiKey" class="menuInput" placeholder="APIキー">
 <textarea id="systemPrompt" class="menuInput" style="height:80px;" placeholder="キャラ設定"></textarea>
-
 <input type="file" id="avatarUpload" class="menuInput">
-
 <label><input type="checkbox" id="voiceToggle"> 音声ON</label>
 
 <button class="menuBtn" onclick="saveSettings()">保存</button>
@@ -120,13 +118,7 @@ margin-bottom:10px;background:#444;color:#fff;
 
 <script>
 
-/* ===== 音声ロック解除 ===== */
-let audioUnlocked=false;
-document.body.addEventListener("click",()=>{
-if(audioUnlocked)return;
-new Audio().play().then(()=>audioUnlocked=true).catch(()=>{});
-},{once:true});
-
+/* ===== 基本 ===== */
 const chat=document.getElementById("chat");
 const input=document.getElementById("input");
 const avatar=document.getElementById("avatar");
@@ -149,37 +141,70 @@ chat.appendChild(d);
 chat.scrollTop=chat.scrollHeight;
 }
 
-/* ===== 音声 ===== */
-async function speak(text){
-if(!voiceOn)return;
+/* ===== 🔥 intent強化 ===== */
+function detectIntent(text){
+text=text.toLowerCase();
 
-const key=localStorage.getItem("apiKey");
-if(!key)return;
+if(text.includes("地図") || text.includes("マップ")) return "map";
+if(text.includes("youtube") || text.includes("ユーチューブ")) return "youtube";
+if(text.includes("ニュース")) return "news";
+if(text.includes("天気")) return "weather";
+if(text.includes("乗換") || text.includes("電車")) return "transit";
 
-speechSynthesis.cancel();
-speechSynthesis.speak(new SpeechSynthesisUtterance(" "));
+if(
+text.includes("メール") ||
+text.includes("gmail") ||
+(text.includes("開いて") && text.includes("メール"))
+) return "mail";
 
-try{
-const res=await fetch("https://api.openai.com/v1/audio/speech",{
-method:"POST",
-headers:{
-"Authorization":"Bearer "+key,
-"Content-Type":"application/json"
-},
-body:JSON.stringify({
-model:"gpt-4o-mini-tts",
-voice:"nova",
-input:text
-})
-});
+if(
+text.includes("予定") ||
+text.includes("カレンダー") ||
+text.includes("スケジュール")
+) return "calendar";
 
-const audio=new Audio(URL.createObjectURL(await res.blob()));
-await audio.play();
-
-}catch{
-speechSynthesis.speak(new SpeechSynthesisUtterance(text));
+return "chat";
 }
+
+/* ===== 🔥 入力処理 ===== */
+function handleInput(text){
+
+const intent=detectIntent(text);
+
+/* アプリ起動 */
+if(intent==="map"){ openMap(); return; }
+if(intent==="youtube"){ openYouTube(); return; }
+if(intent==="news"){ openNews(); return; }
+if(intent==="weather"){ openWeather(); return; }
+if(intent==="mail"){ openGmail(); return; }
+if(intent==="calendar"){ openCalendar(); return; }
+
+/* 会話 */
+input.value=text;
+send();
 }
+
+/* 🎤 */
+if(window.SpeechRecognition||window.webkitSpeechRecognition){
+const rec=new (window.SpeechRecognition||window.webkitSpeechRecognition)();
+rec.lang="ja-JP";
+
+document.getElementById("micBtn").onclick=()=>rec.start();
+
+rec.onresult=e=>{
+handleInput(e.results[0][0].transcript);
+};
+}
+
+/* ===== アプリ（確実起動版） ===== */
+function openNews(){location.href="https://news.yahoo.co.jp/";}
+function openMap(){location.href="https://maps.google.com";}
+function openWeather(){location.href="https://weather.yahoo.co.jp/";}
+function openTransit(){location.href="https://transit.yahoo.co.jp/";}
+function openCalendar(){location.href="https://calendar.google.com/";}
+function openGmail(){location.href="https://mail.google.com/";}
+function openLine(){location.href="https://line.me";}
+function openYouTube(){location.href="https://youtube.com";}
 
 /* ===== AI ===== */
 async function send(){
@@ -203,10 +228,7 @@ headers:{
 body:JSON.stringify({
 model:"gpt-4o-mini",
 messages:[
-{
-role:"system",
-content:`あなたは${localStorage.getItem("systemPrompt")||"優しい女性"}`
-},
+{role:"system",content:`あなたは${localStorage.getItem("systemPrompt")||"優しい女性"}`},
 ...history,
 {role:"user",content:t}
 ]
@@ -217,73 +239,10 @@ const data=await res.json();
 const reply=data.choices?.[0]?.message?.content||"エラー";
 
 add(reply,"ai");
-speak(reply);
 
 history.push({role:"user",content:t});
 history.push({role:"assistant",content:reply});
-localStorage.setItem("chatHistory",JSON.stringify(history));
 }
-
-/* ===== 🔥 intent判定 ===== */
-function detectIntent(text){
-text=text.toLowerCase();
-
-if(text.includes("地図")) return "map";
-if(text.includes("youtube")) return "youtube";
-if(text.includes("ニュース")) return "news";
-if(text.includes("天気")) return "weather";
-if(text.includes("乗換")) return "transit";
-if(text.includes("メール")) return "mail";
-
-return "chat";
-}
-
-/* ===== 🔥 入力処理 ===== */
-function handleInput(text){
-
-const intent=detectIntent(text);
-
-if(intent==="map"){ openMap(); speak("地図を開くね"); return; }
-if(intent==="youtube"){ openYouTube(); speak("ユーチューブ開くね"); return; }
-if(intent==="news"){ openNews(); speak("ニュースだよ"); return; }
-if(intent==="weather"){ openWeather(); speak("天気を見るね"); return; }
-
-input.value=text;
-send();
-}
-
-/* 🎤 */
-if(window.SpeechRecognition||window.webkitSpeechRecognition){
-const rec=new (window.SpeechRecognition||window.webkitSpeechRecognition)();
-rec.lang="ja-JP";
-
-document.getElementById("micBtn").onclick=()=>rec.start();
-
-rec.onresult=e=>{
-const text=e.results[0][0].transcript;
-handleInput(text);
-};
-}
-
-/* ===== アプリ ===== */
-function openNews(){window.open("https://news.yahoo.co.jp/");}
-function openMap(){window.open("https://maps.google.com");}
-function openWeather(){window.open("https://weather.yahoo.co.jp/");}
-function openTransit(){window.open("https://transit.yahoo.co.jp/");}
-function openCalendar(){window.open("https://calendar.google.com/");}
-function openGmail(){window.open("https://mail.google.com/");}
-function openLine(){window.open("https://line.me");}
-function openYouTube(){window.open("https://youtube.com");}
-
-/* ===== 画像 ===== */
-avatarUpload.onchange=e=>{
-const reader=new FileReader();
-reader.onload=ev=>{
-avatar.src=ev.target.result;
-localStorage.setItem("avatar",ev.target.result);
-};
-reader.readAsDataURL(e.target.files[0]);
-};
 
 /* ===== メニュー ===== */
 function openMenu(){
@@ -303,7 +262,6 @@ add("保存😊","ai");
 closeMenu();
 }
 
-/* 起動 */
 window.onload=()=>{
 voiceOn=localStorage.getItem("voiceOn")==="true";
 history=JSON.parse(localStorage.getItem("chatHistory"))||[];
