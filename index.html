@@ -118,14 +118,11 @@ margin-bottom:10px;background:#444;color:#fff;
 
 <script>
 
-/* ===== 基本 ===== */
 const chat=document.getElementById("chat");
 const input=document.getElementById("input");
 const menu=document.getElementById("menu");
 
 let voiceOn=false;
-
-/* ===== 長期記憶 ===== */
 const MEMORY_KEY="misaki_memory";
 let history=JSON.parse(localStorage.getItem(MEMORY_KEY))||[];
 
@@ -138,12 +135,36 @@ chat.appendChild(d);
 chat.scrollTop=chat.scrollHeight;
 }
 
-/* ===== 音声（ブロック回避版） ===== */
-function speak(text){
+/* ===== ① 本物TTS ===== */
+async function speak(text){
 if(!voiceOn)return;
 
+const key=localStorage.getItem("apiKey");
+if(!key)return;
+
+/* fallback */
 speechSynthesis.cancel();
+
+try{
+const res=await fetch("https://api.openai.com/v1/audio/speech",{
+method:"POST",
+headers:{
+"Authorization":"Bearer "+key,
+"Content-Type":"application/json"
+},
+body:JSON.stringify({
+model:"gpt-4o-mini-tts",
+voice:"nova",
+input:text
+})
+});
+
+const audio=new Audio(URL.createObjectURL(await res.blob()));
+await audio.play();
+
+}catch{
 speechSynthesis.speak(new SpeechSynthesisUtterance(text));
+}
 }
 
 /* ===== AI ===== */
@@ -168,10 +189,7 @@ headers:{
 body:JSON.stringify({
 model:"gpt-4o-mini",
 messages:[
-{
-role:"system",
-content:`あなたは${localStorage.getItem("systemPrompt")||"優しい女性"}`
-},
+{role:"system",content:localStorage.getItem("systemPrompt")||"優しい女性"},
 ...history,
 {role:"user",content:t}
 ]
@@ -184,16 +202,34 @@ const reply=data.choices?.[0]?.message?.content||"エラー";
 add(reply,"ai");
 speak(reply);
 
-/* ===== 長期記憶保存 ===== */
 history.push({role:"user",content:t});
 history.push({role:"assistant",content:reply});
 
-/* 軽量化 */
 if(history.length>40){
 history=history.slice(-40);
 }
 
 localStorage.setItem(MEMORY_KEY,JSON.stringify(history));
+}
+
+/* ===== ② intent ===== */
+function detectIntent(t){
+t=t.toLowerCase();
+
+if(t.includes("検索")) return openSearch;
+if(t.includes("地図")) return openMap;
+if(t.includes("天気")) return openWeather;
+if(t.includes("電車")) return openTrain;
+if(t.includes("ダン")) return openJorudan;
+if(t.includes("予定")) return openCalendar;
+if(t.includes("メール")) return openGmail;
+if(t.includes("youtube")) return openYouTube;
+if(t.includes("買い物")) return openAmazon;
+if(t.includes("メモ")) return openMemo;
+if(t.includes("チャット")) return openChatGPT;
+if(t.includes("ジェ")) return openGemini;
+
+return null;
 }
 
 /* ===== 音声入力 ===== */
@@ -203,14 +239,23 @@ rec.lang="ja-JP";
 
 document.getElementById("micBtn").onclick=()=>{
 try{
-/* 音声許可トリガー */
 speechSynthesis.speak(new SpeechSynthesisUtterance(" "));
 rec.start();
 }catch{}
 };
 
 rec.onresult=e=>{
-input.value=e.results[0][0].transcript;
+const text=e.results[0][0].transcript;
+
+/* ★ここが神ポイント */
+const fn=detectIntent(text);
+
+if(fn){
+fn();  // アプリ起動🔥
+return;
+}
+
+input.value=text;
 send();
 };
 }
