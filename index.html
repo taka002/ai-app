@@ -3,34 +3,139 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>AIアプリ</title>
+<title>美咲AI 神アプリ</title>
 
 <style>
-body{margin:0;font-family:sans-serif;background:#6ec6ff;}
-#chat{padding:10px;height:80vh;overflow:auto;}
-.msg{margin:8px;}
-.user{text-align:right;}
+*{box-sizing:border-box;}
+body{
+margin:0;
+font-family:sans-serif;
+background:linear-gradient(135deg,#6ec6ff,#a0e0ff);
+height:100dvh;
+display:flex;
+flex-direction:column;
+padding-bottom:60px;
+}
+header{height:28vh;}
+header img{width:100%;height:100%;object-fit:cover;}
+
+#infoBar{
+text-align:center;
+font-size:12px;
+padding:4px;
+background:rgba(255,255,255,0.6);
+}
+
+main{flex:1;overflow-y:auto;padding:10px;}
+.msg{margin:8px;max-width:85%;}
+.user{text-align:right;margin-left:auto;}
 .ai{text-align:left;}
-.bubble{display:inline-block;padding:10px;border-radius:12px;background:#fff;}
+.bubble{padding:10px;border-radius:16px;background:#fff;}
 .user .bubble{background:#0072ff;color:#fff;}
-#inputBox{position:fixed;bottom:0;width:100%;display:flex;}
-#input{flex:1;padding:10px;}
+
+footer{
+position:fixed;bottom:0;width:100%;
+background:#fff;padding:6px;display:flex;justify-content:center;
+}
+#dock{width:100%;max-width:600px;display:flex;gap:6px;}
+#input{width:58%;height:36px;border-radius:20px;border:none;padding:8px;}
+.dockBtn{width:40px;height:36px;border:none;border-radius:10px;background:#eee;}
+
+#menu{
+position:fixed;bottom:-100%;width:100%;height:88%;
+background:#111;color:#fff;
+display:flex;flex-direction:column;
+border-radius:20px 20px 0 0;
+transition:.3s;z-index:1000;
+}
+#menu.active{bottom:0;}
+#menuTop{flex:1;overflow:auto;padding:20px;}
+
+.menuGrid{
+display:grid;
+grid-template-columns:repeat(3,1fr);
+gap:12px;margin-bottom:20px;
+}
+.menuItem{
+height:90px;background:#333;border-radius:16px;
+display:flex;flex-direction:column;justify-content:center;align-items:center;
+}
+.menuInput{
+width:100%;height:44px;border-radius:10px;border:none;
+padding:10px;margin-bottom:10px;
+}
+.menuBtn{
+width:100%;height:44px;border:none;border-radius:10px;
+margin-bottom:10px;background:#444;color:#fff;
+}
 </style>
 </head>
 
 <body>
 
-<div id="chat"></div>
+<header>
+<img id="avatar" src="normal.png">
+</header>
 
-<div id="inputBox">
-<input id="input" placeholder="話す">
-<button onclick="send()">送信</button>
+<div id="infoBar"></div>
+<main id="chat"></main>
+
+<footer>
+<div id="dock">
+<input id="input" placeholder="話しかけてください">
+<button class="dockBtn" onclick="send()">➤</button>
+<button class="dockBtn" id="micBtn">🎤</button>
+<button class="dockBtn" onclick="openMenu()">☰</button>
+</div>
+</footer>
+
+<div id="menu">
+<div id="menuTop">
+
+<div class="menuGrid">
+<div class="menuItem" onclick="openSearch()">🔍<br>検索</div>
+<div class="menuItem" onclick="openMap()">🗺<br>地図</div>
+<div class="menuItem" onclick="openWeather()">☀️<br>天気</div>
+
+<div class="menuItem" onclick="openTrain()">🚆<br>電車</div>
+<div class="menuItem" onclick="openCalendar()">📅<br>予定</div>
+<div class="menuItem" onclick="openGmail()">📧<br>メール</div>
+
+<div class="menuItem" onclick="openYouTube()">▶<br>YouTube</div>
+<div class="menuItem" onclick="openAmazon()">🛒<br>買い物</div>
+<div class="menuItem" onclick="openMemo()">📝<br>メモ</div>
+</div>
+
+<h3>設定</h3>
+
+<input id="apiKey" class="menuInput" placeholder="APIキー">
+<textarea id="systemPrompt" class="menuInput" style="height:80px;" placeholder="キャラ設定"></textarea>
+<input type="file" id="avatarUpload" class="menuInput">
+<label><input type="checkbox" id="voiceToggle"> 音声ON</label>
+
+<button class="menuBtn" onclick="saveSettings()">保存</button>
+<button class="menuBtn" onclick="closeMenu()">閉じる</button>
+
+</div>
 </div>
 
 <script>
+
+/* ===== 基本 ===== */
 const chat=document.getElementById("chat");
 const input=document.getElementById("input");
+const avatar=document.getElementById("avatar");
+const menu=document.getElementById("menu");
 
+const apiKey=document.getElementById("apiKey");
+const systemPrompt=document.getElementById("systemPrompt");
+const voiceToggle=document.getElementById("voiceToggle");
+const avatarUpload=document.getElementById("avatarUpload");
+
+let voiceOn=false;
+let history=[];
+
+/* ===== 表示 ===== */
 function add(t,c){
 const d=document.createElement("div");
 d.className="msg "+c;
@@ -39,6 +144,37 @@ chat.appendChild(d);
 chat.scrollTop=chat.scrollHeight;
 }
 
+/* ===== 音声 ===== */
+async function speak(text){
+if(!voiceOn)return;
+const key=localStorage.getItem("apiKey");
+if(!key)return;
+
+speechSynthesis.cancel();
+
+try{
+const res=await fetch("https://api.openai.com/v1/audio/speech",{
+method:"POST",
+headers:{
+"Authorization":"Bearer "+key,
+"Content-Type":"application/json"
+},
+body:JSON.stringify({
+model:"gpt-4o-mini-tts",
+voice:"nova",
+input:text
+})
+});
+
+const audio=new Audio(URL.createObjectURL(await res.blob()));
+await audio.play();
+
+}catch{
+speechSynthesis.speak(new SpeechSynthesisUtterance(text));
+}
+}
+
+/* ===== AI ===== */
 async function send(){
 const t=input.value.trim();
 if(!t)return;
@@ -46,37 +182,121 @@ if(!t)return;
 add(t,"user");
 input.value="";
 
+const key=localStorage.getItem("apiKey");
+if(!key){add("APIキー未設定","ai");return;}
+
 add("考え中...","ai");
 
-try{
-const res=await fetch("https://ai-app-xi-liard.vercel.app/api/chat",{
+const res=await fetch("https://api.openai.com/v1/chat/completions",{
 method:"POST",
-headers:{"Content-Type":"application/json"},
-body:JSON.stringify({message:t})
+headers:{
+"Content-Type":"application/json",
+"Authorization":"Bearer "+key
+},
+body:JSON.stringify({
+model:"gpt-4o-mini",
+messages:[
+{role:"system",content:`あなたは${localStorage.getItem("systemPrompt")||"優しい女性"}`},
+...history,
+{role:"user",content:t}
+]
+})
 });
 
 const data=await res.json();
-console.log("サーバー返答:",data);
-
-if(data.error){
-add("エラー: "+data.error,"ai");
-return;
-}
-
-if(!data.choices){
-add("返答データ異常","ai");
-return;
-}
-
-const reply=data.choices[0].message.content;
+const reply=data.choices?.[0]?.message?.content||"エラー";
 
 add(reply,"ai");
+speak(reply);
 
-}catch(e){
-console.log("通信エラー:",e);
-add("通信エラー","ai");
+history.push({role:"user",content:t});
+history.push({role:"assistant",content:reply});
+localStorage.setItem("chatHistory",JSON.stringify(history));
 }
+
+/* ===== intent ===== */
+function detectIntent(t){
+t=t.toLowerCase();
+
+if(t.includes("検索")) return openSearch;
+if(t.includes("地図")) return openMap;
+if(t.includes("天気")) return openWeather;
+if(t.includes("電車")) return openTrain;
+if(t.includes("youtube")) return openYouTube;
+if(t.includes("メール")) return openGmail;
+if(t.includes("予定")) return openCalendar;
+if(t.includes("買い物")) return openAmazon;
+if(t.includes("メモ")) return openMemo;
+
+return null;
 }
+
+function handleInput(text){
+const fn=detectIntent(text);
+if(fn){ fn(); return; }
+input.value=text;
+send();
+}
+
+/* 🎤 */
+if(window.SpeechRecognition||window.webkitSpeechRecognition){
+const rec=new (window.SpeechRecognition||window.webkitSpeechRecognition)();
+rec.lang="ja-JP";
+
+document.getElementById("micBtn").onclick=()=>rec.start();
+
+rec.onresult=e=>{
+handleInput(e.results[0][0].transcript);
+};
+}
+
+/* ===== アプリ ===== */
+function openSearch(){window.open("https://www.google.com/","_blank");}
+function openMap(){window.open("https://maps.google.com/","_blank");}
+function openWeather(){window.open("https://weather.yahoo.co.jp/","_blank");}
+function openTrain(){window.open("https://www.google.com/maps/dir/?api=1&travelmode=transit","_blank");}
+function openCalendar(){window.open("https://calendar.google.com/","_blank");}
+function openGmail(){window.open("https://mail.google.com/","_blank");}
+function openYouTube(){window.open("https://youtube.com/","_blank");}
+function openAmazon(){window.open("https://www.amazon.co.jp/","_blank");}
+function openMemo(){window.open("https://keep.google.com/","_blank");}
+
+/* ===== 画像 ===== */
+avatarUpload.onchange=e=>{
+const reader=new FileReader();
+reader.onload=ev=>{
+avatar.src=ev.target.result;
+localStorage.setItem("avatar",ev.target.result);
+};
+reader.readAsDataURL(e.target.files[0]);
+};
+
+/* ===== 設定 ===== */
+function openMenu(){
+menu.classList.add("active");
+apiKey.value=localStorage.getItem("apiKey")||"";
+systemPrompt.value=localStorage.getItem("systemPrompt")||"";
+voiceToggle.checked=localStorage.getItem("voiceOn")==="true";
+}
+function closeMenu(){menu.classList.remove("active");}
+
+function saveSettings(){
+localStorage.setItem("apiKey",apiKey.value);
+localStorage.setItem("systemPrompt",systemPrompt.value);
+localStorage.setItem("voiceOn",voiceToggle.checked);
+voiceOn=voiceToggle.checked;
+add("保存😊","ai");
+closeMenu();
+}
+
+/* 起動 */
+window.onload=()=>{
+voiceOn=localStorage.getItem("voiceOn")==="true";
+history=JSON.parse(localStorage.getItem("chatHistory"))||[];
+const saved=localStorage.getItem("avatar");
+if(saved) avatar.src=saved;
+};
+
 </script>
 
 </body>
