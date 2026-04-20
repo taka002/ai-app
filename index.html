@@ -46,7 +46,7 @@ position:fixed;bottom:-100%;width:100%;height:88%;
 background:#111;color:#fff;
 display:flex;flex-direction:column;
 border-radius:20px 20px 0 0;
-transition:.3s;z-index:1000;
+transition:.3s;
 }
 #menu.active{bottom:0;}
 #menuTop{flex:1;overflow:auto;padding:20px;}
@@ -60,6 +60,7 @@ gap:12px;margin-bottom:20px;
 height:90px;background:#333;border-radius:16px;
 display:flex;flex-direction:column;justify-content:center;align-items:center;
 }
+
 .menuInput{
 width:100%;height:44px;border-radius:10px;border:none;
 padding:10px;margin-bottom:10px;
@@ -108,7 +109,6 @@ margin-bottom:10px;background:#444;color:#fff;
 
 <h3>設定</h3>
 
-<input id="apiKey" class="menuInput" placeholder="APIキー">
 <textarea id="systemPrompt" class="menuInput" style="height:80px;" placeholder="キャラ設定"></textarea>
 <input type="file" id="avatarUpload" class="menuInput">
 <label><input type="checkbox" id="voiceToggle"> 音声ON</label>
@@ -120,14 +120,11 @@ margin-bottom:10px;background:#444;color:#fff;
 </div>
 
 <script>
-
-/* ===== 基本 ===== */
 const chat=document.getElementById("chat");
 const input=document.getElementById("input");
 const avatar=document.getElementById("avatar");
 const menu=document.getElementById("menu");
 
-const apiKey=document.getElementById("apiKey");
 const systemPrompt=document.getElementById("systemPrompt");
 const voiceToggle=document.getElementById("voiceToggle");
 const avatarUpload=document.getElementById("avatarUpload");
@@ -135,7 +132,7 @@ const avatarUpload=document.getElementById("avatarUpload");
 let voiceOn=false;
 let history=[];
 
-/* ===== 表示 ===== */
+/* 表示 */
 function add(t,c){
 const d=document.createElement("div");
 d.className="msg "+c;
@@ -144,37 +141,7 @@ chat.appendChild(d);
 chat.scrollTop=chat.scrollHeight;
 }
 
-/* ===== 音声 ===== */
-async function speak(text){
-if(!voiceOn)return;
-const key=localStorage.getItem("apiKey");
-if(!key)return;
-
-speechSynthesis.cancel();
-
-try{
-const res=await fetch("https://api.openai.com/v1/audio/speech",{
-method:"POST",
-headers:{
-"Authorization":"Bearer "+key,
-"Content-Type":"application/json"
-},
-body:JSON.stringify({
-model:"gpt-4o-mini-tts",
-voice:"nova",
-input:text
-})
-});
-
-const audio=new Audio(URL.createObjectURL(await res.blob()));
-await audio.play();
-
-}catch{
-speechSynthesis.speak(new SpeechSynthesisUtterance(text));
-}
-}
-
-/* ===== AI ===== */
+/* AI（←ここだけ重要） */
 async function send(){
 const t=input.value.trim();
 if(!t)return;
@@ -182,63 +149,38 @@ if(!t)return;
 add(t,"user");
 input.value="";
 
-const key=localStorage.getItem("apiKey");
-if(!key){add("APIキー未設定","ai");return;}
+history.push({role:"user",content:t});
 
 add("考え中...","ai");
 
-const res=await fetch("https://api.openai.com/v1/chat/completions",{
+try{
+const res=await fetch("/api/chat",{
 method:"POST",
-headers:{
-"Content-Type":"application/json",
-"Authorization":"Bearer "+key
-},
-body:JSON.stringify({
-model:"gpt-4o-mini",
-messages:[
-{role:"system",content:`あなたは${localStorage.getItem("systemPrompt")||"優しい女性"}`},
-...history,
-{role:"user",content:t}
-]
-})
+headers:{"Content-Type":"application/json"},
+body:JSON.stringify({message:t})
 });
 
 const data=await res.json();
 const reply=data.choices?.[0]?.message?.content||"エラー";
 
 add(reply,"ai");
-speak(reply);
 
-history.push({role:"user",content:t});
 history.push({role:"assistant",content:reply});
 localStorage.setItem("chatHistory",JSON.stringify(history));
+
+}catch{
+add("通信エラー","ai");
+}
 }
 
-/* ===== intent ===== */
-function detectIntent(t){
-t=t.toLowerCase();
-
-if(t.includes("検索")) return openSearch;
-if(t.includes("地図")) return openMap;
-if(t.includes("天気")) return openWeather;
-if(t.includes("電車")) return openTrain;
-if(t.includes("youtube")) return openYouTube;
-if(t.includes("メール")) return openGmail;
-if(t.includes("予定")) return openCalendar;
-if(t.includes("買い物")) return openAmazon;
-if(t.includes("メモ")) return openMemo;
-
-return null;
+/* 音声 */
+function speak(t){
+if(!voiceOn)return;
+speechSynthesis.cancel();
+speechSynthesis.speak(new SpeechSynthesisUtterance(t));
 }
 
-function handleInput(text){
-const fn=detectIntent(text);
-if(fn){ fn(); return; }
-input.value=text;
-send();
-}
-
-/* 🎤 */
+/* 音声入力 */
 if(window.SpeechRecognition||window.webkitSpeechRecognition){
 const rec=new (window.SpeechRecognition||window.webkitSpeechRecognition)();
 rec.lang="ja-JP";
@@ -246,42 +188,41 @@ rec.lang="ja-JP";
 document.getElementById("micBtn").onclick=()=>rec.start();
 
 rec.onresult=e=>{
-handleInput(e.results[0][0].transcript);
+input.value=e.results[0][0].transcript;
+send();
 };
 }
 
-/* ===== アプリ ===== */
-function openSearch(){window.open("https://www.google.com/","_blank");}
-function openMap(){window.open("https://maps.google.com/","_blank");}
-function openWeather(){window.open("https://weather.yahoo.co.jp/","_blank");}
-function openTrain(){window.open("https://www.google.com/maps/dir/?api=1&travelmode=transit","_blank");}
-function openCalendar(){window.open("https://calendar.google.com/","_blank");}
-function openGmail(){window.open("https://mail.google.com/","_blank");}
-function openYouTube(){window.open("https://youtube.com/","_blank");}
-function openAmazon(){window.open("https://www.amazon.co.jp/","_blank");}
-function openMemo(){window.open("https://keep.google.com/","_blank");}
+/* 外部 */
+function openSearch(){window.open("https://google.com");}
+function openMap(){window.open("https://maps.google.com");}
+function openWeather(){window.open("https://weather.yahoo.co.jp");}
+function openTrain(){window.open("https://transit.yahoo.co.jp");}
+function openCalendar(){window.open("https://calendar.google.com");}
+function openGmail(){window.open("https://mail.google.com");}
+function openYouTube(){window.open("https://youtube.com");}
+function openAmazon(){window.open("https://amazon.co.jp");}
+function openMemo(){window.open("https://keep.google.com");}
 
-/* ===== 画像 ===== */
+/* 画像 */
 avatarUpload.onchange=e=>{
-const reader=new FileReader();
-reader.onload=ev=>{
+const r=new FileReader();
+r.onload=ev=>{
 avatar.src=ev.target.result;
 localStorage.setItem("avatar",ev.target.result);
 };
-reader.readAsDataURL(e.target.files[0]);
+r.readAsDataURL(e.target.files[0]);
 };
 
-/* ===== 設定 ===== */
+/* 設定 */
 function openMenu(){
 menu.classList.add("active");
-apiKey.value=localStorage.getItem("apiKey")||"";
 systemPrompt.value=localStorage.getItem("systemPrompt")||"";
 voiceToggle.checked=localStorage.getItem("voiceOn")==="true";
 }
 function closeMenu(){menu.classList.remove("active");}
 
 function saveSettings(){
-localStorage.setItem("apiKey",apiKey.value);
 localStorage.setItem("systemPrompt",systemPrompt.value);
 localStorage.setItem("voiceOn",voiceToggle.checked);
 voiceOn=voiceToggle.checked;
@@ -296,7 +237,6 @@ history=JSON.parse(localStorage.getItem("chatHistory"))||[];
 const saved=localStorage.getItem("avatar");
 if(saved) avatar.src=saved;
 };
-
 </script>
 
 </body>
