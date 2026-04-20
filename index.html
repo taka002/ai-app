@@ -17,7 +17,7 @@ flex-direction:column;
 padding-bottom:60px;
 }
 
-/* 🔥ここだけ変更（relative追加） */
+/* 🔥キャラ周り */
 header{
 height:28vh;
 position:relative;
@@ -28,7 +28,7 @@ height:100%;
 object-fit:cover;
 }
 
-/* 🔥キャラ横ボタン */
+/* 💬ボタン */
 #aiCallBtn{
 position:absolute;
 right:12px;
@@ -157,9 +157,8 @@ color:#fff;
 <header>
 <img id="avatar" src="normal.png">
 
-<!-- 🔥追加 -->
+<!-- 💬 -->
 <button id="aiCallBtn" onclick="callAI()">💬</button>
-
 </header>
 
 <div id="infoBar"></div>
@@ -216,6 +215,9 @@ let voiceOn=false;
 let history=[];
 let aiWaiting=false;
 
+/* 🎤 グローバル化 */
+let rec=null;
+
 /* ===== 表示 ===== */
 function add(t,c){
 const d=document.createElement("div");
@@ -225,10 +227,15 @@ chat.appendChild(d);
 chat.scrollTop=chat.scrollHeight;
 }
 
-/* 🔥キャラ呼び出し */
+/* ===== 💬キャラ呼び出し ===== */
 function callAI(){
 add("なあに？😊","ai");
 aiWaiting=true;
+
+/* 🔥マイク連動 */
+if(rec){
+rec.start();
+}
 }
 
 /* ===== AI ===== */
@@ -292,7 +299,7 @@ send();
 
 /* ===== 音声 ===== */
 if(window.SpeechRecognition||window.webkitSpeechRecognition){
-const rec=new (window.SpeechRecognition||window.webkitSpeechRecognition)();
+rec=new (window.SpeechRecognition||window.webkitSpeechRecognition)();
 rec.lang="ja-JP";
 
 document.getElementById("micBtn").onclick=()=>rec.start();
@@ -300,24 +307,45 @@ document.getElementById("micBtn").onclick=()=>rec.start();
 rec.onresult=e=>{
 const text=e.results[0][0].transcript;
 
-// 💬押してる時だけ反応
+/* 💬状態のみ反応 */
 if(!aiWaiting) return;
 
 handleInput(text);
+};
+
+/* 🔥自動解除 */
+rec.onend=()=>{
+aiWaiting=false;
 };
 }
 
 /* ===== intent ===== */
 function detectIntent(t){
 t=t.toLowerCase();
+
 if(t.includes("検索")) return openSearch;
 if(t.includes("地図")) return openMap;
+if(t.includes("天気")) return openWeather;
+if(t.includes("電車")) return openTrain;
+if(t.includes("youtube")) return openYouTube;
+if(t.includes("メール")) return openGmail;
+if(t.includes("予定")) return openCalendar;
+if(t.includes("買い物")) return openAmazon;
+if(t.includes("メモ")) return openMemo;
+
 return null;
 }
 
 /* ===== アプリ ===== */
 function openSearch(){window.open("https://www.google.com/","_blank");}
 function openMap(){window.open("https://maps.google.com/","_blank");}
+function openWeather(){window.open("https://weather.yahoo.co.jp/","_blank");}
+function openTrain(){window.open("https://www.google.com/maps/dir/?api=1&travelmode=transit","_blank");}
+function openCalendar(){window.open("https://calendar.google.com/","_blank");}
+function openGmail(){window.open("https://mail.google.com/","_blank");}
+function openYouTube(){window.open("https://youtube.com/","_blank");}
+function openAmazon(){window.open("https://www.amazon.co.jp/","_blank");}
+function openMemo(){window.open("https://keep.google.com/","_blank");}
 
 /* ===== 設定 ===== */
 function openMenu(){menu.classList.add("active");}
