@@ -104,6 +104,12 @@ margin-bottom:10px;background:#444;color:#fff;
 <div class="menuItem" onclick="openYouTube()">▶<br>YouTube</div>
 <div class="menuItem" onclick="openAmazon()">🛒<br>買い物</div>
 <div class="menuItem" onclick="openMemo()">📝<br>メモ</div>
+
+<!-- 🔥 追加 -->
+<div class="menuItem" onclick="openLineMusic()">🎵<br>LINE Music</div>
+<div class="menuItem" onclick="openNewsPicks()">📰<br>News</div>
+<div class="menuItem" onclick="openRakutenMagazine()">📚<br>楽天</div>
+
 </div>
 
 <h3>設定</h3>
@@ -144,36 +150,6 @@ chat.appendChild(d);
 chat.scrollTop=chat.scrollHeight;
 }
 
-/* ===== 音声 ===== */
-async function speak(text){
-if(!voiceOn)return;
-const key=localStorage.getItem("apiKey");
-if(!key)return;
-
-speechSynthesis.cancel();
-
-try{
-const res=await fetch("https://api.openai.com/v1/audio/speech",{
-method:"POST",
-headers:{
-"Authorization":"Bearer "+key,
-"Content-Type":"application/json"
-},
-body:JSON.stringify({
-model:"gpt-4o-mini-tts",
-voice:"nova",
-input:text
-})
-});
-
-const audio=new Audio(URL.createObjectURL(await res.blob()));
-await audio.play();
-
-}catch{
-speechSynthesis.speak(new SpeechSynthesisUtterance(text));
-}
-}
-
 /* ===== AI ===== */
 async function send(){
 const t=input.value.trim();
@@ -207,11 +183,20 @@ const data=await res.json();
 const reply=data.choices?.[0]?.message?.content||"エラー";
 
 add(reply,"ai");
-speak(reply);
 
 history.push({role:"user",content:t});
 history.push({role:"assistant",content:reply});
 localStorage.setItem("chatHistory",JSON.stringify(history));
+}
+
+/* ===== 音声 誤認識対策 ===== */
+function cleanText(t){
+return t
+.replace("開いて","")
+.replace("見せて","")
+.replace("お願いします","")
+.replace("して","")
+.trim();
 }
 
 /* ===== intent ===== */
@@ -228,12 +213,20 @@ if(t.includes("予定")) return openCalendar;
 if(t.includes("買い物")) return openAmazon;
 if(t.includes("メモ")) return openMemo;
 
+/* 🔥追加 */
+if(t.includes("音楽") || t.includes("line")) return openLineMusic;
+if(t.includes("ニュース")) return openNewsPicks;
+if(t.includes("楽天")) return openRakutenMagazine;
+
 return null;
 }
 
 function handleInput(text){
+text = cleanText(text).slice(0,10);
+
 const fn=detectIntent(text);
 if(fn){ fn(); return; }
+
 input.value=text;
 send();
 }
@@ -260,6 +253,11 @@ function openGmail(){window.open("https://mail.google.com/","_blank");}
 function openYouTube(){window.open("https://youtube.com/","_blank");}
 function openAmazon(){window.open("https://www.amazon.co.jp/","_blank");}
 function openMemo(){window.open("https://keep.google.com/","_blank");}
+
+/* 🔥追加 */
+function openLineMusic(){window.open("https://music.line.me/","_blank");}
+function openNewsPicks(){window.open("https://newspicks.com/","_blank");}
+function openRakutenMagazine(){window.open("https://magazine.rakuten.co.jp/","_blank");}
 
 /* ===== 画像 ===== */
 avatarUpload.onchange=e=>{
