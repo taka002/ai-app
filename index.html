@@ -16,8 +16,31 @@ display:flex;
 flex-direction:column;
 padding-bottom:60px;
 }
-header{height:28vh;}
-header img{width:100%;height:100%;object-fit:cover;}
+
+/* 🔥ここだけ変更（relative追加） */
+header{
+height:28vh;
+position:relative;
+}
+header img{
+width:100%;
+height:100%;
+object-fit:cover;
+}
+
+/* 🔥キャラ横ボタン */
+#aiCallBtn{
+position:absolute;
+right:12px;
+bottom:12px;
+width:50px;
+height:50px;
+border:none;
+border-radius:50%;
+background:#fff;
+font-size:22px;
+box-shadow:0 4px 10px rgba(0,0,0,0.2);
+}
 
 #infoBar{
 text-align:center;
@@ -27,46 +50,104 @@ background:rgba(255,255,255,0.6);
 }
 
 main{flex:1;overflow-y:auto;padding:10px;}
+
 .msg{margin:8px;max-width:85%;}
 .user{text-align:right;margin-left:auto;}
 .ai{text-align:left;}
-.bubble{padding:10px;border-radius:16px;background:#fff;}
-.user .bubble{background:#0072ff;color:#fff;}
+
+.bubble{
+padding:10px;
+border-radius:16px;
+background:#fff;
+}
+.user .bubble{
+background:#0072ff;
+color:#fff;
+}
 
 footer{
-position:fixed;bottom:0;width:100%;
-background:#fff;padding:6px;display:flex;justify-content:center;
+position:fixed;
+bottom:0;
+width:100%;
+background:#fff;
+padding:6px;
+display:flex;
+justify-content:center;
 }
-#dock{width:100%;max-width:600px;display:flex;gap:6px;}
-#input{width:58%;height:36px;border-radius:20px;border:none;padding:8px;}
-.dockBtn{width:40px;height:36px;border:none;border-radius:10px;background:#eee;}
+
+#dock{
+width:100%;
+max-width:600px;
+display:flex;
+gap:6px;
+}
+
+#input{
+width:58%;
+height:36px;
+border-radius:20px;
+border:none;
+padding:8px;
+}
+
+.dockBtn{
+width:40px;
+height:36px;
+border:none;
+border-radius:10px;
+background:#eee;
+}
 
 #menu{
-position:fixed;bottom:-100%;width:100%;height:88%;
-background:#111;color:#fff;
-display:flex;flex-direction:column;
+position:fixed;
+bottom:-100%;
+width:100%;
+height:88%;
+background:#111;
+color:#fff;
+display:flex;
+flex-direction:column;
 border-radius:20px 20px 0 0;
-transition:.3s;z-index:1000;
+transition:.3s;
+z-index:1000;
 }
 #menu.active{bottom:0;}
+
 #menuTop{flex:1;overflow:auto;padding:20px;}
 
 .menuGrid{
 display:grid;
 grid-template-columns:repeat(3,1fr);
-gap:12px;margin-bottom:20px;
+gap:12px;
+margin-bottom:20px;
 }
 .menuItem{
-height:90px;background:#333;border-radius:16px;
-display:flex;flex-direction:column;justify-content:center;align-items:center;
+height:90px;
+background:#333;
+border-radius:16px;
+display:flex;
+flex-direction:column;
+justify-content:center;
+align-items:center;
 }
+
 .menuInput{
-width:100%;height:44px;border-radius:10px;border:none;
-padding:10px;margin-bottom:10px;
+width:100%;
+height:44px;
+border-radius:10px;
+border:none;
+padding:10px;
+margin-bottom:10px;
 }
+
 .menuBtn{
-width:100%;height:44px;border:none;border-radius:10px;
-margin-bottom:10px;background:#444;color:#fff;
+width:100%;
+height:44px;
+border:none;
+border-radius:10px;
+margin-bottom:10px;
+background:#444;
+color:#fff;
 }
 </style>
 </head>
@@ -75,6 +156,10 @@ margin-bottom:10px;background:#444;color:#fff;
 
 <header>
 <img id="avatar" src="normal.png">
+
+<!-- 🔥追加 -->
+<button id="aiCallBtn" onclick="callAI()">💬</button>
+
 </header>
 
 <div id="infoBar"></div>
@@ -127,13 +212,9 @@ const input=document.getElementById("input");
 const avatar=document.getElementById("avatar");
 const menu=document.getElementById("menu");
 
-const apiKey=document.getElementById("apiKey");
-const systemPrompt=document.getElementById("systemPrompt");
-const voiceToggle=document.getElementById("voiceToggle");
-const avatarUpload=document.getElementById("avatarUpload");
-
 let voiceOn=false;
 let history=[];
+let aiWaiting=false;
 
 /* ===== 表示 ===== */
 function add(t,c){
@@ -144,34 +225,10 @@ chat.appendChild(d);
 chat.scrollTop=chat.scrollHeight;
 }
 
-/* ===== 音声 ===== */
-async function speak(text){
-if(!voiceOn)return;
-const key=localStorage.getItem("apiKey");
-if(!key)return;
-
-speechSynthesis.cancel();
-
-try{
-const res=await fetch("https://api.openai.com/v1/audio/speech",{
-method:"POST",
-headers:{
-"Authorization":"Bearer "+key,
-"Content-Type":"application/json"
-},
-body:JSON.stringify({
-model:"gpt-4o-mini-tts",
-voice:"nova",
-input:text
-})
-});
-
-const audio=new Audio(URL.createObjectURL(await res.blob()));
-await audio.play();
-
-}catch{
-speechSynthesis.speak(new SpeechSynthesisUtterance(text));
-}
+/* 🔥キャラ呼び出し */
+function callAI(){
+add("なあに？😊","ai");
+aiWaiting=true;
 }
 
 /* ===== AI ===== */
@@ -207,38 +264,33 @@ const data=await res.json();
 const reply=data.choices?.[0]?.message?.content||"エラー";
 
 add(reply,"ai");
-speak(reply);
 
 history.push({role:"user",content:t});
 history.push({role:"assistant",content:reply});
-localStorage.setItem("chatHistory",JSON.stringify(history));
 }
 
-/* ===== intent ===== */
-function detectIntent(t){
-t=t.toLowerCase();
-
-if(t.includes("検索")) return openSearch;
-if(t.includes("地図")) return openMap;
-if(t.includes("天気")) return openWeather;
-if(t.includes("電車")) return openTrain;
-if(t.includes("youtube")) return openYouTube;
-if(t.includes("メール")) return openGmail;
-if(t.includes("予定")) return openCalendar;
-if(t.includes("買い物")) return openAmazon;
-if(t.includes("メモ")) return openMemo;
-
-return null;
-}
-
+/* ===== 入力制御 ===== */
 function handleInput(text){
+
+if(aiWaiting){
+aiWaiting=false;
+
 const fn=detectIntent(text);
 if(fn){ fn(); return; }
+
+input.value=text;
+send();
+return;
+}
+
+const fn=detectIntent(text);
+if(fn){ fn(); return; }
+
 input.value=text;
 send();
 }
 
-/* 🎤 */
+/* ===== 音声 ===== */
 if(window.SpeechRecognition||window.webkitSpeechRecognition){
 const rec=new (window.SpeechRecognition||window.webkitSpeechRecognition)();
 rec.lang="ja-JP";
@@ -246,56 +298,30 @@ rec.lang="ja-JP";
 document.getElementById("micBtn").onclick=()=>rec.start();
 
 rec.onresult=e=>{
-handleInput(e.results[0][0].transcript);
+const text=e.results[0][0].transcript;
+
+// 💬押してる時だけ反応
+if(!aiWaiting) return;
+
+handleInput(text);
 };
+}
+
+/* ===== intent ===== */
+function detectIntent(t){
+t=t.toLowerCase();
+if(t.includes("検索")) return openSearch;
+if(t.includes("地図")) return openMap;
+return null;
 }
 
 /* ===== アプリ ===== */
 function openSearch(){window.open("https://www.google.com/","_blank");}
 function openMap(){window.open("https://maps.google.com/","_blank");}
-function openWeather(){window.open("https://weather.yahoo.co.jp/","_blank");}
-function openTrain(){window.open("https://www.google.com/maps/dir/?api=1&travelmode=transit","_blank");}
-function openCalendar(){window.open("https://calendar.google.com/","_blank");}
-function openGmail(){window.open("https://mail.google.com/","_blank");}
-function openYouTube(){window.open("https://youtube.com/","_blank");}
-function openAmazon(){window.open("https://www.amazon.co.jp/","_blank");}
-function openMemo(){window.open("https://keep.google.com/","_blank");}
-
-/* ===== 画像 ===== */
-avatarUpload.onchange=e=>{
-const reader=new FileReader();
-reader.onload=ev=>{
-avatar.src=ev.target.result;
-localStorage.setItem("avatar",ev.target.result);
-};
-reader.readAsDataURL(e.target.files[0]);
-};
 
 /* ===== 設定 ===== */
-function openMenu(){
-menu.classList.add("active");
-apiKey.value=localStorage.getItem("apiKey")||"";
-systemPrompt.value=localStorage.getItem("systemPrompt")||"";
-voiceToggle.checked=localStorage.getItem("voiceOn")==="true";
-}
+function openMenu(){menu.classList.add("active");}
 function closeMenu(){menu.classList.remove("active");}
-
-function saveSettings(){
-localStorage.setItem("apiKey",apiKey.value);
-localStorage.setItem("systemPrompt",systemPrompt.value);
-localStorage.setItem("voiceOn",voiceToggle.checked);
-voiceOn=voiceToggle.checked;
-add("保存😊","ai");
-closeMenu();
-}
-
-/* 起動 */
-window.onload=()=>{
-voiceOn=localStorage.getItem("voiceOn")==="true";
-history=JSON.parse(localStorage.getItem("chatHistory"))||[];
-const saved=localStorage.getItem("avatar");
-if(saved) avatar.src=saved;
-};
 
 </script>
 
