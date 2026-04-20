@@ -1,17 +1,36 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AIアプリ</title>
+
+<style>
+body{margin:0;font-family:sans-serif;background:#6ec6ff;}
+#chat{padding:10px;height:80vh;overflow:auto;}
+.msg{margin:8px;}
+.user{text-align:right;}
+.ai{text-align:left;}
+.bubble{display:inline-block;padding:10px;border-radius:12px;background:#fff;}
+.user .bubble{background:#0072ff;color:#fff;}
+#inputBox{position:fixed;bottom:0;width:100%;display:flex;}
+#input{flex:1;padding:10px;}
+</style>
+</head>
+
+<body>
+
+<div id="chat"></div>
+
+<div id="inputBox">
+<input id="input" placeholder="話す">
+<button onclick="send()">送信</button>
+</div>
+
 <script>
 const chat=document.getElementById("chat");
 const input=document.getElementById("input");
-const avatar=document.getElementById("avatar");
-const menu=document.getElementById("menu");
 
-const systemPrompt=document.getElementById("systemPrompt");
-const voiceToggle=document.getElementById("voiceToggle");
-const avatarUpload=document.getElementById("avatarUpload");
-
-let voiceOn=false;
-let history=[];
-
-/* 表示 */
 function add(t,c){
 const d=document.createElement("div");
 d.className="msg "+c;
@@ -20,15 +39,12 @@ chat.appendChild(d);
 chat.scrollTop=chat.scrollHeight;
 }
 
-/* 🔥 AI（完全版） */
 async function send(){
 const t=input.value.trim();
 if(!t)return;
 
 add(t,"user");
 input.value="";
-
-history.push({role:"user",content:t});
 
 add("考え中...","ai");
 
@@ -40,95 +56,23 @@ body:JSON.stringify({message:t})
 });
 
 const data=await res.json();
+console.log(data);
 
-console.log("サーバー返答:",data); // ←これ重要
-
-// 🔥 エラーチェック
 if(data.error){
-add("サーバーエラー: "+data.error,"ai");
+add("エラー:"+data.error,"ai");
 return;
 }
 
-if(!data.choices){
-add("返答データがおかしい","ai");
-return;
-}
-
-const reply=data.choices[0].message.content;
+const reply=data.choices?.[0]?.message?.content || "返答なし";
 
 add(reply,"ai");
 
-history.push({role:"assistant",content:reply});
-localStorage.setItem("chatHistory",JSON.stringify(history));
-
 }catch(e){
-console.log("通信エラー:",e);
-add("通信エラー（サーバー未接続）","ai");
+console.log(e);
+add("通信エラー","ai");
 }
 }
-
-/* 音声 */
-function speak(t){
-if(!voiceOn)return;
-speechSynthesis.cancel();
-speechSynthesis.speak(new SpeechSynthesisUtterance(t));
-}
-
-/* 音声入力 */
-if(window.SpeechRecognition||window.webkitSpeechRecognition){
-const rec=new (window.SpeechRecognition||window.webkitSpeechRecognition)();
-rec.lang="ja-JP";
-
-document.getElementById("micBtn").onclick=()=>rec.start();
-
-rec.onresult=e=>{
-input.value=e.results[0][0].transcript;
-send();
-};
-}
-
-/* 外部 */
-function openSearch(){window.open("https://google.com");}
-function openMap(){window.open("https://maps.google.com");}
-function openWeather(){window.open("https://weather.yahoo.co.jp");}
-function openTrain(){window.open("https://transit.yahoo.co.jp");}
-function openCalendar(){window.open("https://calendar.google.com");}
-function openGmail(){window.open("https://mail.google.com");}
-function openYouTube(){window.open("https://youtube.com");}
-function openAmazon(){window.open("https://amazon.co.jp");}
-function openMemo(){window.open("https://keep.google.com");}
-
-/* 画像 */
-avatarUpload.onchange=e=>{
-const r=new FileReader();
-r.onload=ev=>{
-avatar.src=ev.target.result;
-localStorage.setItem("avatar",ev.target.result);
-};
-r.readAsDataURL(e.target.files[0]);
-};
-
-/* 設定 */
-function openMenu(){
-menu.classList.add("active");
-systemPrompt.value=localStorage.getItem("systemPrompt")||"";
-voiceToggle.checked=localStorage.getItem("voiceOn")==="true";
-}
-function closeMenu(){menu.classList.remove("active");}
-
-function saveSettings(){
-localStorage.setItem("systemPrompt",systemPrompt.value);
-localStorage.setItem("voiceOn",voiceToggle.checked);
-voiceOn=voiceToggle.checked;
-add("保存😊","ai");
-closeMenu();
-}
-
-/* 起動 */
-window.onload=()=>{
-voiceOn=localStorage.getItem("voiceOn")==="true";
-history=JSON.parse(localStorage.getItem("chatHistory"))||[];
-const saved=localStorage.getItem("avatar");
-if(saved) avatar.src=saved;
-};
 </script>
+
+</body>
+</html>
