@@ -49,26 +49,31 @@ input.value="";
 add("考え中...","ai");
 
 try{
-const res=await fetch("/api/chat",{
+const res=await fetch("https://ai-app-xi-liard.vercel.app/api/chat",{
 method:"POST",
 headers:{"Content-Type":"application/json"},
 body:JSON.stringify({message:t})
 });
 
 const data=await res.json();
-console.log(data);
+console.log("サーバー返答:",data);
 
 if(data.error){
-add("エラー:"+data.error,"ai");
+add("エラー: "+data.error,"ai");
 return;
 }
 
-const reply=data.choices?.[0]?.message?.content || "返答なし";
+if(!data.choices){
+add("返答データ異常","ai");
+return;
+}
+
+const reply=data.choices[0].message.content;
 
 add(reply,"ai");
 
 }catch(e){
-console.log(e);
+console.log("通信エラー:",e);
 add("通信エラー","ai");
 }
 }
