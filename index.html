@@ -60,7 +60,6 @@ gap:12px;margin-bottom:20px;
 height:90px;background:#333;border-radius:16px;
 display:flex;flex-direction:column;justify-content:center;align-items:center;
 }
-
 .menuInput{
 width:100%;height:44px;border-radius:10px;border:none;
 padding:10px;margin-bottom:10px;
@@ -93,7 +92,19 @@ margin-bottom:10px;background:#444;color:#fff;
 <div id="menu">
 <div id="menuTop">
 
-<div class="menuGrid"></div>
+<div class="menuGrid">
+<div class="menuItem" onclick="openSearch()">🔍<br>検索</div>
+<div class="menuItem" onclick="openMap()">🗺<br>地図</div>
+<div class="menuItem" onclick="openWeather()">☀️<br>天気</div>
+
+<div class="menuItem" onclick="openTrain()">🚆<br>電車</div>
+<div class="menuItem" onclick="openCalendar()">📅<br>予定</div>
+<div class="menuItem" onclick="openGmail()">📧<br>メール</div>
+
+<div class="menuItem" onclick="openYouTube()">▶<br>YouTube</div>
+<div class="menuItem" onclick="openAmazon()">🛒<br>買い物</div>
+<div class="menuItem" onclick="openMemo()">📝<br>メモ</div>
+</div>
 
 <h3>設定</h3>
 
@@ -101,8 +112,6 @@ margin-bottom:10px;background:#444;color:#fff;
 <textarea id="systemPrompt" class="menuInput" style="height:80px;" placeholder="キャラ設定"></textarea>
 <input type="file" id="avatarUpload" class="menuInput">
 <label><input type="checkbox" id="voiceToggle"> 音声ON</label>
-
-<button class="menuBtn" onclick="toggleMode()">🌍 モード切替</button>
 
 <button class="menuBtn" onclick="saveSettings()">保存</button>
 <button class="menuBtn" onclick="closeMenu()">閉じる</button>
@@ -112,6 +121,7 @@ margin-bottom:10px;background:#444;color:#fff;
 
 <script>
 
+/* ===== 基本 ===== */
 const chat=document.getElementById("chat");
 const input=document.getElementById("input");
 const avatar=document.getElementById("avatar");
@@ -135,10 +145,33 @@ chat.scrollTop=chat.scrollHeight;
 }
 
 /* ===== 音声 ===== */
-function speak(t){
+async function speak(text){
 if(!voiceOn)return;
+const key=localStorage.getItem("apiKey");
+if(!key)return;
+
 speechSynthesis.cancel();
-speechSynthesis.speak(new SpeechSynthesisUtterance(t));
+
+try{
+const res=await fetch("https://api.openai.com/v1/audio/speech",{
+method:"POST",
+headers:{
+"Authorization":"Bearer "+key,
+"Content-Type":"application/json"
+},
+body:JSON.stringify({
+model:"gpt-4o-mini-tts",
+voice:"nova",
+input:text
+})
+});
+
+const audio=new Audio(URL.createObjectURL(await res.blob()));
+await audio.play();
+
+}catch{
+speechSynthesis.speak(new SpeechSynthesisUtterance(text));
+}
 }
 
 /* ===== AI ===== */
@@ -154,6 +187,7 @@ if(!key){add("APIキー未設定","ai");return;}
 
 add("考え中...","ai");
 
+try{
 const res=await fetch("https://api.openai.com/v1/chat/completions",{
 method:"POST",
 headers:{
@@ -179,77 +213,47 @@ speak(reply);
 history.push({role:"user",content:t});
 history.push({role:"assistant",content:reply});
 localStorage.setItem("chatHistory",JSON.stringify(history));
-}
 
-/* ===== モード切替 ===== */
-function toggleMode(){
-const mode = localStorage.getItem("mode") || "jp";
-if(mode==="jp"){
-localStorage.setItem("mode","global");
-add("🌍 海外モード","ai");
-}else{
-localStorage.setItem("mode","jp");
-add("🇯🇵 日本モード","ai");
-}
-applyMode();
-}
-
-/* ===== UI切替 ===== */
-function applyMode(){
-const mode = localStorage.getItem("mode") || "jp";
-const grid = document.querySelector(".menuGrid");
-
-if(mode==="global"){
-grid.innerHTML=`
-<div class="menuItem" onclick="openWhatsApp()">💬<br>WhatsApp</div>
-<div class="menuItem" onclick="openTelegram()">✈️<br>Telegram</div>
-<div class="menuItem" onclick="openWeChat()">🟢<br>WeChat</div>
-
-<div class="menuItem" onclick="openGuardian()">📰<br>Guardian</div>
-<div class="menuItem" onclick="openPolitico()">🌍<br>Politico</div>
-<div class="menuItem" onclick="openLeMonde()">🇫🇷<br>Le Monde</div>
-
-<div class="menuItem" onclick="openSearch()">🔍<br>Google</div>
-<div class="menuItem" onclick="openMap()">🗺<br>Map</div>
-<div class="menuItem" onclick="openYouTube()">▶<br>YouTube</div>
-`;
-}else{
-grid.innerHTML=`
-<div class="menuItem" onclick="openSearch()">🔍<br>検索</div>
-<div class="menuItem" onclick="openMap()">🗺<br>地図</div>
-<div class="menuItem" onclick="openWeather()">☀️<br>天気</div>
-
-<div class="menuItem" onclick="openTrain()">🚆<br>電車</div>
-<div class="menuItem" onclick="openCalendar()">📅<br>予定</div>
-<div class="menuItem" onclick="openGmail()">📧<br>メール</div>
-
-<div class="menuItem" onclick="openYouTube()">▶<br>YouTube</div>
-<div class="menuItem" onclick="openAmazon()">🛒<br>買い物</div>
-<div class="menuItem" onclick="openMemo()">📝<br>メモ</div>
-`;
+}catch(e){
+add("通信エラー","ai");
 }
 }
 
-/* ===== アプリ ===== */
-function openSearch(){window.open("https://google.com");}
-function openMap(){window.open("https://maps.google.com");}
-function openWeather(){window.open("https://weather.yahoo.co.jp");}
-function openTrain(){window.open("https://transit.yahoo.co.jp");}
-function openCalendar(){window.open("https://calendar.google.com");}
-function openGmail(){window.open("https://mail.google.com");}
-function openYouTube(){window.open("https://youtube.com");}
-function openAmazon(){window.open("https://amazon.co.jp");}
-function openMemo(){window.open("https://keep.google.com");}
+/* ===== intent ===== */
+function detectIntent(t){
+t=t.toLowerCase();
 
-/* 海外 */
-function openWhatsApp(){window.open("https://web.whatsapp.com");}
-function openTelegram(){window.open("https://web.telegram.org");}
-function openWeChat(){window.open("https://web.wechat.com");}
-function openGuardian(){window.open("https://www.theguardian.com");}
-function openPolitico(){window.open("https://www.politico.eu");}
-function openLeMonde(){window.open("https://www.lemonde.fr");}
+if(t.includes("検索")||t.includes("google")) return openSearch;
+if(t.includes("地図")||t.includes("マップ")) return openMap;
+if(t.includes("天気")) return openWeather;
+if(t.includes("電車")) return openTrain;
+if(t.includes("youtube")) return openYouTube;
+if(t.includes("メール")) return openGmail;
+if(t.includes("予定")) return openCalendar;
+if(t.includes("買い物")) return openAmazon;
+if(t.includes("メモ")) return openMemo;
 
-/* ===== 音声入力 ===== */
+return null;
+}
+
+/* ===== 誤爆防止 ===== */
+function isShortCommand(t){
+return t.length < 20;
+}
+
+function handleInput(text){
+const fn=detectIntent(text);
+
+if(fn && isShortCommand(text)){
+fn();
+return;
+}
+
+input.value=text;
+send();
+}
+
+/* ===== 音声（美咲ウェイクワード） ===== */
 if(window.SpeechRecognition||window.webkitSpeechRecognition){
 const rec=new (window.SpeechRecognition||window.webkitSpeechRecognition)();
 rec.lang="ja-JP";
@@ -257,20 +261,36 @@ rec.lang="ja-JP";
 document.getElementById("micBtn").onclick=()=>rec.start();
 
 rec.onresult=e=>{
-const t=e.results[0][0].transcript;
-input.value=t;
-send();
+const text=e.results[0][0].transcript;
+
+// 🔥 美咲で起動
+if(!text.includes("美咲")) return;
+
+const cleaned=text.replace("美咲","").trim();
+
+handleInput(cleaned);
 };
 }
 
+/* ===== アプリ ===== */
+function openSearch(){window.open("https://www.google.com/","_blank");}
+function openMap(){window.open("https://maps.google.com/","_blank");}
+function openWeather(){window.open("https://weather.yahoo.co.jp/","_blank");}
+function openTrain(){window.open("https://www.google.com/maps/dir/?api=1&travelmode=transit","_blank");}
+function openCalendar(){window.open("https://calendar.google.com/","_blank");}
+function openGmail(){window.open("https://mail.google.com/","_blank");}
+function openYouTube(){window.open("https://youtube.com/","_blank");}
+function openAmazon(){window.open("https://www.amazon.co.jp/","_blank");}
+function openMemo(){window.open("https://keep.google.com/","_blank");}
+
 /* ===== 画像 ===== */
 avatarUpload.onchange=e=>{
-const r=new FileReader();
-r.onload=ev=>{
+const reader=new FileReader();
+reader.onload=ev=>{
 avatar.src=ev.target.result;
 localStorage.setItem("avatar",ev.target.result);
 };
-r.readAsDataURL(e.target.files[0]);
+reader.readAsDataURL(e.target.files[0]);
 };
 
 /* ===== 設定 ===== */
@@ -291,14 +311,12 @@ add("保存😊","ai");
 closeMenu();
 }
 
-/* ===== 起動 ===== */
+/* 起動 */
 window.onload=()=>{
 voiceOn=localStorage.getItem("voiceOn")==="true";
 history=JSON.parse(localStorage.getItem("chatHistory"))||[];
 const saved=localStorage.getItem("avatar");
 if(saved) avatar.src=saved;
-
-applyMode();
 };
 
 </script>
