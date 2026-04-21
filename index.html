@@ -16,15 +16,13 @@ height:100dvh;
 overflow:hidden;
 }
 
-/* 🔥 キャラ（全画面ドバッ表示・UI崩さない） */
+/* キャラ */
 #character{
 position:absolute;
 top:0;
 left:0;
 width:100%;
 height:100%;
-
-/* ここ変更 */
 object-fit:cover;
 object-position:center 28%;
 transform:scale(1.08);
@@ -33,7 +31,7 @@ transform:scale(1.08);
 /* 吹き出し */
 #bubble{
 position:absolute;
-bottom:70px;
+bottom:120px;
 left:50%;
 transform:translateX(-50%);
 width:85%;
@@ -46,19 +44,20 @@ backdrop-filter:blur(8px);
 z-index:5;
 }
 
-/* 入力エリア */
+/* 🔥 入力エリア（吹き出し追従） */
 #inputArea{
-position:fixed;
-bottom:0;
-left:0;
-width:100%;
+position:absolute;
+left:50%;
+transform:translateX(-50%);
+width:90%;
 
 display:flex;
 align-items:center;
 gap:6px;
 
-padding:6px 8px calc(env(safe-area-inset-bottom) + 6px);
+padding:6px;
 background:rgba(255,255,255,0.95);
+border-radius:20px;
 
 z-index:10;
 }
@@ -80,17 +79,25 @@ background:#eee;
 #send{
 flex:0 0 auto;
 height:38px;
-
 padding:0 14px;
 border:none;
 border-radius:999px;
-
 background:#4da6ff;
 color:white;
 font-size:14px;
 }
 
-/* 左：設定 */
+/* 🎤 マイク */
+#mic{
+width:38px;
+height:38px;
+border-radius:50%;
+border:none;
+background:#eee;
+font-size:16px;
+}
+
+/* 左 */
 #settingsBtn{
 position:absolute;
 top:20px;
@@ -107,7 +114,7 @@ font-size:22px;
 z-index:20;
 }
 
-/* 右：アプリ */
+/* 右 */
 #appBtn{
 position:absolute;
 top:20px;
@@ -135,7 +142,9 @@ z-index:20;
 <div id="settingsBtn">⚙️</div>
 <div id="appBtn">📱</div>
 
+<!-- 🔥 マイク追加 -->
 <div id="inputArea">
+<button id="mic">🎤</button>
 <input id="input" placeholder="話しかけて">
 <button id="send" onclick="send()">送信</button>
 </div>
@@ -152,6 +161,21 @@ document.getElementById("settingsBtn").onclick = ()=>{
     alert("保存したよ！");
   }
 };
+
+/* 🔥 入力位置を吹き出しに追従 */
+function adjustInputPosition(){
+  const bubble = document.getElementById("bubble");
+  const inputArea = document.getElementById("inputArea");
+
+  const rect = bubble.getBoundingClientRect();
+  inputArea.style.top = (rect.bottom + 8) + "px";
+}
+
+window.addEventListener("load", adjustInputPosition);
+window.addEventListener("resize", adjustInputPosition);
+
+const observer = new MutationObserver(adjustInputPosition);
+observer.observe(document.getElementById("bubble"), {childList:true});
 
 /* 感情 */
 function changeEmotion(text){
@@ -229,7 +253,6 @@ async function send(){
   if(!text) return;
 
   input.value="";
-
   document.getElementById("character").src="typing.png";
 
   const thinking = startThinking();
@@ -238,9 +261,7 @@ async function send(){
     const reply = await getAIResponse(text);
 
     clearInterval(thinking);
-
     await typeText(reply);
-
     changeEmotion(reply);
 
   }catch(e){
