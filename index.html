@@ -31,7 +31,7 @@ transform:scale(1.08);
 /* 吹き出し */
 #bubble{
 position:absolute;
-bottom:110px; /* 少し上げてバランス */
+bottom:180px;
 left:50%;
 transform:translateX(-50%);
 width:85%;
@@ -44,7 +44,7 @@ backdrop-filter:blur(8px);
 z-index:5;
 }
 
-/* 入力エリア（上に逃がす） */
+/* 入力エリア */
 #inputArea{
 position:fixed;
 left:50%;
@@ -55,13 +55,12 @@ display:flex;
 align-items:center;
 gap:6px;
 
-padding:8px 10px;
+padding:8px 10px calc(env(safe-area-inset-bottom) + 10px);
+background:rgba(255,255,255,0.95);
+border-radius:20px;
 
-/* 🔥 ここが今回の核心 */
-bottom:calc(env(safe-area-inset-bottom) + 60px);
-
-background:transparent;
 z-index:10;
+bottom:60px; /* ← 少し上げて被り防止 */
 }
 
 /* 入力 */
@@ -98,49 +97,24 @@ background:#eee;
 font-size:16px;
 }
 
-/* 設定（左下） */
-#settingsBtn{
+/* 小さいボタン下 */
+#settingsBtn, #appBtn{
 position:fixed;
-bottom:calc(env(safe-area-inset-bottom) + 8px);
-left:16px;
-
-width:36px;
-height:36px;
+bottom:10px;
+width:42px;
+height:42px;
 border-radius:50%;
-background:rgba(255,255,255,0.9);
+background:white;
 display:flex;
 align-items:center;
 justify-content:center;
-
-box-shadow:0 2px 6px rgba(0,0,0,0.15);
-font-size:16px;
+box-shadow:0 4px 10px rgba(0,0,0,0.2);
+font-size:18px;
 z-index:20;
 }
 
-/* アプリ（右下） */
-#appBtn{
-position:fixed;
-bottom:calc(env(safe-area-inset-bottom) + 8px);
-right:16px;
-
-width:36px;
-height:36px;
-border-radius:50%;
-background:rgba(255,255,255,0.9);
-display:flex;
-align-items:center;
-justify-content:center;
-
-box-shadow:0 2px 6px rgba(0,0,0,0.15);
-font-size:14px;
-z-index:20;
-}
-
-/* 押した感 */
-#settingsBtn:active,
-#appBtn:active{
-transform:scale(0.9);
-}
+#settingsBtn{ left:20px; }
+#appBtn{ right:20px; }
 </style>
 </head>
 
@@ -255,6 +229,42 @@ async function send(){
     document.getElementById("bubble").innerText="エラー...";
     document.getElementById("character").src="glitch.png";
   }
+}
+
+/* 🎤 音声入力（統合版） */
+const micBtn = document.getElementById("mic");
+let recognition;
+
+if ('webkitSpeechRecognition' in window) {
+  recognition = new webkitSpeechRecognition();
+  recognition.lang = 'ja-JP';
+  recognition.continuous = false;
+  recognition.interimResults = false;
+
+  micBtn.onclick = () => {
+    recognition.start();
+    micBtn.innerText = "🎙️";
+  };
+
+  recognition.onresult = (event) => {
+    const text = event.results[0][0].transcript;
+    document.getElementById("input").value = text;
+    micBtn.innerText = "🎤";
+    send(); // ← 自動送信🔥
+  };
+
+  recognition.onerror = () => {
+    micBtn.innerText = "🎤";
+  };
+
+  recognition.onend = () => {
+    micBtn.innerText = "🎤";
+  };
+
+} else {
+  micBtn.onclick = () => {
+    alert("この端末は音声入力に対応してないよ🙏");
+  };
 }
 </script>
 
