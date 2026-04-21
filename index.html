@@ -28,23 +28,36 @@ object-position:center 28%;
 transform:scale(1.08);
 }
 
-/* 吹き出し */
+/* ===== 吹き出し（会話っぽく下げる） ===== */
 #bubble{
 position:absolute;
-bottom:180px;
+bottom:140px; /* ← ここ調整済み */
 left:50%;
 transform:translateX(-50%);
 width:85%;
 background:rgba(255,255,255,0.85);
-border-radius:25px;
-padding:14px;
-font-size:16px;
+border-radius:20px;
+padding:16px 18px;
+font-size:17px;
 text-align:center;
 backdrop-filter:blur(8px);
 z-index:5;
 }
 
-/* 入力エリア */
+/* 吹き出しのしっぽ */
+#bubble::after{
+content:"";
+position:absolute;
+bottom:-10px;
+left:50%;
+transform:translateX(-50%);
+width:20px;
+height:20px;
+background:rgba(255,255,255,0.85);
+clip-path:polygon(50% 100%, 0 0, 100% 0);
+}
+
+/* ===== 入力エリア ===== */
 #inputArea{
 position:fixed;
 left:50%;
@@ -60,7 +73,7 @@ background:rgba(255,255,255,0.95);
 border-radius:20px;
 
 z-index:10;
-bottom:0;
+bottom:10px; /* 少し上げる */
 }
 
 /* 入力 */
@@ -77,7 +90,6 @@ background:#eee;
 
 /* 送信 */
 #send{
-flex:0 0 auto;
 height:38px;
 padding:0 14px;
 border:none;
@@ -97,10 +109,11 @@ background:#eee;
 font-size:16px;
 }
 
-/* 下ボタン */
-#settingsBtn, #appBtn{
+/* ===== 設定・アプリボタン（下に移動） ===== */
+#settingsBtn,
+#appBtn{
 position:fixed;
-bottom:10px;
+bottom:110px; /* ← 下げた */
 width:42px;
 height:42px;
 border-radius:50%;
@@ -109,27 +122,11 @@ display:flex;
 align-items:center;
 justify-content:center;
 box-shadow:0 4px 10px rgba(0,0,0,0.2);
-font-size:18px;
 z-index:20;
 }
 
-#settingsBtn{ left:20px; }
-#appBtn{ right:20px; }
-
-/* ===== 🔥 追加CSS ===== */
-
-/* 吹き出しを下げる */
-#bubble{
-  bottom:110px !important;
-}
-
-/* 設定・アプリボタンを上に逃がす */
-#settingsBtn,
-#appBtn{
-  bottom:80px !important;
-}
-
-/* ===== ここまで ===== */
+#settingsBtn{ left:20px; font-size:18px; }
+#appBtn{ right:20px; font-size:16px; }
 
 </style>
 </head>
@@ -249,6 +246,7 @@ async function send(){
 
 /* 🎤 音声入力 */
 const micBtn = document.getElementById("mic");
+
 let recognition;
 
 if ('webkitSpeechRecognition' in window) {
