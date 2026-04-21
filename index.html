@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>感情AIアプリ</title>
+<title>完全AI感情版</title>
 
 <style>
 *{box-sizing:border-box;}
@@ -12,19 +12,15 @@ body{
   margin:0;
   overflow:hidden;
   font-family:sans-serif;
-  background:#f5f5f5;
 }
 
 /* キャラ */
 #character{
   position:fixed;
-  top:0;
-  left:0;
   width:100%;
   height:100%;
   object-fit:cover;
   z-index:1;
-  transition:0.3s;
 }
 
 /* メッセージ */
@@ -38,11 +34,9 @@ body{
   background:rgba(255,255,255,0.85);
   border-radius:25px;
   text-align:center;
-  font-size:16px;
   z-index:2;
 
   backdrop-filter: blur(10px);
-  box-shadow:0 8px 25px rgba(0,0,0,0.1);
 }
 
 /* 入力 */
@@ -52,12 +46,9 @@ body{
   left:20px;
   width:65%;
   padding:14px;
-  border-radius:25px;
+  border-radius:20px;
   border:none;
-  font-size:16px;
   z-index:2;
-
-  box-shadow:0 4px 15px rgba(0,0,0,0.1);
 }
 
 /* 送信 */
@@ -68,49 +59,29 @@ body{
   width:80px;
   height:50px;
   border:none;
-  border-radius:25px;
-  background:linear-gradient(135deg,#6ec6ff,#4da6ff);
+  border-radius:20px;
+  background:#4da6ff;
   color:#fff;
-  font-size:16px;
   z-index:2;
-
-  box-shadow:0 4px 15px rgba(0,0,0,0.2);
 }
 
-/* 左：設定 */
-#settingsBtn{
+/* ボタン */
+.btn{
   position:fixed;
   top:20px;
-  left:20px;
   width:60px;
   height:60px;
   border-radius:50%;
   border:none;
-  font-size:24px;
-  z-index:3;
-
   background:#fff;
-  box-shadow:0 4px 20px rgba(0,0,0,0.15);
-}
-
-/* 右：アプリ */
-#appBtn{
-  position:fixed;
-  top:20px;
-  right:20px;
-  width:60px;
-  height:60px;
-  border-radius:50%;
-  border:none;
-  font-size:24px;
+  font-size:22px;
   z-index:3;
-
-  background:#fff;
-  box-shadow:0 4px 20px rgba(0,0,0,0.15);
 }
+#settingsBtn{left:20px;}
+#historyBtn{right:20px;}
 
-/* 設定画面 */
-#settingsPanel{
+/* パネル */
+.panel{
   position:fixed;
   top:0;
   left:0;
@@ -120,25 +91,20 @@ body{
   display:none;
   z-index:10;
   padding:20px;
+  overflow:auto;
 }
 
-#settingsPanel input{
-  width:100%;
+/* 履歴 */
+#historyList{
+  max-height:80%;
+  overflow:auto;
+}
+
+.msg{
+  margin:10px;
   padding:10px;
-  margin-top:10px;
+  background:#eee;
   border-radius:10px;
-  border:1px solid #ccc;
-}
-
-/* 考え中 */
-.typing{
-  animation: blink 1s infinite;
-}
-
-@keyframes blink{
-  0%{opacity:0.3;}
-  50%{opacity:1;}
-  100%{opacity:0.3;}
 }
 </style>
 </head>
@@ -146,54 +112,98 @@ body{
 <body>
 
 <img id="character" src="normal.png">
-
 <div id="bubble">こんにちは😊</div>
 
 <input id="input" placeholder="話しかけて">
 <button id="sendBtn">送信</button>
 
-<button id="settingsBtn">⚙️</button>
-<button id="appBtn">📱</button>
+<button id="settingsBtn" class="btn">⚙️</button>
+<button id="historyBtn" class="btn">💬</button>
 
 <!-- 設定 -->
-<div id="settingsPanel">
-  <h3>APIキー設定</h3>
-  <input id="apiKey" placeholder="sk-...">
+<div id="settingsPanel" class="panel">
+  <h3>設定</h3>
+  <input id="apiKey" placeholder="APIキー">
   <button onclick="saveKey()">保存</button>
-  <button onclick="closeSettings()">閉じる</button>
+  <br><br>
+  <textarea id="memoryBox" placeholder="性格メモ"></textarea>
+  <button onclick="saveMemory()">保存</button>
+  <br><br>
+  <button onclick="closePanel()">閉じる</button>
+</div>
+
+<!-- 履歴 -->
+<div id="historyPanel" class="panel">
+  <h3>会話履歴</h3>
+  <div id="historyList"></div>
+  <button onclick="closePanel()">閉じる</button>
 </div>
 
 <script>
-const character = document.getElementById("character");
 const bubble = document.getElementById("bubble");
 const input = document.getElementById("input");
+const character = document.getElementById("character");
 
-/* 表情変更 */
-function setEmotion(type){
-  character.src = type + ".png";
-}
-
-/* 簡易感情 */
-function detectEmotion(text){
-  if(text.includes("疲れ")) return "tired";
-  if(text.includes("楽しい")) return "happy";
-  if(text.includes("不安")) return "anxiety";
-  if(text.includes("怒")) return "anger";
-  return "normal";
-}
-
-/* APIキー保存 */
+/* 保存 */
 function saveKey(){
   localStorage.setItem("apiKey", document.getElementById("apiKey").value);
-  alert("保存したよ");
+}
+function saveMemory(){
+  localStorage.setItem("memory", document.getElementById("memoryBox").value);
 }
 
-/* 設定開閉 */
+/* パネル */
 document.getElementById("settingsBtn").onclick=()=>{
   document.getElementById("settingsPanel").style.display="block";
 };
-function closeSettings(){
-  document.getElementById("settingsPanel").style.display="none";
+document.getElementById("historyBtn").onclick=()=>{
+  loadHistory();
+  document.getElementById("historyPanel").style.display="block";
+};
+function closePanel(){
+  document.querySelectorAll(".panel").forEach(p=>p.style.display="none");
+}
+
+/* 履歴保存 */
+function saveHistory(user,ai){
+  let history = JSON.parse(localStorage.getItem("chatHistory")||"[]");
+  history.push({user,ai});
+  localStorage.setItem("chatHistory", JSON.stringify(history));
+}
+
+/* 履歴表示 */
+function loadHistory(){
+  let list = document.getElementById("historyList");
+  list.innerHTML="";
+  let history = JSON.parse(localStorage.getItem("chatHistory")||"[]");
+
+  history.forEach(h=>{
+    list.innerHTML += `
+      <div class="msg">👤 ${h.user}</div>
+      <div class="msg">🤖 ${h.ai}</div>
+    `;
+  });
+}
+
+/* 表情 */
+function setEmotion(type){
+  const img = new Image();
+  img.src = type + ".png";
+  img.onload = ()=> character.src = img.src;
+  img.onerror = ()=> character.src = "normal.png";
+}
+
+/* 性格変化 */
+function buildPersonality(){
+  let memory = localStorage.getItem("memory") || "";
+  let history = JSON.parse(localStorage.getItem("chatHistory")||"[]");
+
+  let mood = "";
+
+  if(history.length > 5) mood += "少し親しみやすい性格。";
+  if(history.length > 20) mood += "かなり仲良し。甘め。";
+
+  return memory + mood;
 }
 
 /* 送信 */
@@ -201,12 +211,11 @@ document.getElementById("sendBtn").onclick = async ()=>{
   const text = input.value;
   if(!text) return;
 
-  /* 考え中 */
   bubble.innerText = "・・・";
-  bubble.classList.add("typing");
-  setEmotion("thinking");
+  setEmotion("typing");
 
   const apiKey = localStorage.getItem("apiKey");
+  const personality = buildPersonality();
 
   try{
     const res = await fetch("https://api.openai.com/v1/chat/completions",{
@@ -218,7 +227,7 @@ document.getElementById("sendBtn").onclick = async ()=>{
       body:JSON.stringify({
         model:"gpt-4o-mini",
         messages:[
-          {role:"system",content:"短く優しく話すAI"},
+          {role:"system",content:"短く優しく話すAI。"+personality},
           {role:"user",content:text}
         ]
       })
@@ -227,14 +236,13 @@ document.getElementById("sendBtn").onclick = async ()=>{
     const data = await res.json();
     const reply = data.choices[0].message.content;
 
-    /* 表情 */
-    setEmotion(detectEmotion(reply));
-
-    bubble.classList.remove("typing");
     bubble.innerText = reply;
+    setEmotion("normal");
+
+    saveHistory(text,reply);
 
   }catch(e){
-    bubble.innerText="エラー😢";
+    bubble.innerText="エラー";
     setEmotion("sad");
   }
 
