@@ -17,6 +17,7 @@ background:#f5f5f5;
 overflow:hidden;
 }
 
+/* ===== アプリ全体 ===== */
 #app{
 position:fixed;
 inset:0;
@@ -24,7 +25,7 @@ display:flex;
 flex-direction:column;
 }
 
-/* キャラエリア */
+/* ===== キャラエリア ===== */
 #visual{
 flex:1;
 position:relative;
@@ -43,7 +44,7 @@ object-fit:contain;
 transition:0.3s;
 }
 
-/* 吹き出し */
+/* 吹き出し（顔かぶらない） */
 #bubble{
 position:absolute;
 bottom:110px;
@@ -59,7 +60,7 @@ backdrop-filter:blur(6px);
 min-height:50px;
 }
 
-/* 入力 */
+/* ===== 入力 ===== */
 #inputArea{
 height:80px;
 display:flex;
@@ -85,7 +86,7 @@ background:#4da6ff;
 color:white;
 }
 
-/* ボタン */
+/* ===== ボタン ===== */
 #settingsBtn,#appBtn{
 position:absolute;
 top:15px;
@@ -103,6 +104,7 @@ font-size:20px;
 
 #settingsBtn{ left:15px; }
 #appBtn{ right:15px; }
+
 </style>
 </head>
 
@@ -126,6 +128,8 @@ font-size:20px;
 </div>
 
 <script>
+
+/* ===== APIキー ===== */
 let API_KEY = localStorage.getItem("apiKey") || "";
 
 /* 設定 */
@@ -138,7 +142,7 @@ document.getElementById("settingsBtn").onclick = ()=>{
   }
 };
 
-/* もじゃもじゃ */
+/* ===== モジャモジャ ===== */
 function startThinking(){
   const bubble = document.getElementById("bubble");
   let dots="";
@@ -154,7 +158,7 @@ function startThinking(){
   return id;
 }
 
-/* 文字じわ */
+/* ===== 文字じわ ===== */
 async function typeText(text){
   const bubble = document.getElementById("bubble");
   bubble.innerText="";
@@ -165,7 +169,26 @@ async function typeText(text){
   }
 }
 
-/* AI呼び出し（感情付きJSON） */
+/* ===== JSON安全処理 ===== */
+function safeParse(text){
+  try{
+    return JSON.parse(text);
+  }catch{
+    return {
+      text:text.replace(/[{}"]/g,""),
+      emotion:"normal"
+    };
+  }
+}
+
+/* ===== 感情リスト ===== */
+const emotions = [
+"normal","happy","sad","anger",
+"anxiety","surprise","shy",
+"relieved","impressed","typing"
+];
+
+/* ===== AI ===== */
 async function getAI(message){
 
   if(!API_KEY){
@@ -184,17 +207,18 @@ async function getAI(message){
         {
           role:"system",
           content:`
-あなたは優しいAIキャラクターです。
+あなたは感情を持つキャラクターです。
 必ずJSON形式で返してください。
 
-{
- "text":"短く自然な会話",
- "emotion":"normal,happy,sad,anger,anxiety,surprise,shy,relieved,impressed,typing"
-}
+例:
+{"text":"大丈夫だよ😊","emotion":"happy"}
+
+emotionは以下のみ:
+${emotions.join(",")}
 
 ・文章は短く
-・人間らしく
-・状況に合った感情を選ぶ
+・自然に
+・優しく
 `
         },
         {role:"user",content:message}
@@ -203,24 +227,29 @@ async function getAI(message){
   });
 
   const data = await res.json();
+  const raw = data.choices?.[0]?.message?.content || "";
 
-  try{
-    return JSON.parse(data.choices[0].message.content);
-  }catch{
-    return {text:"うまく考えられなかった…", emotion:"glitch"};
+  const parsed = safeParse(raw);
+
+  if(!emotions.includes(parsed.emotion)){
+    parsed.emotion = "normal";
   }
+
+  return parsed;
 }
 
-/* 送信 */
+/* ===== 送信 ===== */
 async function send(){
 
   const input = document.getElementById("input");
-  const text = input.value;
+  const text = input.value.trim();
   if(!text) return;
 
   input.value="";
 
-  document.getElementById("character").src="typing.png";
+  const char = document.getElementById("character");
+
+  char.src="typing.png";
 
   const thinking = startThinking();
 
@@ -231,14 +260,15 @@ async function send(){
 
     await typeText(ai.text);
 
-    document.getElementById("character").src = ai.emotion + ".png";
+    char.src = ai.emotion + ".png";
 
   }catch(e){
     clearInterval(thinking);
-    document.getElementById("bubble").innerText="エラー…";
-    document.getElementById("character").src="glitch.png";
+    document.getElementById("bubble").innerText="通信エラー";
+    char.src="glitch.png";
   }
 }
+
 </script>
 
 </body>
