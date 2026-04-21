@@ -28,10 +28,10 @@ object-position:center 28%;
 transform:scale(1.08);
 }
 
-/* 吹き出し（入力欄に寄せる） */
+/* 吹き出し */
 #bubble{
 position:absolute;
-bottom:95px;
+bottom:110px; /* 少し上げてバランス */
 left:50%;
 transform:translateX(-50%);
 width:85%;
@@ -44,7 +44,7 @@ backdrop-filter:blur(8px);
 z-index:5;
 }
 
-/* 入力エリア（白枠削除） */
+/* 入力エリア（上に逃がす） */
 #inputArea{
 position:fixed;
 left:50%;
@@ -55,12 +55,13 @@ display:flex;
 align-items:center;
 gap:6px;
 
-padding:8px 10px calc(env(safe-area-inset-bottom) + 10px);
-background:transparent;
-border-radius:0;
+padding:8px 10px;
 
+/* 🔥 ここが今回の核心 */
+bottom:calc(env(safe-area-inset-bottom) + 60px);
+
+background:transparent;
 z-index:10;
-bottom:0;
 }
 
 /* 入力 */
@@ -97,7 +98,7 @@ background:#eee;
 font-size:16px;
 }
 
-/* 🔽 設定ボタン（左下・小さく） */
+/* 設定（左下） */
 #settingsBtn{
 position:fixed;
 bottom:calc(env(safe-area-inset-bottom) + 8px);
@@ -106,7 +107,6 @@ left:16px;
 width:36px;
 height:36px;
 border-radius:50%;
-
 background:rgba(255,255,255,0.9);
 display:flex;
 align-items:center;
@@ -117,7 +117,7 @@ font-size:16px;
 z-index:20;
 }
 
-/* 🔽 アプリボタン（右下・小さく） */
+/* アプリ（右下） */
 #appBtn{
 position:fixed;
 bottom:calc(env(safe-area-inset-bottom) + 8px);
@@ -126,7 +126,6 @@ right:16px;
 width:36px;
 height:36px;
 border-radius:50%;
-
 background:rgba(255,255,255,0.9);
 display:flex;
 align-items:center;
