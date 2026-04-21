@@ -2,134 +2,101 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>美咲AI</title>
 
 <style>
-*{box-sizing:border-box;}
-
 body{
-margin:0;
-font-family:sans-serif;
-background:#f5f5f5;
-height:100dvh;
-overflow:hidden;
+  margin:0;
+  font-family:sans-serif;
+  background:#f5f5f5;
+  overflow:hidden;
 }
 
 /* キャラ */
 #character{
-position:absolute;
-top:0;
-left:0;
-width:100%;
-height:100%;
-object-fit:cover;
-object-position:center 28%;
-transform:scale(1.08);
+  position:fixed;
+  top:0;
+  left:0;
+  width:100%;
+  height:100%;
+  object-fit:cover;
 }
 
 /* 吹き出し */
 #bubble{
-position:absolute;
-bottom:90px;
-left:50%;
-transform:translateX(-50%);
-width:85%;
-max-width:80%;
-
-background:rgba(255,255,255,0.9);
-border-radius:25px;
-padding:14px;
-font-size:16px;
-line-height:1.4;
-text-align:center;
-backdrop-filter:blur(8px);
-
-z-index:5;
+  position:fixed;
+  bottom:160px; /* 👈 下げた */
+  left:50%;
+  transform:translateX(-50%);
+  background:#fff;
+  padding:16px 20px;
+  border-radius:20px;
+  max-width:80%;
+  text-align:center;
+  font-size:18px;
+  box-shadow:0 4px 10px rgba(0,0,0,0.15);
 }
 
-/* しっぽ */
+/* しっぽ（下向き＝口から） */
 #bubble::after{
-content:"";
-position:absolute;
-top:-12px;
-left:50%;
-transform:translateX(-50%) rotate(45deg);
-width:22px;
-height:22px;
-background:rgba(255,255,255,0.9);
+  content:"";
+  position:absolute;
+  bottom:-12px;
+  left:50%;
+  transform:translateX(-50%);
+  border:12px solid transparent;
+  border-top-color:#fff;
 }
 
-/* 入力エリア */
+/* ボタン */
+.icon{
+  position:fixed;
+  bottom:110px; /* 👈 少し下げた */
+  width:60px;
+  height:60px;
+  border-radius:50%;
+  background:#fff;
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  box-shadow:0 4px 10px rgba(0,0,0,0.2);
+}
+
+#settings{ left:20px; }
+#apps{ right:20px; }
+
+/* 入力欄 */
 #inputArea{
-position:fixed;
-left:50%;
-transform:translateX(-50%);
-width:92%;
-
-display:flex;
-align-items:center;
-gap:6px;
-
-padding:8px 10px calc(env(safe-area-inset-bottom) + 10px);
-background:rgba(255,255,255,0.95);
-border-radius:20px;
-
-z-index:10;
-bottom:0;
+  position:fixed;
+  bottom:0;
+  width:100%;
+  display:flex;
+  padding:10px;
+  background:#eee;
 }
 
-/* 入力 */
 #input{
-flex:1;
-min-width:0;
-height:38px;
-padding:0 10px;
-border-radius:18px;
-border:none;
-font-size:14px;
-background:#eee;
+  flex:1;
+  padding:10px;
+  border-radius:20px;
+  border:none;
 }
 
-/* 送信 */
 #send{
-height:38px;
-padding:0 14px;
-border:none;
-border-radius:999px;
-background:#4da6ff;
-color:white;
-font-size:14px;
+  margin-left:10px;
+  padding:10px 20px;
+  border:none;
+  border-radius:20px;
+  background:#4da3ff;
+  color:#fff;
 }
 
-/* マイク */
-#mic{
-width:38px;
-height:38px;
-border-radius:50%;
-border:none;
-background:#eee;
-font-size:16px;
+/* 表情フェード */
+.fade{
+  transition:0.5s;
+  opacity:0;
 }
-
-/* ボタン（少し下げた） */
-#settingsBtn, #appBtn{
-position:fixed;
-bottom:60px; /* ←ここ変更 */
-width:44px;
-height:44px;
-border-radius:50%;
-background:white;
-display:flex;
-align-items:center;
-justify-content:center;
-box-shadow:0 4px 10px rgba(0,0,0,0.2);
-z-index:20;
-font-size:18px;
-}
-
-#settingsBtn{ left:20px; }
-#appBtn{ right:20px; }
 </style>
 </head>
 
@@ -139,140 +106,133 @@ font-size:18px;
 
 <div id="bubble">どうしたのかな？話してくれると嬉しいな😊</div>
 
-<div id="settingsBtn">⚙️</div>
-<div id="appBtn">📱</div>
+<div id="settings" class="icon">⚙️</div>
+<div id="apps" class="icon">📱</div>
 
 <div id="inputArea">
-<button id="mic">🎤</button>
-<input id="input" placeholder="話しかけて">
-<button id="send" onclick="send()">送信</button>
+  <input id="input" placeholder="話しかけて">
+  <button id="send" onclick="send()">送信</button>
 </div>
 
 <script>
-let API_KEY = localStorage.getItem("apiKey") || "";
+// ===== タイピング表示 =====
+function typeText(text){
+  return new Promise(resolve=>{
+    let i=0;
+    const bubble = document.getElementById("bubble");
+    bubble.innerText="";
 
-/* 設定 */
-document.getElementById("settingsBtn").onclick = ()=>{
-  const key = prompt("APIキーを入力");
-  if(key){
-    localStorage.setItem("apiKey", key);
-    API_KEY = key;
-    alert("保存したよ！");
-  }
-};
-
-/* 感情 */
-function changeEmotion(text){
-  let img = "normal.png";
-  if(text.includes("疲れ")) img="sad.png";
-  else if(text.includes("怒")) img="anger.png";
-  else if(text.includes("不安")) img="anxiety.png";
-  else if(text.includes("嬉")) img="happy.png";
-  else if(text.includes("驚")) img="surprise.png";
-  document.getElementById("character").src = img;
-}
-
-/* 考え中 */
-function startThinking(){
-  const bubble = document.getElementById("bubble");
-  let dots = "";
-  let count = 0;
-
-  const interval = setInterval(()=>{
-    dots += "…";
-    bubble.innerText = dots;
-    count++;
-    if(count > 5){ dots=""; count=0; }
-  },300);
-
-  return interval;
-}
-
-/* 文字 */
-async function typeText(text){
-  const bubble = document.getElementById("bubble");
-  bubble.innerText="";
-  for(let i=0;i<text.length;i++){
-    bubble.innerText += text[i];
-    await new Promise(r=>setTimeout(r,25));
-  }
-}
-
-/* API */
-async function getAIResponse(message){
-  if(!API_KEY){
-    return "設定からAPIキー入れてね🙏";
-  }
-
-  const res = await fetch("https://api.openai.com/v1/chat/completions",{
-    method:"POST",
-    headers:{
-      "Content-Type":"application/json",
-      "Authorization":"Bearer " + API_KEY
-    },
-    body:JSON.stringify({
-      model:"gpt-4o-mini",
-      messages:[
-        {role:"system",content:"短く優しく会話して"},
-        {role:"user",content:message}
-      ]
-    })
+    const interval = setInterval(()=>{
+      bubble.innerText += text[i];
+      i++;
+      if(i>=text.length){
+        clearInterval(interval);
+        resolve();
+      }
+    },50);
   });
-
-  const data = await res.json();
-  return data.choices[0].message.content;
 }
 
-/* 送信 */
+// ===== 思考中アニメ =====
+function startThinking(){
+  let dots = 0;
+  const bubble = document.getElementById("bubble");
+
+  return setInterval(()=>{
+    dots = (dots+1)%4;
+    bubble.innerText = "考え中" + ".".repeat(dots);
+  },400);
+}
+
+// ===== 表情変更（フェード付き）=====
+function changeEmotion(text){
+  const chara = document.getElementById("character");
+
+  let img = "normal.png";
+
+  if(text.includes("嬉") || text.includes("ありがとう"))
+    img = "happy.png";
+
+  else if(text.includes("悲") || text.includes("辛") || text.includes("泣"))
+    img = "sad.png";
+
+  else if(text.includes("怒") || text.includes("イライラ"))
+    img = "anger.png";
+
+  else if(text.includes("不安") || text.includes("怖"))
+    img = "anxiety.png";
+
+  else if(text.includes("ごめん"))
+    img = "apologize.png";
+
+  else if(text.includes("すごい"))
+    img = "impressed.png";
+
+  else if(text.includes("どうして"))
+    img = "curious.png";
+
+  else if(text.includes("え") || text.includes("！？"))
+    img = "surprise.png";
+
+  else if(text.includes("眠"))
+    img = "sleepy.png";
+
+  else if(text.includes("恥"))
+    img = "embarrassed.png";
+
+  else if(text.includes("説明") || text.includes("考え"))
+    img = "explaining.png";
+
+  else if(text.includes("いいよ"))
+    img = "agree.png";
+
+  else if(text.includes("違う"))
+    img = "disagree.png";
+
+  // フェード切替
+  chara.classList.add("fade");
+  setTimeout(()=>{
+    chara.src = img;
+    chara.classList.remove("fade");
+  },300);
+}
+
+// ===== ダミーAI =====
+async function getAIResponse(text){
+  await new Promise(r=>setTimeout(r,1500));
+  return "それは辛いね。少しでも話してみる？";
+}
+
+// ===== 送信処理 =====
 async function send(){
   const input = document.getElementById("input");
   const text = input.value;
   if(!text) return;
 
   input.value="";
+
+  // typing画像
   document.getElementById("character").src="typing.png";
 
   const thinking = startThinking();
 
   try{
     const reply = await getAIResponse(text);
+
     clearInterval(thinking);
+
     await typeText(reply);
-    changeEmotion(reply);
+
+    // 👇 ここ重要（遅らせる）
+    setTimeout(()=>{
+      changeEmotion(reply);
+    },1000);
+
   }catch(e){
     clearInterval(thinking);
     document.getElementById("bubble").innerText="エラー...";
     document.getElementById("character").src="glitch.png";
   }
-}
-
-/* 🎤 音声入力 */
-const micBtn = document.getElementById("mic");
-let recognition;
-
-if ('webkitSpeechRecognition' in window) {
-  recognition = new webkitSpeechRecognition();
-  recognition.lang = 'ja-JP';
-
-  micBtn.onclick = () => {
-    recognition.start();
-    micBtn.innerText = "🎙️";
-  };
-
-  recognition.onresult = (event) => {
-    const text = event.results[0][0].transcript;
-    document.getElementById("input").value = text;
-    micBtn.innerText = "🎤";
-    send();
-  };
-
-  recognition.onerror = () => micBtn.innerText = "🎤";
-  recognition.onend = () => micBtn.innerText = "🎤";
-
-} else {
-  micBtn.onclick = () => {
-    alert("この端末は音声入力に対応してないよ🙏");
-  };
 }
 </script>
 
