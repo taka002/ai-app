@@ -161,36 +161,49 @@ document.getElementById("settingsBtn").onclick = ()=>{
   }
 };
 
-/* ===== 表情グループ ===== */
+/* ===== 全画像 ===== */
 const emotionGroups = {
-  happy:["happy.png","smile.png","applause.png"],
+  happy:["happy.png","smile.png","applause.png","impressed.png"],
   sad:["sad.png","cry.png"],
   anger:["anger.png","irritation.png"],
   anxiety:["anxiety.png","panic.png"],
   shy:["shy.png","embarrassed.png"],
-  surprise:["surprise.png","impressed.png"],
+  surprise:["surprise.png"],
   thinking:["curious.png","focused.png","explaining.png"],
   agree:["agree.png"],
   disagree:["disagree.png","refuse.png"],
   calm:["relieved.png","normal.png"],
   tired:["sleepy.png","hesitation.png"],
-  other:["normal.png"]
+  action:["hold.png","typing.png"],
+  special:["glitch.png","robot.png"]
 };
 
-/* ===== 感情分類 ===== */
+/* ===== 感情判定 ===== */
 function getEmotionGroup(text){
-  if(/嬉|ありがとう/.test(text)) return "happy";
-  if(/悲|辛|泣/.test(text)) return "sad";
-  if(/怒|イライラ/.test(text)) return "anger";
-  if(/不安|怖/.test(text)) return "anxiety";
+
+  if(/ありがとう|助か|嬉|最高/.test(text)) return "happy";
+  if(/悲|辛|しんど|落ち込/.test(text)) return "sad";
+  if(/泣/.test(text)) return "sad";
+
+  if(/怒|イライラ|ムカ/.test(text)) return "anger";
+
+  if(/不安|怖|心配/.test(text)) return "anxiety";
+  if(/無理|やばい/.test(text)) return "anxiety";
+
   if(/恥|照/.test(text)) return "shy";
-  if(/！？|え/.test(text)) return "surprise";
-  if(/考え|説明/.test(text)) return "thinking";
-  if(/そうだね/.test(text)) return "agree";
+
+  if(/え|！？|まじ/.test(text)) return "surprise";
+
+  if(/考え|どう思う|説明/.test(text)) return "thinking";
+
+  if(/そうだね|いいね/.test(text)) return "agree";
   if(/違う|やだ/.test(text)) return "disagree";
+
   if(/安心|よかった/.test(text)) return "calm";
-  if(/眠い|どうしよう/.test(text)) return "tired";
-  return "other";
+
+  if(/眠い|疲れ/.test(text)) return "tired";
+
+  return "calm";
 }
 
 /* ===== 被り防止 ===== */
@@ -217,10 +230,10 @@ function pickImage(list, text){
   return selected;
 }
 
-/* ===== 表情変更 ===== */
+/* ===== 表情変更（固定） ===== */
 function changeEmotion(text){
   const group = getEmotionGroup(text);
-  const list = emotionGroups[group];
+  const list = emotionGroups[group] || ["normal.png"];
   const next = pickImage(list, text);
   document.getElementById("character").src = next;
 }
@@ -267,7 +280,7 @@ async function getAIResponse(message){
       messages:[
         {
           role:"system",
-          content:"優しく寄り添う女性キャラ。短く自然に会話。"
+          content:"優しく寄り添う女性キャラ。自然な会話をする。"
         },
         ...memory.map(m=>[
           {role:"user",content:m.user},
@@ -295,10 +308,14 @@ async function send(){
 
   try{
     const reply=await getAIResponse(text);
+
     clearInterval(thinking);
     await typeText(reply);
-    changeEmotion(reply);
+
+    changeEmotion(reply); // ←ここで固定
+
     saveMemory(text, reply);
+
   }catch{
     clearInterval(thinking);
     document.getElementById("bubble").innerText="エラー...";
