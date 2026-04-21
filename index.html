@@ -1,74 +1,235 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>美咲AI</title>
+
+<style>
+*{box-sizing:border-box;}
+
+body{
+margin:0;
+font-family:sans-serif;
+background:#f5f5f5;
+height:100vh;
+overflow:hidden;
+}
+
+/* キャラ */
+#character{
+position:absolute;
+top:0;
+left:0;
+width:100%;
+height:100%;
+object-fit:cover;
+}
+
+/* 吹き出し（顔かぶらない） */
+#bubble{
+position:absolute;
+bottom:120px;
+left:50%;
+transform:translateX(-50%);
+width:85%;
+background:rgba(255,255,255,0.85);
+border-radius:25px;
+padding:14px;
+font-size:16px;
+text-align:center;
+backdrop-filter:blur(8px);
+}
+
+/* 入力 */
+#inputArea{
+position:absolute;
+bottom:0;
+width:100%;
+display:flex;
+padding:10px;
+background:rgba(255,255,255,0.9);
+}
+
+#input{
+flex:1;
+padding:12px;
+border-radius:20px;
+border:none;
+font-size:16px;
+}
+
+#send{
+margin-left:10px;
+padding:12px 18px;
+border:none;
+border-radius:20px;
+background:#4da6ff;
+color:white;
+font-size:16px;
+}
+
+/* 左：設定 */
+#settingsBtn{
+position:absolute;
+top:20px;
+left:20px;
+width:50px;
+height:50px;
+border-radius:50%;
+background:white;
+display:flex;
+align-items:center;
+justify-content:center;
+box-shadow:0 4px 10px rgba(0,0,0,0.2);
+font-size:22px;
+}
+
+/* 右：アプリ */
+#appBtn{
+position:absolute;
+top:20px;
+right:20px;
+width:50px;
+height:50px;
+border-radius:50%;
+background:white;
+display:flex;
+align-items:center;
+justify-content:center;
+box-shadow:0 4px 10px rgba(0,0,0,0.2);
+font-size:20px;
+}
+</style>
+</head>
+
+<body>
+
+<img id="character" src="normal.png">
+
+<div id="bubble">どうしたのかな？話してくれると嬉しいな😊</div>
+
+<div id="settingsBtn">⚙️</div>
+<div id="appBtn">📱</div>
+
+<div id="inputArea">
+<input id="input" placeholder="話しかけて">
+<button id="send" onclick="send()">送信</button>
+</div>
+
 <script>
+let API_KEY = localStorage.getItem("apiKey") || "";
 
-/* ===== 表情（固定＋軽く変化） ===== */
-function setEmotion(type){
-const img = document.getElementById("character");
-
-const map = {
-normal:"normal.png",
-happy:"happy.png",
-sad:"sad.png",
-thinking:"thinking.png"
+/* 設定ボタン */
+document.getElementById("settingsBtn").onclick = ()=>{
+  const key = prompt("APIキーを入力");
+  if(key){
+    localStorage.setItem("apiKey", key);
+    API_KEY = key;
+    alert("保存したよ！");
+  }
 };
 
-img.src = map[type] || map.normal;
+/* 感情変化 */
+function changeEmotion(text){
+
+  let img = "normal.png";
+
+  if(text.includes("疲れ")) img="sad.png";
+  else if(text.includes("怒")) img="anger.png";
+  else if(text.includes("不安")) img="anxiety.png";
+  else if(text.includes("嬉")) img="happy.png";
+  else if(text.includes("驚")) img="surprise.png";
+
+  document.getElementById("character").src = img;
 }
 
-/* 初期は必ず美咲 */
-setEmotion("normal");
+/* もじゃもじゃ（考え中） */
+function startThinking(){
+  const bubble = document.getElementById("bubble");
+  let dots = "";
+  let count = 0;
 
-/* ===== 送信 ===== */
-document.getElementById("send").onclick=async()=>{
-const text = document.getElementById("input").value;
-if(!text)return;
+  const interval = setInterval(()=>{
+    dots += "…";
+    bubble.innerText = dots;
+    count++;
 
-/* 考え中だけ変える */
-setEmotion("thinking");
+    if(count > 5){
+      dots="";
+      count=0;
+    }
+  },300);
 
-bubble.innerText="...";
-thinking.style.display="block";
-
-try{
-const res = await fetch("https://api.openai.com/v1/chat/completions",{
-method:"POST",
-headers:{
-"Content-Type":"application/json",
-"Authorization":"Bearer "+localStorage.getItem("apiKey")
-},
-body:JSON.stringify({
-model:"gpt-4o-mini",
-messages:[
-{
-role:"system",
-content:(localStorage.getItem("memory")||"") + " 優しく短く返す"
-},
-{role:"user",content:text}
-]
-})
-});
-
-const data = await res.json();
-let reply = data.choices[0].message.content;
-
-thinking.style.display="none";
-bubble.innerText = reply;
-
-/* ★ここをシンプルにする（暴走防止） */
-if(reply.includes("嬉")||reply.includes("楽")){
-setEmotion("happy");
-}else if(reply.includes("ごめん")||reply.includes("大丈夫")){
-setEmotion("sad");
-}else{
-setEmotion("normal");
+  return interval;
 }
 
-}catch(e){
-thinking.style.display="none";
-bubble.innerText="エラー😢";
-setEmotion("sad");
+/* 文字じわ表示 */
+async function typeText(text){
+  const bubble = document.getElementById("bubble");
+  bubble.innerText="";
+
+  for(let i=0;i<text.length;i++){
+    bubble.innerText += text[i];
+    await new Promise(r=>setTimeout(r,25));
+  }
 }
 
-document.getElementById("input").value="";
-};
+/* ChatGPT API */
+async function getAIResponse(message){
 
+  if(!API_KEY){
+    return "設定からAPIキー入れてね🙏";
+  }
+
+  const res = await fetch("https://api.openai.com/v1/chat/completions",{
+    method:"POST",
+    headers:{
+      "Content-Type":"application/json",
+      "Authorization":"Bearer " + API_KEY
+    },
+    body:JSON.stringify({
+      model:"gpt-4o-mini",
+      messages:[
+        {role:"system",content:"短く優しく会話して"},
+        {role:"user",content:message}
+      ]
+    })
+  });
+
+  const data = await res.json();
+  return data.choices[0].message.content;
+}
+
+/* 送信 */
+async function send(){
+
+  const input = document.getElementById("input");
+  const text = input.value;
+  if(!text) return;
+
+  input.value="";
+
+  document.getElementById("character").src="typing.png";
+
+  const thinking = startThinking();
+
+  try{
+    const reply = await getAIResponse(text);
+
+    clearInterval(thinking);
+
+    await typeText(reply);
+
+    changeEmotion(reply);
+
+  }catch(e){
+    clearInterval(thinking);
+    document.getElementById("bubble").innerText="エラー...";
+    document.getElementById("character").src="glitch.png";
+  }
+}
 </script>
+
+</body>
+</html>
