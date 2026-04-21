@@ -1,252 +1,31 @@
-<!DOCTYPE html>
-<html lang="ja">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>美咲AI 完全版</title>
-
-<style>
-*{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
-body{
-margin:0;
-font-family:sans-serif;
-background:#f5f7fb;
-height:100dvh;
-overflow:hidden;
-}
-
-/* ===== キャラ ===== */
-#character{
-position:fixed;
-top:0;
-left:0;
-width:100%;
-height:100%;
-object-fit:cover;
-object-position:center;
-z-index:0;
-transition:0.3s;
-}
-
-/* ===== 吹き出し ===== */
-#bubble{
-position:fixed;
-bottom:140px;
-left:50%;
-transform:translateX(-50%);
-background:rgba(255,255,255,0.9);
-padding:14px 18px;
-border-radius:25px;
-width:85%;
-max-width:400px;
-text-align:center;
-font-size:16px;
-line-height:1.4;
-max-height:90px;
-overflow:hidden;
-z-index:2;
-}
-
-/* ===== 入力 ===== */
-#inputArea{
-position:fixed;
-bottom:20px;
-left:50%;
-transform:translateX(-50%);
-width:90%;
-display:flex;
-gap:10px;
-z-index:3;
-}
-
-#input{
-flex:1;
-padding:14px;
-border:none;
-border-radius:25px;
-background:#eee;
-}
-
-#send{
-padding:14px 20px;
-border:none;
-border-radius:25px;
-background:linear-gradient(135deg,#6ec6ff,#42a5f5);
-color:#fff;
-}
-
-/* ===== 上ボタン ===== */
-.top-btn{
-position:fixed;
-top:20px;
-width:60px;
-height:60px;
-border-radius:50%;
-background:#fff;
-display:flex;
-align-items:center;
-justify-content:center;
-box-shadow:0 5px 15px rgba(0,0,0,0.2);
-z-index:3;
-}
-
-#settingsBtn{left:20px;}
-#historyBtn{right:20px;}
-
-/* ===== 設定 ===== */
-#settings{
-position:fixed;
-inset:0;
-background:rgba(0,0,0,0.3);
-display:none;
-justify-content:center;
-align-items:center;
-z-index:10;
-}
-
-.settings-card{
-width:90%;
-max-width:380px;
-background:#fff;
-border-radius:25px;
-padding:20px;
-box-shadow:0 10px 30px rgba(0,0,0,0.2);
-}
-
-.settings-title{
-text-align:center;
-font-weight:bold;
-margin-bottom:10px;
-}
-
-.settings-input,.settings-textarea{
-width:100%;
-padding:12px;
-margin-bottom:10px;
-border:none;
-border-radius:15px;
-background:#f2f2f2;
-}
-
-.settings-textarea{height:80px;}
-
-.settings-btn{
-width:100%;
-padding:12px;
-border:none;
-border-radius:20px;
-background:linear-gradient(135deg,#6ec6ff,#42a5f5);
-color:#fff;
-margin-top:5px;
-}
-
-.settings-close{
-background:#ddd;
-color:#333;
-}
-
-/* ===== 考え中 ===== */
-#thinking{
-position:fixed;
-bottom:200px;
-left:50%;
-transform:translateX(-50%);
-font-size:20px;
-display:none;
-z-index:2;
-animation:blink 1s infinite;
-}
-
-@keyframes blink{
-0%,100%{opacity:0.3;}
-50%{opacity:1;}
-}
-</style>
-</head>
-
-<body>
-
-<img id="character" src="img/normal.png">
-
-<div id="bubble">こんにちは😊</div>
-<div id="thinking">…</div>
-
-<div id="inputArea">
-<input id="input" placeholder="話しかけて">
-<button id="send">送信</button>
-</div>
-
-<div id="settingsBtn" class="top-btn">⚙️</div>
-<div id="historyBtn" class="top-btn">💬</div>
-
-<!-- 設定 -->
-<div id="settings">
-<div class="settings-card">
-<div class="settings-title">⚙️ 設定</div>
-
-<input id="apiKey" class="settings-input" placeholder="APIキー">
-<textarea id="memory" class="settings-textarea" placeholder="性格・記憶"></textarea>
-<textarea id="firstMsg" class="settings-textarea" placeholder="初期メッセージ"></textarea>
-
-<button class="settings-btn" onclick="saveSettings()">保存</button>
-<button class="settings-btn settings-close" onclick="closeSettings()">閉じる</button>
-</div>
-</div>
-
 <script>
 
-/* ===== 表情切り替え ===== */
+/* ===== 表情（固定＋軽く変化） ===== */
 function setEmotion(type){
 const img = document.getElementById("character");
 
 const map = {
-normal:"img/normal.png",
-happy:"img/happy.png",
-sad:"img/sad.png",
-thinking:"img/thinking.png"
+normal:"normal.png",
+happy:"happy.png",
+sad:"sad.png",
+thinking:"thinking.png"
 };
 
 img.src = map[type] || map.normal;
 }
 
-/* ===== 初期 ===== */
-const bubble = document.getElementById("bubble");
-const thinking = document.getElementById("thinking");
-
-if(localStorage.getItem("firstMsg")){
-bubble.innerText = localStorage.getItem("firstMsg");
-}
-
-/* ===== 設定 ===== */
-document.getElementById("settingsBtn").onclick=()=>{
-document.getElementById("settings").style.display="flex";
-};
-
-function closeSettings(){
-document.getElementById("settings").style.display="none";
-}
-
-function saveSettings(){
-localStorage.setItem("apiKey",document.getElementById("apiKey").value);
-localStorage.setItem("memory",document.getElementById("memory").value);
-localStorage.setItem("firstMsg",document.getElementById("firstMsg").value);
-alert("保存したよ😊");
-}
-
-/* ===== 履歴 ===== */
-let history = JSON.parse(localStorage.getItem("history")||"[]");
-
-document.getElementById("historyBtn").onclick=()=>{
-alert(history.join("\n\n"));
-};
+/* 初期は必ず美咲 */
+setEmotion("normal");
 
 /* ===== 送信 ===== */
 document.getElementById("send").onclick=async()=>{
 const text = document.getElementById("input").value;
 if(!text)return;
 
+/* 考え中だけ変える */
 setEmotion("thinking");
-bubble.innerText="";
+
+bubble.innerText="...";
 thinking.style.display="block";
 
 try{
@@ -261,7 +40,7 @@ model:"gpt-4o-mini",
 messages:[
 {
 role:"system",
-content:(localStorage.getItem("memory")||"") + " 短く可愛く1〜2文で話す"
+content:(localStorage.getItem("memory")||"") + " 優しく短く返す"
 },
 {role:"user",content:text}
 ]
@@ -271,25 +50,17 @@ content:(localStorage.getItem("memory")||"") + " 短く可愛く1〜2文で話�
 const data = await res.json();
 let reply = data.choices[0].message.content;
 
-/* 短文化 */
-reply = reply.replace(/\n/g,"").slice(0,50);
-
 thinking.style.display="none";
 bubble.innerText = reply;
 
-/* 感情判定 */
+/* ★ここをシンプルにする（暴走防止） */
 if(reply.includes("嬉")||reply.includes("楽")){
 setEmotion("happy");
-}else if(reply.includes("疲")||reply.includes("大丈夫")){
+}else if(reply.includes("ごめん")||reply.includes("大丈夫")){
 setEmotion("sad");
 }else{
 setEmotion("normal");
 }
-
-/* 履歴 */
-history.push("👤 "+text);
-history.push("🤖 "+reply);
-localStorage.setItem("history",JSON.stringify(history));
 
 }catch(e){
 thinking.style.display="none";
@@ -301,6 +72,3 @@ document.getElementById("input").value="";
 };
 
 </script>
-
-</body>
-</html>
