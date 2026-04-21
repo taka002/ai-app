@@ -40,13 +40,14 @@ justify-content:flex-end;
 padding:10px;
 }
 
-/* 吹き出し（1つだけ） */
+/* 吹き出し */
 #bubble{
 background:rgba(255,255,255,0.9);
 border-radius:20px;
 padding:20px;
 margin:10px;
 font-size:18px;
+min-height:60px;
 }
 
 /* 入力 */
@@ -70,7 +71,7 @@ background:#007bff;
 color:#fff;
 }
 
-/* ボタン */
+/* メニューボタン */
 #menuBtn{
 position:absolute;
 right:10px;
@@ -85,32 +86,106 @@ align-items:center;
 justify-content:center;
 }
 
+/* 設定画面 */
+#settings{
+position:fixed;
+top:0;
+left:0;
+width:100%;
+height:100%;
+background:#000;
+color:#fff;
+z-index:100;
+display:none;
+padding:20px;
+}
+
+#settings input{
+width:100%;
+margin-top:10px;
+}
+
+/* モジャモジャ */
+.thinking{
+font-size:22px;
+letter-spacing:3px;
+}
+
+.dot{
+display:inline-block;
+animation:bounce 1.2s infinite;
+}
+
+.dot:nth-child(2){animation-delay:0.2s;}
+.dot:nth-child(3){animation-delay:0.4s;}
+.dot:nth-child(4){animation-delay:0.6s;}
+
+@keyframes bounce{
+0%,80%,100%{transform:translateY(0);opacity:0.3;}
+40%{transform:translateY(-10px);opacity:1;}
+}
+
 </style>
 </head>
 
 <body>
 
 <div id="characterWrap">
-  <img id="character" src="normal.png">
+<img id="character" src="normal.png">
 </div>
 
 <div id="ui">
+<div id="bubble">こんにちは😊</div>
 
-  <div id="bubble">こんにちは😊</div>
-
-  <div id="inputArea">
-    <input id="input" placeholder="話しかけて">
-    <button onclick="send()">送信</button>
-  </div>
-
+<div id="inputArea">
+<input id="input" placeholder="話しかけて">
+<button onclick="send()">送信</button>
+</div>
 </div>
 
-<div id="menuBtn">≡</div>
+<div id="menuBtn" onclick="openSettings()">⚙️</div>
+
+<!-- 設定 -->
+<div id="settings">
+<h2>設定</h2>
+APIキー
+<input id="apiKeyInput" placeholder="sk-...">
+<button onclick="saveSettings()">保存</button>
+<button onclick="closeSettings()">閉じる</button>
+</div>
 
 <script>
 
-/* ===== 記憶 ===== */
-let memory = JSON.parse(localStorage.getItem("memory") || "{}");
+/* ===== 設定 ===== */
+let apiKey = localStorage.getItem("apiKey") || "";
+
+document.getElementById("apiKeyInput").value = apiKey;
+
+function saveSettings(){
+  apiKey = document.getElementById("apiKeyInput").value;
+  localStorage.setItem("apiKey", apiKey);
+  alert("保存したよ");
+}
+
+function openSettings(){
+  document.getElementById("settings").style.display="block";
+}
+
+function closeSettings(){
+  document.getElementById("settings").style.display="none";
+}
+
+/* ===== モジャモジャ ===== */
+function startThinking(){
+  document.getElementById("bubble").innerHTML = `
+    <div>ちょっと待ってね…</div>
+    <span class="thinking">
+      <span class="dot">・</span>
+      <span class="dot">・</span>
+      <span class="dot">・</span>
+    </span>
+  `;
+}
 
 /* ===== 感情 ===== */
 function changeEmotion(text){
@@ -132,67 +207,66 @@ function changeEmotion(text){
   document.getElementById("character").src = img;
 }
 
-/* ===== 性格付き返答 ===== */
-function getReply(text){
+/* ===== ChatGPT ===== */
+async function getAIResponse(text){
 
-  // 名前記憶
-  if(text.includes("名前")){
-    return "あなたの名前、教えてほしいな😊";
+  if(!apiKey){
+    return "APIキー入れてね😊";
   }
 
-  if(text.startsWith("私は") || text.startsWith("僕は")){
-    const name = text.replace("私は","").replace("僕は","");
-    memory.name = name;
-    saveMemory();
-    return name + "って呼ぶね😊";
-  }
+  const res = await fetch("https://api.openai.com/v1/chat/completions",{
+    method:"POST",
+    headers:{
+      "Content-Type":"application/json",
+      "Authorization":"Bearer " + apiKey
+    },
+    body:JSON.stringify({
+      model:"gpt-4o-mini",
+      messages:[
+        {
+          role:"system",
+          content:"あなたは優しくて甘えた性格の女の子AI。短く会話してください。"
+        },
+        {
+          role:"user",
+          content:text
+        }
+      ]
+    })
+  });
 
-  // 個人対応
-  if(memory.name){
-    if(text.includes("疲れ")){
-      return memory.name + "、無理しすぎじゃない？少し休も😊";
-    }
-  }
+  const data = await res.json();
 
-  // デフォルト
-  const replies = [
-    "そうなんだね😊",
-    "それ気になる！",
-    "もっと聞きたいな😊",
-    "大丈夫？"
-  ];
-
-  return replies[Math.floor(Math.random()*replies.length)];
-}
-
-/* ===== 保存 ===== */
-function saveMemory(){
-  localStorage.setItem("memory", JSON.stringify(memory));
+  return data.choices?.[0]?.message?.content || "うまく話せなかった…";
 }
 
 /* ===== 送信 ===== */
-function send(){
+async function send(){
 
   const input = document.getElementById("input");
   const text = input.value;
   if(!text) return;
 
-  const bubble = document.getElementById("bubble");
+  input.value="";
 
-  // typing
+  // typing状態
   document.getElementById("character").src = "typing.png";
 
-  setTimeout(()=>{
+  // モジャモジャ
+  startThinking();
 
-    const reply = getReply(text);
+  try{
 
-    bubble.innerText = reply;
+    const reply = await getAIResponse(text);
+
+    document.getElementById("bubble").innerText = reply;
 
     changeEmotion(reply);
 
-  },500);
-
-  input.value="";
+  }catch(e){
+    document.getElementById("bubble").innerText = "通信エラー...";
+    document.getElementById("character").src = "glitch.png";
+  }
 }
 
 </script>
