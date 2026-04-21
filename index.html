@@ -44,7 +44,7 @@ backdrop-filter:blur(8px);
 z-index:5;
 }
 
-/* 入力エリア */
+/* 🔥 入力エリア（最下部固定） */
 #inputArea{
 position:fixed;
 left:50%;
@@ -60,7 +60,9 @@ background:rgba(255,255,255,0.95);
 border-radius:20px;
 
 z-index:10;
-bottom:60px; /* ← 少し上げて被り防止 */
+
+/* ✅ 修正ここだけ */
+bottom:0;
 }
 
 /* 入力 */
@@ -97,7 +99,7 @@ background:#eee;
 font-size:16px;
 }
 
-/* 小さいボタン下 */
+/* 下ボタン */
 #settingsBtn, #appBtn{
 position:fixed;
 bottom:10px;
@@ -231,7 +233,7 @@ async function send(){
   }
 }
 
-/* 🎤 音声入力（統合版） */
+/* 🎤 音声入力 */
 const micBtn = document.getElementById("mic");
 let recognition;
 
@@ -250,7 +252,7 @@ if ('webkitSpeechRecognition' in window) {
     const text = event.results[0][0].transcript;
     document.getElementById("input").value = text;
     micBtn.innerText = "🎤";
-    send(); // ← 自動送信🔥
+    send();
   };
 
   recognition.onerror = () => {
