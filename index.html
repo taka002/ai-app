@@ -28,10 +28,10 @@ object-position:center 28%;
 transform:scale(1.08);
 }
 
-/* ===== 吹き出し（口元に合わせる） ===== */
+/* 吹き出し */
 #bubble{
 position:absolute;
-bottom:90px; /* ← ここが調整ポイント */
+bottom:90px;
 left:50%;
 transform:translateX(-50%);
 width:85%;
@@ -48,7 +48,7 @@ backdrop-filter:blur(8px);
 z-index:5;
 }
 
-/* ===== 吹き出ししっぽ（口に向ける） ===== */
+/* しっぽ */
 #bubble::after{
 content:"";
 position:absolute;
@@ -60,7 +60,7 @@ height:22px;
 background:rgba(255,255,255,0.9);
 }
 
-/* ===== 入力エリア ===== */
+/* 入力エリア */
 #inputArea{
 position:fixed;
 left:50%;
@@ -112,10 +112,10 @@ background:#eee;
 font-size:16px;
 }
 
-/* ===== 下ボタン（入力欄の上に配置） ===== */
+/* ボタン（少し下げた） */
 #settingsBtn, #appBtn{
 position:fixed;
-bottom:70px; /* ← メッセージ欄のすぐ上 */
+bottom:60px; /* ←ここ変更 */
 width:44px;
 height:44px;
 border-radius:50%;
