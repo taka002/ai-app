@@ -28,10 +28,10 @@ object-position:center 28%;
 transform:scale(1.08);
 }
 
-/* 吹き出し */
+/* ✅ 吹き出し（上に逃がす） */
 #bubble{
 position:absolute;
-bottom:120px;
+bottom:180px; /* ← ここ重要（120→180） */
 left:50%;
 transform:translateX(-50%);
 width:85%;
@@ -44,22 +44,25 @@ backdrop-filter:blur(8px);
 z-index:5;
 }
 
-/* 🔥 入力エリア（吹き出し追従） */
+/* ✅ 入力エリア（完全固定） */
 #inputArea{
-position:absolute;
+position:fixed; /* ← 最重要 */
 left:50%;
 transform:translateX(-50%);
-width:90%;
+width:92%;
 
 display:flex;
 align-items:center;
 gap:6px;
 
-padding:6px;
+padding:8px 10px calc(env(safe-area-inset-bottom) + 10px);
 background:rgba(255,255,255,0.95);
 border-radius:20px;
 
 z-index:10;
+
+/* 🔥 常に一番下 */
+bottom:0;
 }
 
 /* 入力 */
@@ -68,7 +71,6 @@ flex:1;
 min-width:0;
 height:38px;
 padding:0 10px;
-
 border-radius:18px;
 border:none;
 font-size:14px;
@@ -87,7 +89,7 @@ color:white;
 font-size:14px;
 }
 
-/* 🎤 マイク */
+/* マイク */
 #mic{
 width:38px;
 height:38px;
@@ -142,7 +144,6 @@ z-index:20;
 <div id="settingsBtn">⚙️</div>
 <div id="appBtn">📱</div>
 
-<!-- 🔥 マイク追加 -->
 <div id="inputArea">
 <button id="mic">🎤</button>
 <input id="input" placeholder="話しかけて">
@@ -162,11 +163,10 @@ document.getElementById("settingsBtn").onclick = ()=>{
   }
 };
 
-/* 🔥 入力位置を吹き出しに追従 */
+/* （このまま残す：使わなくてもOK） */
 function adjustInputPosition(){
   const bubble = document.getElementById("bubble");
   const inputArea = document.getElementById("inputArea");
-
   const rect = bubble.getBoundingClientRect();
   inputArea.style.top = (rect.bottom + 8) + "px";
 }
@@ -180,13 +180,11 @@ observer.observe(document.getElementById("bubble"), {childList:true});
 /* 感情 */
 function changeEmotion(text){
   let img = "normal.png";
-
   if(text.includes("疲れ")) img="sad.png";
   else if(text.includes("怒")) img="anger.png";
   else if(text.includes("不安")) img="anxiety.png";
   else if(text.includes("嬉")) img="happy.png";
   else if(text.includes("驚")) img="surprise.png";
-
   document.getElementById("character").src = img;
 }
 
@@ -200,11 +198,7 @@ function startThinking(){
     dots += "…";
     bubble.innerText = dots;
     count++;
-
-    if(count > 5){
-      dots="";
-      count=0;
-    }
+    if(count > 5){ dots=""; count=0; }
   },300);
 
   return interval;
@@ -214,7 +208,6 @@ function startThinking(){
 async function typeText(text){
   const bubble = document.getElementById("bubble");
   bubble.innerText="";
-
   for(let i=0;i<text.length;i++){
     bubble.innerText += text[i];
     await new Promise(r=>setTimeout(r,25));
@@ -259,11 +252,9 @@ async function send(){
 
   try{
     const reply = await getAIResponse(text);
-
     clearInterval(thinking);
     await typeText(reply);
     changeEmotion(reply);
-
   }catch(e){
     clearInterval(thinking);
     document.getElementById("bubble").innerText="エラー...";
