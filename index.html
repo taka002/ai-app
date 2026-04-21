@@ -1,149 +1,9 @@
-<!DOCTYPE html>
-<html lang="ja">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>美咲AI</title>
-
-<style>
-*{box-sizing:border-box;}
-
-body{
-margin:0;
-font-family:sans-serif;
-background:#f5f5f5;
-height:100dvh;
-overflow:hidden;
-}
-
-/* キャラ */
-#character{
-position:absolute;
-top:0;
-left:0;
-width:100%;
-height:100%;
-object-fit:cover;
-object-position:center 28%;
-transform:scale(1.08);
-}
-
-/* 吹き出し（横だけ拡張） */
-#bubble{
-position:absolute;
-bottom:90px;
-left:50%;
-transform:translateX(-50%);
-width:92%;
-max-width:92%;
-background:rgba(255,255,255,0.9);
-border-radius:25px;
-padding:14px;
-font-size:16px;
-line-height:1.4;
-text-align:center;
-backdrop-filter:blur(8px);
-z-index:5;
-}
-
-/* しっぽ */
-#bubble::after{
-content:"";
-position:absolute;
-top:-12px;
-left:50%;
-transform:translateX(-50%) rotate(45deg);
-width:22px;
-height:22px;
-background:rgba(255,255,255,0.9);
-}
-
-/* 入力エリア */
-#inputArea{
-position:fixed;
-left:50%;
-transform:translateX(-50%);
-width:92%;
-display:flex;
-align-items:center;
-gap:6px;
-padding:8px 10px calc(env(safe-area-inset-bottom) + 10px);
-background:rgba(255,255,255,0.95);
-border-radius:20px;
-z-index:10;
-bottom:0;
-}
-
-#input{
-flex:1;
-min-width:0;
-height:38px;
-padding:0 10px;
-border-radius:18px;
-border:none;
-font-size:14px;
-background:#eee;
-}
-
-#send{
-height:38px;
-padding:0 14px;
-border:none;
-border-radius:999px;
-background:#4da6ff;
-color:white;
-font-size:14px;
-}
-
-#mic{
-width:38px;
-height:38px;
-border-radius:50%;
-border:none;
-background:#eee;
-font-size:16px;
-}
-
-/* ボタン */
-#settingsBtn,#appBtn{
-position:fixed;
-bottom:60px;
-width:44px;
-height:44px;
-border-radius:50%;
-background:white;
-display:flex;
-align-items:center;
-justify-content:center;
-box-shadow:0 4px 10px rgba(0,0,0,0.2);
-z-index:20;
-font-size:18px;
-}
-
-#settingsBtn{left:20px;}
-#appBtn{right:20px;}
-</style>
-</head>
-
-<body>
-
-<img id="character" src="normal.png">
-<div id="bubble">どうしたのかな？話してくれると嬉しいな😊</div>
-
-<div id="settingsBtn">⚙️</div>
-<div id="appBtn">📱</div>
-
-<div id="inputArea">
-<button id="mic">🎤</button>
-<input id="input" placeholder="話しかけて">
-<button id="send" onclick="send()">送信</button>
-</div>
-
 <script>
 let API_KEY = localStorage.getItem("apiKey") || "";
 
 /* ===== 長期記憶 ===== */
 let memory = JSON.parse(localStorage.getItem("memory") || "[]");
+let userName = localStorage.getItem("userName") || "";
 
 function saveMemory(user, ai){
   memory.push({user, ai});
@@ -160,6 +20,18 @@ document.getElementById("settingsBtn").onclick = ()=>{
     alert("保存したよ！");
   }
 };
+
+/* ===== 名前抽出 ===== */
+function extractName(text){
+  const match = text.match(/俺は(.+)|私は(.+)|名前は(.+)/);
+  if(match){
+    const name = match[1] || match[2] || match[3];
+    if(name){
+      userName = name;
+      localStorage.setItem("userName", name);
+    }
+  }
+}
 
 /* ===== 全画像 ===== */
 const emotionGroups = {
@@ -180,29 +52,17 @@ const emotionGroups = {
 
 /* ===== 感情判定 ===== */
 function getEmotionGroup(text){
-
-  if(/ありがとう|助か|嬉|最高/.test(text)) return "happy";
-  if(/悲|辛|しんど|落ち込/.test(text)) return "sad";
-  if(/泣/.test(text)) return "sad";
-
-  if(/怒|イライラ|ムカ/.test(text)) return "anger";
-
-  if(/不安|怖|心配/.test(text)) return "anxiety";
-  if(/無理|やばい/.test(text)) return "anxiety";
-
+  if(/ありがとう|嬉|最高/.test(text)) return "happy";
+  if(/悲|辛|泣/.test(text)) return "sad";
+  if(/怒|イライラ/.test(text)) return "anger";
+  if(/不安|怖/.test(text)) return "anxiety";
   if(/恥|照/.test(text)) return "shy";
-
-  if(/え|！？|まじ/.test(text)) return "surprise";
-
-  if(/考え|どう思う|説明/.test(text)) return "thinking";
-
-  if(/そうだね|いいね/.test(text)) return "agree";
-  if(/違う|やだ/.test(text)) return "disagree";
-
+  if(/え|！？/.test(text)) return "surprise";
+  if(/考え|説明/.test(text)) return "thinking";
+  if(/そうだね/.test(text)) return "agree";
+  if(/違う/.test(text)) return "disagree";
   if(/安心|よかった/.test(text)) return "calm";
-
-  if(/眠い|疲れ/.test(text)) return "tired";
-
+  if(/眠い/.test(text)) return "tired";
   return "calm";
 }
 
@@ -230,7 +90,7 @@ function pickImage(list, text){
   return selected;
 }
 
-/* ===== 表情変更（固定） ===== */
+/* ===== 表情変更 ===== */
 function changeEmotion(text){
   const group = getEmotionGroup(text);
   const list = emotionGroups[group] || ["normal.png"];
@@ -248,7 +108,7 @@ function startThinking(){
   },400);
 }
 
-/* ===== 文字表示 ===== */
+/* ===== タイピング（間あり） ===== */
 async function typeText(text){
   const bubble=document.getElementById("bubble");
 
@@ -259,15 +119,20 @@ async function typeText(text){
   }
 
   bubble.innerText="";
+
+  await new Promise(r=>setTimeout(r,300)); // ← 人間っぽい間
+
   for(let i=0;i<text.length;i++){
     bubble.innerText+=text[i];
-    await new Promise(r=>setTimeout(r,20));
+    await new Promise(r=>setTimeout(r,18));
   }
 }
 
 /* ===== API ===== */
 async function getAIResponse(message){
-  if(!API_KEY) return "設定からAPIキー入れてね🙏";
+  if(!API_KEY) return "APIキー入れてね🙏";
+
+  extractName(message);
 
   const res=await fetch("https://api.openai.com/v1/chat/completions",{
     method:"POST",
@@ -280,7 +145,22 @@ async function getAIResponse(message){
       messages:[
         {
           role:"system",
-          content:"優しく寄り添う女性キャラ。自然な会話をする。"
+          content:`
+美咲という女性キャラ。
+
+・会話は短く（1〜2文）
+・自然な口調
+・優しく寄り添う
+・敬語すぎない
+・説明しすぎない
+・少し感情を込める
+
+${userName ? "相手の名前は「"+userName+"」。たまに名前を呼ぶ。" : ""}
+
+例：
+「そっか…つらいね」
+「大丈夫？無理してない？」
+`
         },
         ...memory.map(m=>[
           {role:"user",content:m.user},
@@ -312,8 +192,7 @@ async function send(){
     clearInterval(thinking);
     await typeText(reply);
 
-    changeEmotion(reply); // ←ここで固定
-
+    changeEmotion(reply);
     saveMemory(text, reply);
 
   }catch{
@@ -361,6 +240,3 @@ if ('webkitSpeechRecognition' in window) {
   };
 }
 </script>
-
-</body>
-</html>
