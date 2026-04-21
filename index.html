@@ -28,33 +28,36 @@ object-position:center 28%;
 transform:scale(1.08);
 }
 
-/* ===== 吹き出し（顔に被らない位置） ===== */
+/* ===== 吹き出し（口元に合わせる） ===== */
 #bubble{
 position:absolute;
-bottom:110px;
+bottom:90px; /* ← ここが調整ポイント */
 left:50%;
 transform:translateX(-50%);
 width:85%;
-background:rgba(255,255,255,0.85);
-border-radius:20px;
-padding:16px 18px;
-font-size:17px;
+max-width:80%;
+
+background:rgba(255,255,255,0.9);
+border-radius:25px;
+padding:14px;
+font-size:16px;
+line-height:1.4;
 text-align:center;
 backdrop-filter:blur(8px);
+
 z-index:5;
 }
 
-/* ===== しっぽ（上向き） ===== */
+/* ===== 吹き出ししっぽ（口に向ける） ===== */
 #bubble::after{
 content:"";
 position:absolute;
-top:-10px;
+top:-12px;
 left:50%;
-transform:translateX(-50%);
-width:20px;
-height:20px;
-background:rgba(255,255,255,0.85);
-clip-path:polygon(50% 0%, 0% 100%, 100% 100%);
+transform:translateX(-50%) rotate(45deg);
+width:22px;
+height:22px;
+background:rgba(255,255,255,0.9);
 }
 
 /* ===== 入力エリア ===== */
@@ -73,7 +76,7 @@ background:rgba(255,255,255,0.95);
 border-radius:20px;
 
 z-index:10;
-bottom:10px;
+bottom:0;
 }
 
 /* 入力 */
@@ -109,13 +112,12 @@ background:#eee;
 font-size:16px;
 }
 
-/* ===== 設定・アプリ（入力欄近く） ===== */
-#settingsBtn,
-#appBtn{
+/* ===== 下ボタン（入力欄の上に配置） ===== */
+#settingsBtn, #appBtn{
 position:fixed;
-bottom:65px;
-width:40px;
-height:40px;
+bottom:70px; /* ← メッセージ欄のすぐ上 */
+width:44px;
+height:44px;
 border-radius:50%;
 background:white;
 display:flex;
@@ -123,11 +125,11 @@ align-items:center;
 justify-content:center;
 box-shadow:0 4px 10px rgba(0,0,0,0.2);
 z-index:20;
+font-size:18px;
 }
 
-#settingsBtn{ left:20px; font-size:18px; }
-#appBtn{ right:20px; font-size:16px; }
-
+#settingsBtn{ left:20px; }
+#appBtn{ right:20px; }
 </style>
 </head>
 
@@ -246,14 +248,11 @@ async function send(){
 
 /* 🎤 音声入力 */
 const micBtn = document.getElementById("mic");
-
 let recognition;
 
 if ('webkitSpeechRecognition' in window) {
   recognition = new webkitSpeechRecognition();
   recognition.lang = 'ja-JP';
-  recognition.continuous = false;
-  recognition.interimResults = false;
 
   micBtn.onclick = () => {
     recognition.start();
@@ -267,13 +266,8 @@ if ('webkitSpeechRecognition' in window) {
     send();
   };
 
-  recognition.onerror = () => {
-    micBtn.innerText = "🎤";
-  };
-
-  recognition.onend = () => {
-    micBtn.innerText = "🎤";
-  };
+  recognition.onerror = () => micBtn.innerText = "🎤";
+  recognition.onend = () => micBtn.innerText = "🎤";
 
 } else {
   micBtn.onclick = () => {
