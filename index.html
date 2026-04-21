@@ -28,10 +28,10 @@ object-position:center 28%;
 transform:scale(1.08);
 }
 
-/* 吹き出し */
+/* ✅ 吹き出し（少し上に逃がす） */
 #bubble{
 position:absolute;
-bottom:120px;
+bottom:160px; /* ← 120 → 160 に変更（ここが核心） */
 left:50%;
 transform:translateX(-50%);
 width:85%;
@@ -44,7 +44,7 @@ backdrop-filter:blur(8px);
 z-index:5;
 }
 
-/* 🔥 入力エリア（吹き出し追従） */
+/* ✅ 入力エリア（下に逃がしつつ追従） */
 #inputArea{
 position:absolute;
 left:50%;
@@ -60,6 +60,9 @@ background:rgba(255,255,255,0.95);
 border-radius:20px;
 
 z-index:10;
+
+/* 🔥 追加：最低位置を確保 */
+bottom:20px;
 }
 
 /* 入力 */
@@ -68,7 +71,6 @@ flex:1;
 min-width:0;
 height:38px;
 padding:0 10px;
-
 border-radius:18px;
 border:none;
 font-size:14px;
@@ -87,7 +89,7 @@ color:white;
 font-size:14px;
 }
 
-/* 🎤 マイク */
+/* マイク */
 #mic{
 width:38px;
 height:38px;
@@ -142,7 +144,6 @@ z-index:20;
 <div id="settingsBtn">⚙️</div>
 <div id="appBtn">📱</div>
 
-<!-- 🔥 マイク追加 -->
 <div id="inputArea">
 <button id="mic">🎤</button>
 <input id="input" placeholder="話しかけて">
@@ -162,7 +163,7 @@ document.getElementById("settingsBtn").onclick = ()=>{
   }
 };
 
-/* 🔥 入力位置を吹き出しに追従 */
+/* 位置追従 */
 function adjustInputPosition(){
   const bubble = document.getElementById("bubble");
   const inputArea = document.getElementById("inputArea");
