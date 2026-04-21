@@ -3,243 +3,290 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>美咲AI 完全版</title>
+<title>美咲AI</title>
 
 <style>
-*{box-sizing:border-box;margin:0;padding:0;}
-
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
 body{
-  font-family:sans-serif;
-  background:#f5f5f5;
-  height:100dvh;
-  overflow:hidden;
+margin:0;
+font-family:sans-serif;
+background:#f5f7fb;
+height:100dvh;
+overflow:hidden;
 }
 
-/* キャラ */
+/* ===== キャラ ===== */
 #character{
-  position:fixed;
-  width:100%;
-  height:100%;
-  object-fit:cover;
-  z-index:0;
+position:fixed;
+top:0;
+left:0;
+width:100%;
+height:100%;
+object-fit:cover;
+z-index:0;
 }
 
-/* 吹き出し */
+/* ===== 吹き出し（横長固定） ===== */
 #bubble{
-  position:fixed;
-  bottom:140px;
-  left:50%;
-  transform:translateX(-50%);
-  background:rgba(255,255,255,0.9);
-  padding:16px 20px;
-  border-radius:25px;
-  max-width:80%;
-  text-align:center;
-  font-size:18px;
-  z-index:2;
-  box-shadow:0 5px 15px rgba(0,0,0,0.1);
+position:fixed;
+bottom:140px;
+left:50%;
+transform:translateX(-50%);
+background:rgba(255,255,255,0.9);
+padding:14px 18px;
+border-radius:25px;
+width:85%;
+max-width:400px;
+font-size:16px;
+text-align:center;
+line-height:1.4;
+max-height:90px;
+overflow:hidden;
+z-index:2;
 }
 
-/* 入力 */
+/* ===== 入力 ===== */
 #inputArea{
-  position:fixed;
-  bottom:20px;
-  left:50%;
-  transform:translateX(-50%);
-  width:90%;
-  display:flex;
-  gap:10px;
-  z-index:2;
+position:fixed;
+bottom:20px;
+left:50%;
+transform:translateX(-50%);
+width:90%;
+display:flex;
+gap:10px;
+z-index:3;
 }
 
 #input{
-  flex:1;
-  padding:14px;
-  border:none;
-  border-radius:25px;
-  font-size:16px;
+flex:1;
+padding:14px;
+border:none;
+border-radius:25px;
+background:#eee;
+font-size:14px;
 }
 
 #send{
-  background:#4da6ff;
-  color:white;
-  border:none;
-  padding:14px 20px;
-  border-radius:25px;
+padding:14px 20px;
+border:none;
+border-radius:25px;
+background:linear-gradient(135deg,#6ec6ff,#42a5f5);
+color:#fff;
+font-size:14px;
 }
 
-/* ボタン */
-.btn{
-  position:fixed;
-  width:60px;
-  height:60px;
-  border-radius:50%;
-  border:none;
-  background:#fff;
-  font-size:22px;
-  box-shadow:0 5px 15px rgba(0,0,0,0.2);
-  z-index:3;
+/* ===== 上ボタン ===== */
+.top-btn{
+position:fixed;
+top:20px;
+width:60px;
+height:60px;
+border-radius:50%;
+background:#fff;
+display:flex;
+align-items:center;
+justify-content:center;
+box-shadow:0 5px 15px rgba(0,0,0,0.2);
+z-index:3;
 }
 
-#settingsBtn{ left:20px; top:20px; }
-#appBtn{ right:20px; top:20px; }
+#settingsBtn{left:20px;}
+#historyBtn{right:20px;}
 
-/* 設定パネル */
-.panel{
-  position:fixed;
-  top:0;
-  left:0;
-  width:100%;
-  height:100%;
-  background:#fff;
-  z-index:5;
-  padding:20px;
-  display:none;
-  overflow:auto;
+/* ===== 設定 ===== */
+#settings{
+position:fixed;
+inset:0;
+background:rgba(0,0,0,0.3);
+display:none;
+justify-content:center;
+align-items:center;
+z-index:10;
 }
 
-.panel input, .panel textarea{
-  width:100%;
-  padding:10px;
-  margin-top:10px;
+.settings-card{
+width:90%;
+max-width:380px;
+background:#fff;
+border-radius:25px;
+padding:20px;
+box-shadow:0 10px 30px rgba(0,0,0,0.2);
 }
 
-.panel button{
-  margin-top:10px;
-  padding:10px;
+.settings-title{
+text-align:center;
+font-weight:bold;
+margin-bottom:10px;
 }
+
+.settings-input,.settings-textarea{
+width:100%;
+padding:12px;
+margin-bottom:10px;
+border:none;
+border-radius:15px;
+background:#f2f2f2;
+}
+
+.settings-textarea{height:80px;}
+
+.settings-btn{
+width:100%;
+padding:12px;
+border:none;
+border-radius:20px;
+background:linear-gradient(135deg,#6ec6ff,#42a5f5);
+color:#fff;
+margin-top:5px;
+}
+
+.settings-close{
+background:#ddd;
+color:#333;
+}
+
+/* ===== 考え中 ===== */
+#thinking{
+position:fixed;
+bottom:200px;
+left:50%;
+transform:translateX(-50%);
+font-size:20px;
+display:none;
+z-index:2;
+animation:blink 1s infinite;
+}
+
+@keyframes blink{
+0%,100%{opacity:0.3;}
+50%{opacity:1;}
+}
+
 </style>
 </head>
 
 <body>
 
-<!-- キャラ -->
-<img id="character" src="normal.png">
+<img id="character" src="https://i.imgur.com/8Km9tLL.png">
 
-<!-- 吹き出し -->
 <div id="bubble">こんにちは😊</div>
+<div id="thinking">…</div>
 
-<!-- 入力 -->
 <div id="inputArea">
-  <input id="input" placeholder="話しかけて">
-  <button id="send">送信</button>
+<input id="input" placeholder="話しかけて">
+<button id="send">送信</button>
 </div>
 
-<!-- ボタン -->
-<button id="settingsBtn" class="btn">⚙️</button>
-<button id="appBtn" class="btn">📱</button>
+<div id="settingsBtn" class="top-btn">⚙️</div>
+<div id="historyBtn" class="top-btn">💬</div>
 
 <!-- 設定 -->
-<div id="settingsPanel" class="panel">
-  <h2>設定</h2>
+<div id="settings">
+<div class="settings-card">
+<div class="settings-title">⚙️ 設定</div>
 
-  <input id="apiKey" placeholder="APIキー">
-  <button onclick="saveKey()">保存</button>
+<input id="apiKey" class="settings-input" placeholder="APIキー">
+<textarea id="memory" class="settings-textarea" placeholder="性格・記憶"></textarea>
+<textarea id="firstMsg" class="settings-textarea" placeholder="初期メッセージ"></textarea>
 
-  <textarea id="memoryBox" placeholder="性格・記憶"></textarea>
-  <button onclick="saveMemory()">保存</button>
-
-  <textarea id="defaultMessage" placeholder="初期メッセージ"></textarea>
-  <button onclick="saveDefault()">保存</button>
-
-  <button onclick="closePanel()">閉じる</button>
+<button class="settings-btn" onclick="saveSettings()">保存</button>
+<button class="settings-btn settings-close" onclick="closeSettings()">閉じる</button>
+</div>
 </div>
 
 <script>
+
+/* ===== 初期ロード ===== */
 const bubble = document.getElementById("bubble");
-const input = document.getElementById("input");
-const character = document.getElementById("character");
+const thinking = document.getElementById("thinking");
 
-/* 起動時 */
-window.onload = ()=>{
-  const msg = localStorage.getItem("defaultMessage") || "こんにちは😊";
-  bubble.innerText = msg;
+const apiKeyInput = document.getElementById("apiKey");
+const memoryInput = document.getElementById("memory");
+const firstMsgInput = document.getElementById("firstMsg");
+
+apiKeyInput.value = localStorage.getItem("apiKey")||"";
+memoryInput.value = localStorage.getItem("memory")||"";
+firstMsgInput.value = localStorage.getItem("firstMsg")||"";
+
+if(firstMsgInput.value){
+bubble.innerText = firstMsgInput.value;
+}
+
+/* ===== 設定 ===== */
+document.getElementById("settingsBtn").onclick=()=>{
+document.getElementById("settings").style.display="flex";
 };
 
-/* 設定 */
-document.getElementById("settingsBtn").onclick = ()=>{
-  document.getElementById("settingsPanel").style.display="block";
+function closeSettings(){
+document.getElementById("settings").style.display="none";
+}
+
+function saveSettings(){
+localStorage.setItem("apiKey",apiKeyInput.value);
+localStorage.setItem("memory",memoryInput.value);
+localStorage.setItem("firstMsg",firstMsgInput.value);
+alert("保存したよ😊");
+}
+
+/* ===== 会話履歴 ===== */
+let history = JSON.parse(localStorage.getItem("history")||"[]");
+
+document.getElementById("historyBtn").onclick=()=>{
+alert(history.join("\n\n"));
 };
 
-function closePanel(){
-  document.getElementById("settingsPanel").style.display="none";
-}
+/* ===== 送信 ===== */
+document.getElementById("send").onclick=async()=>{
+const text = document.getElementById("input").value;
+if(!text)return;
 
-function saveKey(){
-  localStorage.setItem("apiKey", document.getElementById("apiKey").value);
-}
+bubble.innerText="";
+thinking.style.display="block";
 
-function saveMemory(){
-  localStorage.setItem("memory", document.getElementById("memoryBox").value);
-}
+const apiKey = localStorage.getItem("apiKey");
+const memory = localStorage.getItem("memory")||"";
 
-function saveDefault(){
-  localStorage.setItem("defaultMessage", document.getElementById("defaultMessage").value);
-}
-
-/* アプリボタン */
-document.getElementById("appBtn").onclick = ()=>{
-  alert("ここに機能追加できる");
-};
-
-/* 送信 */
-document.getElementById("send").onclick = sendMessage;
-
-async function sendMessage(){
-  const text = input.value;
-  if(!text) return;
-
-  input.value = "";
-
-  /* 考え中 */
-  bubble.innerText = "…";
-  character.src = "thinking.png";
-
-  const apiKey = localStorage.getItem("apiKey");
-  const memory = localStorage.getItem("memory") || "";
-
-  try{
-    const res = await fetch("https://api.openai.com/v1/chat/completions",{
-      method:"POST",
-      headers:{
-        "Content-Type":"application/json",
-        "Authorization":"Bearer "+apiKey
-      },
-      body:JSON.stringify({
-        model:"gpt-4o-mini",
-        messages:[
-          {role:"system",content:memory},
-          {role:"user",content:text}
-        ]
-      })
-    });
-
-    const data = await res.json();
-    let reply = data.choices[0].message.content;
-
-    /* 短くする */
-    reply = reply.slice(0,60);
-
-    bubble.innerText = reply;
-
-    /* 表情戻す */
-    character.src = "normal.png";
-
-  }catch(e){
-    bubble.innerText = "エラー";
-    character.src = "normal.png";
-  }
-}
-
-/* Enter送信 */
-input.addEventListener("keypress",(e)=>{
-  if(e.key==="Enter") sendMessage();
+try{
+const res = await fetch("https://api.openai.com/v1/chat/completions",{
+method:"POST",
+headers:{
+"Content-Type":"application/json",
+"Authorization":"Bearer "+apiKey
+},
+body:JSON.stringify({
+model:"gpt-4o-mini",
+messages:[
+{
+role:"system",
+content: memory + " 短く可愛く1〜2文で話す"
+},
+{role:"user",content:text}
+]
+})
 });
 
-/* 画像エラー対策 */
-character.onerror = ()=>{
-  character.src = "normal.png";
+const data = await res.json();
+let reply = data.choices[0].message.content;
+
+/* 短文化 */
+reply = reply.replace(/\n/g,"").slice(0,50);
+
+thinking.style.display="none";
+bubble.innerText = reply;
+
+/* 履歴保存 */
+history.push("👤 "+text);
+history.push("🤖 "+reply);
+localStorage.setItem("history",JSON.stringify(history));
+
+}catch(e){
+thinking.style.display="none";
+bubble.innerText="エラー…😢";
+}
+
+document.getElementById("input").value="";
 };
+
 </script>
 
 </body>
