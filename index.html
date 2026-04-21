@@ -28,10 +28,10 @@ object-position:center 28%;
 transform:scale(1.08);
 }
 
-/* ✅ 吹き出し（入力欄に寄せる） */
+/* 吹き出し（入力欄に寄せる） */
 #bubble{
 position:absolute;
-bottom:95px; /* ← 180 → 95 に調整（ここがポイント） */
+bottom:95px;
 left:50%;
 transform:translateX(-50%);
 width:85%;
@@ -44,7 +44,7 @@ backdrop-filter:blur(8px);
 z-index:5;
 }
 
-/* ✅ 入力エリア（白枠削除） */
+/* 入力エリア（白枠削除） */
 #inputArea{
 position:fixed;
 left:50%;
@@ -56,8 +56,6 @@ align-items:center;
 gap:6px;
 
 padding:8px 10px calc(env(safe-area-inset-bottom) + 10px);
-
-/* 🔥 白い枠を消す */
 background:transparent;
 border-radius:0;
 
@@ -99,38 +97,50 @@ background:#eee;
 font-size:16px;
 }
 
-/* 左 */
+/* 🔽 設定ボタン（左下・小さく） */
 #settingsBtn{
-position:absolute;
-top:20px;
-left:20px;
-width:50px;
-height:50px;
+position:fixed;
+bottom:calc(env(safe-area-inset-bottom) + 8px);
+left:16px;
+
+width:36px;
+height:36px;
 border-radius:50%;
-background:white;
+
+background:rgba(255,255,255,0.9);
 display:flex;
 align-items:center;
 justify-content:center;
-box-shadow:0 4px 10px rgba(0,0,0,0.2);
-font-size:22px;
+
+box-shadow:0 2px 6px rgba(0,0,0,0.15);
+font-size:16px;
 z-index:20;
 }
 
-/* 右 */
+/* 🔽 アプリボタン（右下・小さく） */
 #appBtn{
-position:absolute;
-top:20px;
-right:20px;
-width:50px;
-height:50px;
+position:fixed;
+bottom:calc(env(safe-area-inset-bottom) + 8px);
+right:16px;
+
+width:36px;
+height:36px;
 border-radius:50%;
-background:white;
+
+background:rgba(255,255,255,0.9);
 display:flex;
 align-items:center;
 justify-content:center;
-box-shadow:0 4px 10px rgba(0,0,0,0.2);
-font-size:20px;
+
+box-shadow:0 2px 6px rgba(0,0,0,0.15);
+font-size:14px;
 z-index:20;
+}
+
+/* 押した感 */
+#settingsBtn:active,
+#appBtn:active{
+transform:scale(0.9);
 }
 </style>
 </head>
@@ -162,19 +172,6 @@ document.getElementById("settingsBtn").onclick = ()=>{
     alert("保存したよ！");
   }
 };
-
-function adjustInputPosition(){
-  const bubble = document.getElementById("bubble");
-  const inputArea = document.getElementById("inputArea");
-  const rect = bubble.getBoundingClientRect();
-  inputArea.style.top = (rect.bottom + 8) + "px";
-}
-
-window.addEventListener("load", adjustInputPosition);
-window.addEventListener("resize", adjustInputPosition);
-
-const observer = new MutationObserver(adjustInputPosition);
-observer.observe(document.getElementById("bubble"), {childList:true});
 
 /* 感情 */
 function changeEmotion(text){
