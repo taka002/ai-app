@@ -112,10 +112,10 @@ background:#eee;
 font-size:16px;
 }
 
-/* ボタン（少し下げた） */
+/* ボタン */
 #settingsBtn, #appBtn{
 position:fixed;
-bottom:60px; /* ←ここ変更 */
+bottom:60px;
 width:44px;
 height:44px;
 border-radius:50%;
@@ -161,44 +161,58 @@ document.getElementById("settingsBtn").onclick = ()=>{
   }
 };
 
-/* 感情 */
-function changeEmotion(text){
-  let img = "normal.png";
-  if(text.includes("疲れ")) img="sad.png";
-  else if(text.includes("怒")) img="anger.png";
-  else if(text.includes("不安")) img="anxiety.png";
-  else if(text.includes("嬉")) img="happy.png";
-  else if(text.includes("驚")) img="surprise.png";
-  document.getElementById("character").src = img;
+/* ===== 感情判定（強化）===== */
+function getEmotion(text){
+  if(/嬉|ありがとう|助かった/.test(text)) return "happy.png";
+  if(/悲|辛|泣|しんど/.test(text)) return "sad.png";
+  if(/怒|イライラ/.test(text)) return "anger.png";
+  if(/不安|怖/.test(text)) return "anxiety.png";
+  if(/驚|え|！？/.test(text)) return "surprise.png";
+  return "normal.png";
 }
 
-/* 考え中 */
+/* ===== 表情制御（安定＋フェード）===== */
+let currentEmotion = "normal.png";
+
+function changeEmotion(text){
+  const chara = document.getElementById("character");
+  const next = getEmotion(text);
+
+  if(next === currentEmotion) return;
+  currentEmotion = next;
+
+  chara.style.transition = "opacity 0.4s";
+  chara.style.opacity = 0;
+
+  setTimeout(()=>{
+    chara.src = next;
+    chara.style.opacity = 1;
+  },200);
+}
+
+/* ===== 考え中 ===== */
 function startThinking(){
   const bubble = document.getElementById("bubble");
-  let dots = "";
-  let count = 0;
+  let dots = 0;
 
-  const interval = setInterval(()=>{
-    dots += "…";
-    bubble.innerText = dots;
-    count++;
-    if(count > 5){ dots=""; count=0; }
-  },300);
-
-  return interval;
+  return setInterval(()=>{
+    dots = (dots+1)%4;
+    bubble.innerText = "・・・".slice(0,dots+1);
+  },400);
 }
 
-/* 文字 */
+/* ===== タイピング ===== */
 async function typeText(text){
   const bubble = document.getElementById("bubble");
   bubble.innerText="";
+
   for(let i=0;i<text.length;i++){
     bubble.innerText += text[i];
     await new Promise(r=>setTimeout(r,25));
   }
 }
 
-/* API */
+/* ===== API ===== */
 async function getAIResponse(message){
   if(!API_KEY){
     return "設定からAPIキー入れてね🙏";
@@ -223,26 +237,36 @@ async function getAIResponse(message){
   return data.choices[0].message.content;
 }
 
-/* 送信 */
+/* ===== 送信 ===== */
 async function send(){
   const input = document.getElementById("input");
   const text = input.value;
   if(!text) return;
 
   input.value="";
-  document.getElementById("character").src="typing.png";
+  const chara = document.getElementById("character");
+
+  // typing状態
+  chara.src="typing.png";
 
   const thinking = startThinking();
 
   try{
     const reply = await getAIResponse(text);
+
     clearInterval(thinking);
+
     await typeText(reply);
-    changeEmotion(reply);
+
+    // 少し遅れて表情変化（自然）
+    setTimeout(()=>{
+      changeEmotion(reply);
+    },800);
+
   }catch(e){
     clearInterval(thinking);
     document.getElementById("bubble").innerText="エラー...";
-    document.getElementById("character").src="glitch.png";
+    chara.src="glitch.png";
   }
 }
 
