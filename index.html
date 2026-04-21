@@ -28,10 +28,10 @@ object-position:center 28%;
 transform:scale(1.08);
 }
 
-/* ✅ 吹き出し（上に逃がす） */
+/* ✅ 吹き出し（入力欄に寄せる） */
 #bubble{
 position:absolute;
-bottom:180px; /* ← ここ重要（120→180） */
+bottom:95px; /* ← 180 → 95 に調整（ここがポイント） */
 left:50%;
 transform:translateX(-50%);
 width:85%;
@@ -44,9 +44,9 @@ backdrop-filter:blur(8px);
 z-index:5;
 }
 
-/* ✅ 入力エリア（完全固定） */
+/* ✅ 入力エリア（白枠削除） */
 #inputArea{
-position:fixed; /* ← 最重要 */
+position:fixed;
 left:50%;
 transform:translateX(-50%);
 width:92%;
@@ -56,12 +56,12 @@ align-items:center;
 gap:6px;
 
 padding:8px 10px calc(env(safe-area-inset-bottom) + 10px);
-background:rgba(255,255,255,0.95);
-border-radius:20px;
+
+/* 🔥 白い枠を消す */
+background:transparent;
+border-radius:0;
 
 z-index:10;
-
-/* 🔥 常に一番下 */
 bottom:0;
 }
 
@@ -163,7 +163,6 @@ document.getElementById("settingsBtn").onclick = ()=>{
   }
 };
 
-/* （このまま残す：使わなくてもOK） */
 function adjustInputPosition(){
   const bubble = document.getElementById("bubble");
   const inputArea = document.getElementById("inputArea");
