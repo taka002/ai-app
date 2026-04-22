@@ -16,7 +16,6 @@ height:100dvh;
 overflow:hidden;
 }
 
-/* キャラ */
 #character{
 position:absolute;
 top:0;
@@ -28,7 +27,6 @@ object-position:center 28%;
 transform:scale(1.08);
 }
 
-/* 吹き出し */
 #bubble{
 position:absolute;
 bottom:110px;
@@ -46,7 +44,6 @@ backdrop-filter:blur(8px);
 z-index:5;
 }
 
-/* しっぽ */
 #bubble::after{
 content:"";
 position:absolute;
@@ -58,7 +55,6 @@ height:20px;
 background:rgba(255,255,255,0.9);
 }
 
-/* 入力エリア */
 #inputArea{
 position:fixed;
 left:50%;
@@ -108,7 +104,6 @@ font-size:16px;
 flex-shrink:0;
 }
 
-/* ボタン */
 #settingsBtn,#appBtn{
 position:fixed;
 bottom:70px;
@@ -180,7 +175,6 @@ const emotionGroups = {
   special:["glitch.png","robot.png"]
 };
 
-/* 感情判定 */
 function getEmotionGroup(text){
   if(/ありがとう|助か|嬉|最高/.test(text)) return "happy";
   if(/悲|辛|しんど|落ち込/.test(text)) return "sad";
@@ -198,7 +192,6 @@ function getEmotionGroup(text){
   return "calm";
 }
 
-/* 被り防止 */
 let lastImage="";
 function hashString(str){
   let hash=0;
@@ -219,7 +212,6 @@ function pickImage(list,text){
   return selected;
 }
 
-/* 表情変更 */
 function changeEmotion(text){
   const group=getEmotionGroup(text);
   const list=emotionGroups[group]||["normal.png"];
@@ -227,7 +219,32 @@ function changeEmotion(text){
   character.src=next;
 }
 
-/* タイピング */
+/* ===== 思考中 ===== */
+function startThinking(){
+  let dots=0;
+  return setInterval(()=>{
+    dots=(dots+1)%4;
+    bubble.innerText="・・・".slice(0,dots+1);
+  },400);
+}
+
+/* ===== 会話自然化（重要） ===== */
+function softText(t){
+
+  if(t.includes("。")){
+    t = t.split("。")[0] + "。";
+  }
+
+  return t
+    .replace(/です。/g,"だよ。")
+    .replace(/ます。/g,"するね。")
+    .replace(/でしょう。/g,"かな。")
+    .replace(/と思います。/g,"かな。")
+    .replace(/必要があります。/g,"したほうがいいかも。")
+    .slice(0,50);
+}
+
+/* ===== タイピング ===== */
 async function typeText(t){
   bubble.innerText="";
   for(let c of t){
@@ -236,28 +253,44 @@ async function typeText(t){
   }
 }
 
-/* AI */
+/* ===== AI（記憶反映） ===== */
 async function getAIResponse(msg){
-  const res = await fetch("https://api.openai.com/v1/chat/completions",{
-    method:"POST",
-    headers:{
-      "Content-Type":"application/json",
-      "Authorization":"Bearer "+API_KEY
-    },
-    body:JSON.stringify({
-      model:"gpt-4o-mini",
-      max_tokens:40,
-      messages:[
-        {role:"system",content:"短く自然な女性会話"},
-        {role:"user",content:msg}
-      ]
-    })
+
+  if(!API_KEY) return "設定からAPIキー入れてね🙏";
+
+  const history=[];
+  memory.forEach(m=>{
+    history.push({role:"user",content:m.user});
+    history.push({role:"assistant",content:m.ai});
   });
-  const d=await res.json();
-  return d.choices?.[0]?.message?.content || "うまく話せなかった";
+
+  try{
+    const res=await fetch("https://api.openai.com/v1/chat/completions",{
+      method:"POST",
+      headers:{
+        "Content-Type":"application/json",
+        "Authorization":"Bearer "+API_KEY
+      },
+      body:JSON.stringify({
+        model:"gpt-4o-mini",
+        max_tokens:60,
+        messages:[
+          {role:"system",content:"1文で話す女性キャラ。やさしく共感する。"},
+          ...history,
+          {role:"user",content:msg}
+        ]
+      })
+    });
+
+    const data=await res.json();
+    return data.choices?.[0]?.message?.content || "うまく返せなかった";
+
+  }catch{
+    return "通信エラー…";
+  }
 }
 
-/* 送信 */
+/* ===== 送信 ===== */
 async function send(){
   const text=input.value;
   if(!text) return;
@@ -265,7 +298,13 @@ async function send(){
   input.value="";
   character.src="typing.png";
 
-  const reply=await getAIResponse(text);
+  const thinking=startThinking();
+
+  let reply=await getAIResponse(text);
+
+  clearInterval(thinking);
+
+  reply=softText(reply);
 
   await typeText(reply);
   changeEmotion(reply);
