@@ -31,7 +31,7 @@ transform:scale(1.08);
 /* 吹き出し */
 #bubble{
 position:absolute;
-bottom:110px; /* ←下げた */
+bottom:110px;
 left:50%;
 transform:translateX(-50%);
 width:92%;
@@ -51,7 +51,7 @@ z-index:5;
 content:"";
 position:absolute;
 top:-10px;
-left:53%; /* ←口に合わせる */
+left:53%;
 transform:translateX(-50%) rotate(45deg);
 width:20px;
 height:20px;
@@ -72,16 +72,6 @@ background:rgba(255,255,255,0.95);
 border-radius:20px;
 z-index:10;
 bottom:0;
-}
-
-#mic{
-width:38px;
-height:38px;
-border-radius:50%;
-border:none;
-background:#eee;
-font-size:16px;
-flex-shrink:0;
 }
 
 #input{
@@ -108,7 +98,17 @@ flex-shrink:0;
 white-space:nowrap;
 }
 
-/* ボタン（小型化） */
+#mic{
+width:38px;
+height:38px;
+border-radius:50%;
+border:none;
+background:#eee;
+font-size:16px;
+flex-shrink:0;
+}
+
+/* ボタン */
 #settingsBtn,#appBtn{
 position:fixed;
 bottom:70px;
@@ -146,7 +146,7 @@ font-size:14px;
 <script>
 let API_KEY = localStorage.getItem("apiKey") || "";
 
-/* 記憶 */
+/* ===== 記憶 ===== */
 let memory = JSON.parse(localStorage.getItem("memory") || "[]");
 function saveMemory(user, ai){
   memory.push({user, ai});
@@ -154,7 +154,7 @@ function saveMemory(user, ai){
   localStorage.setItem("memory", JSON.stringify(memory));
 }
 
-/* 設定 */
+/* ===== 設定 ===== */
 settingsBtn.onclick = ()=>{
   const key = prompt("APIキー");
   if(key){
@@ -163,11 +163,68 @@ settingsBtn.onclick = ()=>{
   }
 };
 
-/* 表情 */
-function changeEmotion(t){
-  if(/嬉|ありがとう/.test(t)) character.src="happy.png";
-  else if(/悲|辛/.test(t)) character.src="sad.png";
-  else character.src="normal.png";
+/* ===== 表情29種 ===== */
+const emotionGroups = {
+  happy:["happy.png","smile.png","applause.png","impressed.png"],
+  sad:["sad.png","cry.png"],
+  anger:["anger.png","irritation.png"],
+  anxiety:["anxiety.png","panic.png"],
+  shy:["shy.png","embarrassed.png"],
+  surprise:["surprise.png","impressed.png"],
+  thinking:["curious.png","focused.png","explaining.png"],
+  agree:["agree.png"],
+  disagree:["disagree.png","refuse.png"],
+  calm:["relieved.png","normal.png"],
+  tired:["sleepy.png","hesitation.png"],
+  action:["hold.png","typing.png"],
+  special:["glitch.png","robot.png"]
+};
+
+/* 感情判定 */
+function getEmotionGroup(text){
+  if(/ありがとう|助か|嬉|最高/.test(text)) return "happy";
+  if(/悲|辛|しんど|落ち込/.test(text)) return "sad";
+  if(/泣/.test(text)) return "sad";
+  if(/怒|イライラ|ムカ/.test(text)) return "anger";
+  if(/不安|怖|心配/.test(text)) return "anxiety";
+  if(/無理|やばい/.test(text)) return "anxiety";
+  if(/恥|照/.test(text)) return "shy";
+  if(/え|！？|まじ/.test(text)) return "surprise";
+  if(/考え|どう思う|説明/.test(text)) return "thinking";
+  if(/そうだね|いいね/.test(text)) return "agree";
+  if(/違う|やだ/.test(text)) return "disagree";
+  if(/安心|よかった/.test(text)) return "calm";
+  if(/眠い|疲れ/.test(text)) return "tired";
+  return "calm";
+}
+
+/* 被り防止 */
+let lastImage="";
+function hashString(str){
+  let hash=0;
+  for(let i=0;i<str.length;i++){
+    hash = str.charCodeAt(i) + ((hash<<5)-hash);
+  }
+  return hash;
+}
+
+function pickImage(list,text){
+  let index=Math.abs(hashString(text))%list.length;
+  let selected=list[index];
+  if(selected===lastImage){
+    index=(index+1)%list.length;
+    selected=list[index];
+  }
+  lastImage=selected;
+  return selected;
+}
+
+/* 表情変更 */
+function changeEmotion(text){
+  const group=getEmotionGroup(text);
+  const list=emotionGroups[group]||["normal.png"];
+  const next=pickImage(list,text);
+  character.src=next;
 }
 
 /* タイピング */
@@ -196,23 +253,23 @@ async function getAIResponse(msg){
       ]
     })
   });
-  const d = await res.json();
+  const d=await res.json();
   return d.choices?.[0]?.message?.content || "うまく話せなかった";
 }
 
 /* 送信 */
 async function send(){
-  const text = input.value;
+  const text=input.value;
   if(!text) return;
 
   input.value="";
   character.src="typing.png";
 
-  const reply = await getAIResponse(text);
+  const reply=await getAIResponse(text);
 
   await typeText(reply);
   changeEmotion(reply);
-  saveMemory(text, reply);
+  saveMemory(text,reply);
 }
 </script>
 
