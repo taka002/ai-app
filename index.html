@@ -27,9 +27,10 @@ object-position:center 28%;
 transform:scale(1.08);
 }
 
+/* 吹き出し（口に合わせ調整） */
 #bubble{
 position:absolute;
-bottom:90px;
+bottom:120px;
 left:50%;
 transform:translateX(-50%);
 width:92%;
@@ -47,11 +48,11 @@ z-index:5;
 #bubble::after{
 content:"";
 position:absolute;
-top:-12px;
-left:50%;
+top:-10px;
+left:52%;
 transform:translateX(-50%) rotate(45deg);
-width:22px;
-height:22px;
+width:20px;
+height:20px;
 background:rgba(255,255,255,0.9);
 }
 
@@ -100,11 +101,12 @@ background:#eee;
 font-size:16px;
 }
 
+/* ボタン小型化 */
 #settingsBtn,#appBtn{
 position:fixed;
 bottom:60px;
-width:44px;
-height:44px;
+width:34px;
+height:34px;
 border-radius:50%;
 background:white;
 display:flex;
@@ -112,7 +114,7 @@ align-items:center;
 justify-content:center;
 box-shadow:0 4px 10px rgba(0,0,0,0.2);
 z-index:20;
-font-size:18px;
+font-size:14px;
 }
 
 #settingsBtn{left:20px;}
@@ -236,12 +238,10 @@ function hashString(str){
 function pickImage(list,text){
   let index=Math.abs(hashString(text))%list.length;
   let selected=list[index];
-
   if(selected===lastImage){
     index=(index+1)%list.length;
     selected=list[index];
   }
-
   lastImage=selected;
   return selected;
 }
@@ -263,7 +263,6 @@ function startThinking(){
 
 /* ===== 会話自然化 ===== */
 function softText(t){
-
   if(t.includes("。")){
     t = t.split("。")[0] + "。";
   }
@@ -272,7 +271,6 @@ function softText(t){
     .replace(/です。/g,"だよ。")
     .replace(/ます。/g,"するね。")
     .replace(/でしょう。/g,"かな。")
-    .replace(/と思います。/g,"かな。")
     .slice(0,40);
 
   if(userName && Math.random()<0.3){
