@@ -134,7 +134,18 @@ font-size:18px;
 </div>
 
 <script>
-let API_KEY = localStorage.getItem("apiKey") || "";
+let API_KEY = sessionStorage.getItem("apiKey") || "";
+
+/* ===== 初回API入力 ===== */
+if(!API_KEY){
+  setTimeout(()=>{
+    const key = prompt("APIキーを入力");
+    if(key){
+      sessionStorage.setItem("apiKey", key);
+      API_KEY = key;
+    }
+  },500);
+}
 
 /* ===== 長期記憶 ===== */
 let memory = JSON.parse(localStorage.getItem("memory") || "[]");
@@ -145,23 +156,23 @@ function saveMemory(user, ai){
   localStorage.setItem("memory", JSON.stringify(memory));
 }
 
-/* ===== 設定 ===== */
+/* ===== 設定（APIキー） ===== */
 document.getElementById("settingsBtn").onclick = ()=>{
   const key = prompt("APIキーを入力");
   if(key){
-    localStorage.setItem("apiKey", key);
+    sessionStorage.setItem("apiKey", key);
     API_KEY = key;
-    alert("保存したよ！");
+    alert("保存したよ！（このタブのみ有効）");
   }
 };
 
 /* ===== 表情 ===== */
 const emotionGroups = {
-  happy:["happy.png","smile.png","applause.png","impressed.png"],
+  happy:["happy.png","smile.png"],
   sad:["sad.png","cry.png"],
-  anger:["anger.png","irritation.png"],
-  anxiety:["anxiety.png","panic.png"],
-  calm:["relieved.png","normal.png"]
+  anger:["anger.png"],
+  anxiety:["anxiety.png"],
+  calm:["normal.png"]
 };
 
 function getEmotionGroup(text){
@@ -198,6 +209,33 @@ async function typeText(text){
   }
 }
 
+/* ===== TTS ===== */
+async function speak(text){
+  if(!API_KEY) return;
+
+  try{
+    const res = await fetch("https://api.openai.com/v1/audio/speech",{
+      method:"POST",
+      headers:{
+        "Authorization":"Bearer "+API_KEY,
+        "Content-Type":"application/json"
+      },
+      body:JSON.stringify({
+        model:"gpt-4o-mini-tts",
+        voice:"alloy",
+        input:text
+      })
+    });
+
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    new Audio(url).play();
+
+  }catch(e){
+    console.log("TTSエラー", e);
+  }
+}
+
 /* ===== API ===== */
 async function getAIResponse(message){
 
@@ -219,7 +257,7 @@ async function getAIResponse(message){
       body:JSON.stringify({
         model:"gpt-4o-mini",
         messages:[
-          {role:"system",content:"優しく短く話す女性キャラ"},
+          {role:"system",content:"短く自然に話す女性キャラ。少し甘め"},
           ...history,
           {role:"user",content:message}
         ]
@@ -250,6 +288,7 @@ async function send(){
   clearInterval(thinking);
   await typeText(reply);
   changeEmotion(reply);
+  speak(reply); // 🔥 音声
   saveMemory(text, reply);
 }
 
