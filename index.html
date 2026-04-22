@@ -28,10 +28,10 @@ object-position:center 28%;
 transform:scale(1.08);
 }
 
-/* 🔥 吹き出し（口元固定） */
+/* 🔥 吹き出し（口の下まで下げる） */
 #bubble{
 position:absolute;
-top:58%; /* ←口に合わせる */
+top:66%; /* ←ここだけ変更 */
 left:50%;
 transform:translateX(-50%);
 width:92%;
@@ -46,11 +46,11 @@ backdrop-filter:blur(8px);
 z-index:5;
 }
 
-/* 🔥 しっぽ（下に出す） */
+/* 🔥 しっぽ（上向き＝口に刺す） */
 #bubble::after{
 content:"";
 position:absolute;
-bottom:-10px; /* ←口に刺さる */
+top:-10px; /* ←ここだけ変更 */
 left:50%;
 transform:translateX(-50%) rotate(45deg);
 width:20px;
@@ -104,7 +104,7 @@ background:#eee;
 font-size:16px;
 }
 
-/* ボタン（そのまま） */
+/* ボタン */
 #settingsBtn,#appBtn{
 position:fixed;
 bottom:60px;
@@ -142,7 +142,7 @@ font-size:18px;
 <script>
 let API_KEY = localStorage.getItem("apiKey") || "";
 
-/* ===== 記憶 ===== */
+/* ===== 長期記憶 ===== */
 let memory = JSON.parse(localStorage.getItem("memory") || "[]");
 
 function saveMemory(user, ai){
@@ -152,15 +152,16 @@ function saveMemory(user, ai){
 }
 
 /* ===== 設定 ===== */
-settingsBtn.onclick = ()=>{
-  const key = prompt("APIキー");
+document.getElementById("settingsBtn").onclick = ()=>{
+  const key = prompt("APIキーを入力");
   if(key){
     localStorage.setItem("apiKey", key);
     API_KEY = key;
+    alert("保存したよ！");
   }
 };
 
-/* ===== 表情（29種対応） ===== */
+/* ===== 全画像 ===== */
 const emotionGroups = {
   happy:["happy.png","smile.png","applause.png","impressed.png"],
   sad:["sad.png","cry.png"],
@@ -172,39 +173,101 @@ const emotionGroups = {
   agree:["agree.png"],
   disagree:["disagree.png","refuse.png"],
   calm:["relieved.png","normal.png"],
-  tired:["sleepy.png","hesitation.png"]
+  tired:["sleepy.png","hesitation.png"],
+  action:["hold.png","typing.png"],
+  special:["glitch.png","robot.png"]
 };
 
+/* ===== 感情判定 ===== */
 function getEmotionGroup(text){
-  if(/ありがとう|嬉/.test(text)) return "happy";
-  if(/悲|辛|泣/.test(text)) return "sad";
-  if(/怒/.test(text)) return "anger";
-  if(/不安|怖/.test(text)) return "anxiety";
+
+  if(/ありがとう|助か|嬉|最高/.test(text)) return "happy";
+  if(/悲|辛|しんど|落ち込/.test(text)) return "sad";
+  if(/泣/.test(text)) return "sad";
+
+  if(/怒|イライラ|ムカ/.test(text)) return "anger";
+
+  if(/不安|怖|心配/.test(text)) return "anxiety";
+  if(/無理|やばい/.test(text)) return "anxiety";
+
+  if(/恥|照/.test(text)) return "shy";
+
+  if(/え|！？|まじ/.test(text)) return "surprise";
+
+  if(/考え|どう思う|説明/.test(text)) return "thinking";
+
+  if(/そうだね|いいね/.test(text)) return "agree";
+  if(/違う|やだ/.test(text)) return "disagree";
+
+  if(/安心|よかった/.test(text)) return "calm";
+
+  if(/眠い|疲れ/.test(text)) return "tired";
+
   return "calm";
 }
 
-function changeEmotion(text){
-  const list = emotionGroups[getEmotionGroup(text)];
-  character.src = list[Math.floor(Math.random()*list.length)];
+/* ===== 被り防止 ===== */
+let lastImage = "";
+
+function hashString(str){
+  let hash=0;
+  for(let i=0;i<str.length;i++){
+    hash = str.charCodeAt(i) + ((hash<<5)-hash);
+  }
+  return hash;
 }
 
-/* ===== タイピング ===== */
+function pickImage(list, text){
+  let index = Math.abs(hashString(text)) % list.length;
+  let selected = list[index];
+
+  if(selected === lastImage){
+    index = (index + 1) % list.length;
+    selected = list[index];
+  }
+
+  lastImage = selected;
+  return selected;
+}
+
+/* ===== 表情変更 ===== */
+function changeEmotion(text){
+  const group = getEmotionGroup(text);
+  const list = emotionGroups[group] || ["normal.png"];
+  const next = pickImage(list, text);
+  document.getElementById("character").src = next;
+}
+
+/* ===== 考え中 ===== */
+function startThinking(){
+  const bubble=document.getElementById("bubble");
+  let dots=0;
+  return setInterval(()=>{
+    dots=(dots+1)%4;
+    bubble.innerText="・・・".slice(0,dots+1);
+  },400);
+}
+
+/* ===== 文字表示 ===== */
 async function typeText(text){
+  const bubble=document.getElementById("bubble");
+
+  if(text.length>60){
+    bubble.style.fontSize="14px";
+  }else{
+    bubble.style.fontSize="16px";
+  }
+
   bubble.innerText="";
-  for(let c of text){
-    bubble.innerText+=c;
-    await new Promise(r=>setTimeout(r,15));
+  for(let i=0;i<text.length;i++){
+    bubble.innerText+=text[i];
+    await new Promise(r=>setTimeout(r,20));
   }
 }
 
-/* ===== AI ===== */
-async function getAIResponse(msg){
-
-  const history=[];
-  memory.forEach(m=>{
-    history.push({role:"user",content:m.user});
-    history.push({role:"assistant",content:m.ai});
-  });
+/* ===== API ===== */
+async function getAIResponse(message){
+  if(!API_KEY) return "設定からAPIキー入れてね🙏";
 
   const res=await fetch("https://api.openai.com/v1/chat/completions",{
     method:"POST",
@@ -215,43 +278,86 @@ async function getAIResponse(msg){
     body:JSON.stringify({
       model:"gpt-4o-mini",
       messages:[
-        {role:"system",content:"短く自然に話す女性キャラ"},
-        ...history,
-        {role:"user",content:msg}
+        {
+          role:"system",
+          content:"優しく寄り添う女性キャラ。自然な会話をする。"
+        },
+        ...memory.map(m=>[
+          {role:"user",content:m.user},
+          {role:"assistant",content:m.ai}
+        ]).flat(),
+        {role:"user",content:message}
       ]
     })
   });
 
   const data=await res.json();
-  return data.choices?.[0]?.message?.content || "うまく話せなかった…";
+  return data.choices[0].message.content;
 }
 
 /* ===== 送信 ===== */
 async function send(){
+  const input=document.getElementById("input");
   const text=input.value;
   if(!text) return;
 
   input.value="";
-  character.src="typing.png";
+  document.getElementById("character").src="typing.png";
 
-  const reply = await getAIResponse(text);
+  const thinking=startThinking();
 
-  await typeText(reply);
-  changeEmotion(reply);
-  saveMemory(text,reply);
+  try{
+    const reply=await getAIResponse(text);
+
+    clearInterval(thinking);
+    await typeText(reply);
+
+    changeEmotion(reply);
+    saveMemory(text, reply);
+
+  }catch{
+    clearInterval(thinking);
+    document.getElementById("bubble").innerText="エラー...";
+  }
 }
 
 /* ===== 音声入力 ===== */
-if ('webkitSpeechRecognition' in window){
-  const rec=new webkitSpeechRecognition();
-  rec.lang='ja-JP';
-  mic.onclick=()=>rec.start();
-  rec.onresult=e=>{
-    input.value=e.results[0][0].transcript;
+const micBtn = document.getElementById("mic");
+let recognition;
+
+if ('webkitSpeechRecognition' in window) {
+
+  recognition = new webkitSpeechRecognition();
+  recognition.lang = 'ja-JP';
+
+  micBtn.onclick = () => {
+    recognition.start();
+    micBtn.innerText = "🎙️";
+    micBtn.style.background = "#ffcccc";
+  };
+
+  recognition.onresult = (event) => {
+    const text = event.results[0][0].transcript;
+    document.getElementById("input").value = text;
+    micBtn.innerText = "🎤";
+    micBtn.style.background = "#eee";
     send();
   };
+
+  recognition.onerror = () => {
+    micBtn.innerText = "🎤";
+    micBtn.style.background = "#eee";
+  };
+
+  recognition.onend = () => {
+    micBtn.innerText = "🎤";
+    micBtn.style.background = "#eee";
+  };
+
 }else{
-  mic.onclick=()=>alert("非対応");
+  micBtn.onclick = () => {
+    alert("この端末は音声入力に対応してないよ🙏");
+  };
 }
 </script>
 
