@@ -31,26 +31,8 @@ border:1px solid rgba(255,255,255,0.4);
 box-shadow:0 8px 30px rgba(0,0,0,0.15);
 }
 
-/* ===== 🔥 しっぽ（向き修正） ===== */
-#bubble::after{
-content:"";
-position:absolute;
-bottom:-10px;
-left:var(--tail-x,50%);
-
-/* 🔥 ここが修正 */
-transform:translateX(-50%) rotate(-135deg);
-
-width:22px;
-height:22px;
-
-background:rgba(255,255,255,0.25);
-backdrop-filter:blur(20px);
--webkit-backdrop-filter:blur(20px);
-
-border-right:1px solid rgba(255,255,255,0.4);
-border-bottom:1px solid rgba(255,255,255,0.4);
-}
+/* 🔥 しっぽ削除 */
+#bubble::after{ display:none; }
 
 /* ===== 考え中 ===== */
 @keyframes thinkingFloat{
@@ -74,11 +56,8 @@ border-radius:18px;bottom:50px;overflow:hidden;
 }
 
 #mic{
-width:34px;height:34px;
-flex:0 0 34px;
-border-radius:50%;
-border:none;
-background:#eee;
+width:34px;height:34px;flex:0 0 34px;
+border-radius:50%;border:none;background:#eee;
 }
 
 #input{
@@ -88,23 +67,16 @@ font-size:13px;background:#eee;
 }
 
 #send{
-flex:0 0 auto;
-height:34px;padding:0 12px;border:none;
-border-radius:999px;background:#4da6ff;color:white;
-font-size:13px;
-white-space:nowrap;
+flex:0 0 auto;height:34px;padding:0 12px;
+border:none;border-radius:999px;background:#4da6ff;
+color:white;font-size:13px;white-space:nowrap;
 }
 
 /* ===== 下ボタン ===== */
 #settingsBtn,#appBtn{
-position:fixed;
-bottom:10px;
-width:36px;height:36px;
-border-radius:50%;
-background:white;
-display:flex;
-align-items:center;
-justify-content:center;
+position:fixed;bottom:10px;width:36px;height:36px;
+border-radius:50%;background:white;
+display:flex;align-items:center;justify-content:center;
 box-shadow:0 4px 10px rgba(0,0,0,0.2);
 font-size:16px;
 }
@@ -130,7 +102,7 @@ font-size:16px;
 <script>
 let API_KEY = localStorage.getItem("apiKey") || "";
 
-/* 記憶 */
+/* ===== 記憶 ===== */
 let memory = JSON.parse(localStorage.getItem("memory") || "[]");
 function saveMemory(u,a){
 memory.push({user:u,ai:a});
@@ -138,16 +110,36 @@ if(memory.length>20) memory.shift();
 localStorage.setItem("memory",JSON.stringify(memory));
 }
 
-/* 設定 */
-settingsBtn.onclick=()=>{
+/* ===== 設定 ===== */
+document.getElementById("settingsBtn").onclick = ()=>{
+const menu = prompt(`設定
+1:APIキー
+2:名前
+3:性格
+4:リセット`);
+
+if(menu==="1"){
 const key=prompt("APIキー");
-if(key){
-localStorage.setItem("apiKey",key);
-API_KEY=key;
+if(key){localStorage.setItem("apiKey",key);API_KEY=key;}
+}
+
+if(menu==="2"){
+const name=prompt("名前");
+if(name){localStorage.setItem("userName",name);}
+}
+
+if(menu==="3"){
+const mode=prompt("性格（優しい/ツンデレ等）");
+if(mode){localStorage.setItem("aiMode",mode);}
+}
+
+if(menu==="4"){
+localStorage.clear();
+alert("リセットしたよ");
 }
 };
 
-/* 表情 */
+/* ===== 表情 ===== */
 const emotionGroups={
 happy:["happy.png","smile.png"],
 sad:["sad.png","cry.png"],
@@ -177,7 +169,6 @@ currentEmotion=group;
 lastChangeTime=now;
 
 const list=emotionGroups[group];
-
 let img;
 do{
 img=list[Math.floor(Math.random()*list.length)];
@@ -187,7 +178,17 @@ lastImage=img;
 character.src=img;
 }
 
-/* タイピング */
+/* ===== 名前呼び ===== */
+function addName(text){
+const name=localStorage.getItem("userName");
+if(!name) return text;
+if(Math.random()<0.4){
+return name+"、"+text;
+}
+return text;
+}
+
+/* ===== タイピング ===== */
 async function typeText(t){
 bubble.innerText="";
 for(let c of t){
@@ -196,9 +197,12 @@ await new Promise(r=>setTimeout(r,15));
 }
 }
 
-/* AI */
+/* ===== AI ===== */
 async function getAIResponse(msg){
 if(!API_KEY) return "APIキー入れてね";
+
+const name=localStorage.getItem("userName")||"";
+const mode=localStorage.getItem("aiMode")||"優しい";
 
 const r=await fetch("https://api.openai.com/v1/chat/completions",{
 method:"POST",
@@ -209,7 +213,7 @@ headers:{
 body:JSON.stringify({
 model:"gpt-4o-mini",
 messages:[
-{role:"system",content:"短く自然な女性会話"},
+{role:"system",content:`${mode}女性キャラ。${name}と自然に会話。短く優しく。`},
 ...memory.flatMap(m=>[
 {role:"user",content:m.user},
 {role:"assistant",content:m.ai}
@@ -223,7 +227,7 @@ const d=await r.json();
 return d.choices?.[0]?.message?.content||"うまく話せない";
 }
 
-/* 考え中 */
+/* ===== 考え中 ===== */
 function startThinking(){
 bubble.classList.add("thinking");
 let dots=0;
@@ -233,7 +237,7 @@ bubble.innerText="考え中" + "…".slice(0,dots+1);
 },400);
 }
 
-/* 送信 */
+/* ===== 送信 ===== */
 async function send(){
 const text=input.value;
 if(!text) return;
@@ -243,31 +247,19 @@ character.src="typing.png";
 
 const thinking=startThinking();
 
-const reply=await getAIResponse(text);
+let reply=await getAIResponse(text);
 
 clearInterval(thinking);
 bubble.classList.remove("thinking");
 
+reply=addName(reply);
+
 await typeText(reply);
 changeEmotion(reply);
 saveMemory(text,reply);
-
-followMouth();
 }
 
-/* しっぽ追従 */
-function followMouth(){
-const rect=character.getBoundingClientRect();
-const bubbleRect=bubble.getBoundingClientRect();
-const mouthX=rect.left+rect.width*0.5;
-const offsetX=mouthX-bubbleRect.left;
-bubble.style.setProperty('--tail-x',offsetX+'px');
-}
-
-window.addEventListener("load",followMouth);
-window.addEventListener("resize",followMouth);
-
-/* 音声入力 */
+/* ===== 音声入力 ===== */
 if ('webkitSpeechRecognition' in window){
 const rec=new webkitSpeechRecognition();
 rec.lang='ja-JP';
