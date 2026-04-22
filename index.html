@@ -16,7 +16,6 @@ height:100dvh;
 overflow:hidden;
 }
 
-/* キャラ */
 #character{
 position:absolute;
 top:0;
@@ -28,7 +27,6 @@ object-position:center 28%;
 transform:scale(1.08);
 }
 
-/* 吹き出し */
 #bubble{
 position:absolute;
 bottom:90px;
@@ -46,7 +44,6 @@ backdrop-filter:blur(8px);
 z-index:5;
 }
 
-/* しっぽ（ズレ防止固定） */
 #bubble::after{
 content:"";
 position:absolute;
@@ -58,7 +55,6 @@ height:20px;
 background:rgba(255,255,255,0.9);
 }
 
-/* 入力エリア */
 #inputArea{
 position:fixed;
 left:50%;
@@ -103,7 +99,6 @@ background:#eee;
 font-size:16px;
 }
 
-/* ボタン */
 #settingsBtn,#appBtn{
 position:fixed;
 bottom:60px;
@@ -141,6 +136,22 @@ font-size:18px;
 <script>
 let API_KEY = localStorage.getItem("apiKey") || "";
 
+/* ===== 名前記憶 ===== */
+let userName = localStorage.getItem("userName") || "";
+
+function askName(){
+  if(!userName){
+    setTimeout(()=>{
+      const name = prompt("名前、なんて呼べばいい？");
+      if(name){
+        userName = name;
+        localStorage.setItem("userName", name);
+      }
+    },800);
+  }
+}
+askName();
+
 /* ===== 長期記憶 ===== */
 let memory = JSON.parse(localStorage.getItem("memory") || "[]");
 
@@ -148,6 +159,17 @@ function saveMemory(user, ai){
   memory.push({user, ai});
   if(memory.length > 20) memory.shift();
   localStorage.setItem("memory", JSON.stringify(memory));
+}
+
+/* ===== 悩み記憶 ===== */
+let worries = JSON.parse(localStorage.getItem("worries") || "[]");
+
+function saveWorry(text){
+  if(/悩|つら|不安|しんど|悲/.test(text)){
+    worries.push(text);
+    if(worries.length > 10) worries.shift();
+    localStorage.setItem("worries", JSON.stringify(worries));
+  }
 }
 
 /* ===== 設定 ===== */
@@ -159,22 +181,18 @@ settingsBtn.onclick=()=>{
   }
 };
 
-/* ===== 画像グループ ===== */
+/* ===== 表情 ===== */
 const emotionGroups={
-  happy:["happy.png","smile.png","applause.png"],
+  happy:["happy.png","smile.png"],
   sad:["sad.png","cry.png"],
-  anger:["anger.png","irritation.png"],
-  anxiety:["anxiety.png","panic.png"],
-  calm:["relieved.png","normal.png"],
-  thinking:["curious.png","focused.png"]
+  anxiety:["anxiety.png"],
+  calm:["normal.png"]
 };
 
 function getEmotionGroup(t){
-  if(/ありがとう|嬉/.test(t)) return "happy";
+  if(/嬉|ありがとう/.test(t)) return "happy";
   if(/悲|辛/.test(t)) return "sad";
-  if(/怒/.test(t)) return "anger";
   if(/不安|怖/.test(t)) return "anxiety";
-  if(/考え/.test(t)) return "thinking";
   return "calm";
 }
 
@@ -183,20 +201,32 @@ function changeEmotion(t){
   character.src=list[Math.floor(Math.random()*list.length)];
 }
 
-/* ===== 会話化（重要） ===== */
+/* ===== 名前付与 ===== */
+function addName(t){
+  if(!userName) return t;
+  if(Math.random()<0.5){
+    return userName + "、" + t;
+  }
+  return t;
+}
+
+/* ===== 会話化 ===== */
 function softText(t){
 
-  // 1文制限
-  t=t.split(/[。！？]/)[0];
+  t = t.split(/[。！？]/)[0];
 
-  return t
+  t = t
+    .replace(/分かりする/g,"わかる")
+    .replace(/分かります/g,"わかるよ")
+    .replace(/必要があります/g,"したほうがいいかも")
+    .replace(/危険です/g,"ちょっと心配かも")
     .replace(/です/g,"だよ")
     .replace(/ます/g,"するね")
     .replace(/でしょう/g,"かな")
-    .replace(/と思います/g,"かな")
-    .replace(/必要があります/g,"したほうがいいかも")
-    .replace(/。/g,"〜")
-    .slice(0,30);
+    .replace(/だから.*/,"")
+    .slice(0,25);
+
+  return addName(t);
 }
 
 /* ===== タイピング ===== */
@@ -258,7 +288,11 @@ async function getAIResponse(msg){
       messages:[
         {
           role:"system",
-          content:"短く一言で話す甘めの女性キャラ。共感だけ返す。"
+          content:"一言だけで返す女性キャラ。共感だけ。名前を自然に呼ぶ。"
+        },
+        {
+          role:"system",
+          content:"過去の悩み: "+worries.join(" / ")
         },
         ...history,
         {role:"user",content:msg}
@@ -277,6 +311,8 @@ async function send(){
 
   input.value="";
   character.src="typing.png";
+
+  saveWorry(text);
 
   const thinking=setInterval(()=>{
     bubble.innerText="・・・";
