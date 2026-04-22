@@ -7,15 +7,113 @@
 
 <style>
 *{box-sizing:border-box;}
-body{margin:0;font-family:sans-serif;background:#f5f5f5;height:100dvh;overflow:hidden;}
-#character{position:absolute;top:0;left:0;width:100%;height:100%;object-fit:cover;object-position:center 28%;transform:scale(1.08);}
-#bubble{position:absolute;bottom:90px;left:50%;transform:translateX(-50%);width:92%;max-width:92%;background:rgba(255,255,255,0.9);border-radius:25px;padding:14px;font-size:16px;line-height:1.4;text-align:center;backdrop-filter:blur(8px);z-index:5;}
-#bubble::after{content:"";position:absolute;top:-12px;left:50%;transform:translateX(-50%) rotate(45deg);width:22px;height:22px;background:rgba(255,255,255,0.9);}
-#inputArea{position:fixed;left:50%;transform:translateX(-50%);width:92%;display:flex;align-items:center;gap:6px;padding:8px 10px calc(env(safe-area-inset-bottom) + 10px);background:rgba(255,255,255,0.95);border-radius:20px;z-index:10;bottom:0;}
-#input{flex:1;height:38px;padding:0 10px;border-radius:18px;border:none;font-size:14px;background:#eee;}
-#send{height:38px;padding:0 14px;border:none;border-radius:999px;background:#4da6ff;color:white;font-size:14px;}
-#mic{width:38px;height:38px;border-radius:50%;border:none;background:#eee;font-size:16px;}
-#settingsBtn,#appBtn{position:fixed;bottom:60px;width:44px;height:44px;border-radius:50%;background:white;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 10px rgba(0,0,0,0.2);z-index:20;font-size:18px;}
+
+body{
+margin:0;
+font-family:sans-serif;
+background:#f5f5f5;
+height:100dvh;
+overflow:hidden;
+}
+
+#character{
+position:absolute;
+top:0;
+left:0;
+width:100%;
+height:100%;
+object-fit:cover;
+object-position:center 28%;
+transform:scale(1.08);
+}
+
+#bubble{
+position:absolute;
+bottom:90px;
+left:50%;
+transform:translateX(-50%);
+width:92%;
+max-width:92%;
+background:rgba(255,255,255,0.9);
+border-radius:25px;
+padding:14px;
+font-size:16px;
+line-height:1.4;
+text-align:center;
+backdrop-filter:blur(8px);
+z-index:5;
+}
+
+#bubble::after{
+content:"";
+position:absolute;
+top:-12px;
+left:50%;
+transform:translateX(-50%) rotate(45deg);
+width:22px;
+height:22px;
+background:rgba(255,255,255,0.9);
+}
+
+#inputArea{
+position:fixed;
+left:50%;
+transform:translateX(-50%);
+width:92%;
+display:flex;
+align-items:center;
+gap:6px;
+padding:8px 10px calc(env(safe-area-inset-bottom) + 10px);
+background:rgba(255,255,255,0.95);
+border-radius:20px;
+z-index:10;
+bottom:0;
+}
+
+#input{
+flex:1;
+height:38px;
+padding:0 10px;
+border-radius:18px;
+border:none;
+font-size:14px;
+background:#eee;
+}
+
+#send{
+height:38px;
+padding:0 14px;
+border:none;
+border-radius:999px;
+background:#4da6ff;
+color:white;
+font-size:14px;
+}
+
+#mic{
+width:38px;
+height:38px;
+border-radius:50%;
+border:none;
+background:#eee;
+font-size:16px;
+}
+
+#settingsBtn,#appBtn{
+position:fixed;
+bottom:60px;
+width:44px;
+height:44px;
+border-radius:50%;
+background:white;
+display:flex;
+align-items:center;
+justify-content:center;
+box-shadow:0 4px 10px rgba(0,0,0,0.2);
+z-index:20;
+font-size:18px;
+}
+
 #settingsBtn{left:20px;}
 #appBtn{right:20px;}
 </style>
@@ -38,7 +136,7 @@ body{margin:0;font-family:sans-serif;background:#f5f5f5;height:100dvh;overflow:h
 <script>
 let API_KEY = sessionStorage.getItem("apiKey") || "";
 
-/* 初回API入力 */
+/* ===== 初回API入力 ===== */
 if(!API_KEY){
   setTimeout(()=>{
     const key = prompt("APIキーを入力");
@@ -49,24 +147,25 @@ if(!API_KEY){
   },500);
 }
 
-/* 記憶 */
+/* ===== 長期記憶 ===== */
 let memory = JSON.parse(localStorage.getItem("memory") || "[]");
-function saveMemory(u,a){
-  memory.push({user:u,ai:a});
-  if(memory.length>20) memory.shift();
-  localStorage.setItem("memory",JSON.stringify(memory));
+
+function saveMemory(user, ai){
+  memory.push({user, ai});
+  if(memory.length > 20) memory.shift();
+  localStorage.setItem("memory", JSON.stringify(memory));
 }
 
-/* 設定 */
-settingsBtn.onclick=()=>{
-  const key=prompt("APIキー");
+/* ===== 設定 ===== */
+document.getElementById("settingsBtn").onclick = ()=>{
+  const key = prompt("APIキーを入力");
   if(key){
-    sessionStorage.setItem("apiKey",key);
-    API_KEY=key;
+    sessionStorage.setItem("apiKey", key);
+    API_KEY = key;
   }
 };
 
-/* 表情 */
+/* ===== 表情 ===== */
 const emo={
   happy:["happy.png","smile.png"],
   sad:["sad.png","cry.png"],
@@ -81,26 +180,25 @@ function changeEmotion(t){
   else character.src=emo.calm[0];
 }
 
-/* 🔥 アニメ声用テキスト変換 */
+/* ===== 会話特化変換 ===== */
 function softText(t){
 
   if(t.includes("。")){
-    t = t.split("。")[0];
+    t = t.split("。")[0] + "。";
   }
 
   return t
-    .replace(/です/g,"だよ")
-    .replace(/ます/g,"するね")
-    .replace(/でしょう/g,"かな")
-    .replace(/と思います/g,"かな")
-    .replace(/必要があります/g,"したほうがいいかも")
-    .replace(/。/g,"〜")
-    .replace(/！/g,"〜！")
-    .replace(/？/g,"〜？")
+    .replace(/です。/g,"だよ。")
+    .replace(/ます。/g,"するね。")
+    .replace(/でしょう。/g,"かな。")
+    .replace(/と思います。/g,"かな。")
+    .replace(/必要があります。/g,"したほうがいいかも。")
+    .replace(/本当に/g,"")
+    .replace(/少しでも/g,"")
     .slice(0,40);
 }
 
-/* タイピング */
+/* ===== タイピング ===== */
 async function typeText(t){
   bubble.innerText="";
   for(let c of t){
@@ -109,7 +207,7 @@ async function typeText(t){
   }
 }
 
-/* 🔥 TTS（アニメ寄り） */
+/* ===== TTS ===== */
 async function speak(t){
   if(!API_KEY) return;
 
@@ -122,8 +220,7 @@ async function speak(t){
       },
       body:JSON.stringify({
         model:"gpt-4o-mini-tts",
-        voice:"nova",
-        speed:1.15,
+        voice:"alloy",
         input:t
       })
     });
@@ -136,7 +233,7 @@ async function speak(t){
   }
 }
 
-/* AI */
+/* ===== AI ===== */
 async function getAIResponse(msg){
 
   if(!API_KEY) return "設定からAPIキー入れてね🙏";
@@ -159,7 +256,7 @@ async function getAIResponse(msg){
       messages:[
         {
           role:"system",
-          content:"甘え気味で可愛い女性キャラ。1文で短く話す。説明しない。"
+          content:"1文だけで話す女性キャラ。説明は禁止。短く共感だけ返す。語尾はやわらかく。"
         },
         ...history,
         {role:"user",content:msg}
@@ -168,10 +265,10 @@ async function getAIResponse(msg){
   });
 
   const d=await r.json();
-  return d.choices?.[0]?.message?.content || "うまく話せなかった〜";
+  return d.choices?.[0]?.message?.content || "うまく話せなかった…";
 }
 
-/* 送信 */
+/* ===== 送信 ===== */
 async function send(){
   const text=input.value;
   if(!text) return;
@@ -195,7 +292,7 @@ async function send(){
   saveMemory(text,reply);
 }
 
-/* 音声入力 */
+/* ===== 音声入力 ===== */
 if ('webkitSpeechRecognition' in window){
   const rec=new webkitSpeechRecognition();
   rec.lang='ja-JP';
