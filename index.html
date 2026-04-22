@@ -14,30 +14,45 @@ position:absolute;top:0;left:0;width:100%;height:100%;
 object-fit:cover;object-position:center 28%;transform:scale(1.08);
 }
 
-/* 吹き出し（ガラス） */
+/* ===== 吹き出し（ガラス） ===== */
 #bubble{
 position:absolute;bottom:65px;left:50%;transform:translateX(-50%);
-width:92%;background:rgba(255,255,255,0.25);
-backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
-border-radius:25px;padding:14px;font-size:16px;line-height:1.4;
-text-align:center;z-index:5;
+width:92%;
+background:rgba(255,255,255,0.25);
+backdrop-filter:blur(20px);
+-webkit-backdrop-filter:blur(20px);
+border-radius:25px;
+padding:14px;
+font-size:16px;
+line-height:1.4;
+text-align:center;
+z-index:5;
 border:1px solid rgba(255,255,255,0.4);
 box-shadow:0 8px 30px rgba(0,0,0,0.15);
 }
 
-/* しっぽ */
+/* ===== 🔥 しっぽ（向き修正） ===== */
 #bubble::after{
-content:"";position:absolute;bottom:-10px;
+content:"";
+position:absolute;
+bottom:-10px;
 left:var(--tail-x,50%);
-transform:translateX(-50%) rotate(45deg);
-width:22px;height:22px;
+
+/* 🔥 ここが修正 */
+transform:translateX(-50%) rotate(-135deg);
+
+width:22px;
+height:22px;
+
 background:rgba(255,255,255,0.25);
 backdrop-filter:blur(20px);
+-webkit-backdrop-filter:blur(20px);
+
 border-right:1px solid rgba(255,255,255,0.4);
 border-bottom:1px solid rgba(255,255,255,0.4);
 }
 
-/* 考え中 */
+/* ===== 考え中 ===== */
 @keyframes thinkingFloat{
 0%{transform:translateX(-50%) translateY(0);}
 50%{transform:translateX(-50%) translateY(-4px);}
@@ -49,7 +64,7 @@ backdrop-filter:blur(25px);
 animation:thinkingFloat 1.5s infinite;
 }
 
-/* 入力 */
+/* ===== 入力 ===== */
 #inputArea{
 position:fixed;left:50%;transform:translateX(-50%);
 width:92%;display:flex;align-items:center;gap:6px;
@@ -58,7 +73,13 @@ background:rgba(255,255,255,0.95);
 border-radius:18px;bottom:50px;overflow:hidden;
 }
 
-#mic{width:34px;height:34px;flex:0 0 34px;border-radius:50%;border:none;background:#eee;}
+#mic{
+width:34px;height:34px;
+flex:0 0 34px;
+border-radius:50%;
+border:none;
+background:#eee;
+}
 
 #input{
 flex:1;min-width:0;max-width:60%;
@@ -67,16 +88,25 @@ font-size:13px;background:#eee;
 }
 
 #send{
-flex:0 0 auto;height:34px;padding:0 12px;border:none;
-border-radius:999px;background:#4da6ff;color:white;font-size:13px;
+flex:0 0 auto;
+height:34px;padding:0 12px;border:none;
+border-radius:999px;background:#4da6ff;color:white;
+font-size:13px;
 white-space:nowrap;
 }
 
-/* 下ボタン */
+/* ===== 下ボタン ===== */
 #settingsBtn,#appBtn{
-position:fixed;bottom:10px;width:36px;height:36px;border-radius:50%;
-background:white;display:flex;align-items:center;justify-content:center;
-box-shadow:0 4px 10px rgba(0,0,0,0.2);font-size:16px;
+position:fixed;
+bottom:10px;
+width:36px;height:36px;
+border-radius:50%;
+background:white;
+display:flex;
+align-items:center;
+justify-content:center;
+box-shadow:0 4px 10px rgba(0,0,0,0.2);
+font-size:16px;
 }
 #settingsBtn{left:calc(50% - 45px);}
 #appBtn{left:calc(50% + 10px);}
@@ -100,60 +130,53 @@ box-shadow:0 4px 10px rgba(0,0,0,0.2);font-size:16px;
 <script>
 let API_KEY = localStorage.getItem("apiKey") || "";
 
-/* ===== 記憶 ===== */
+/* 記憶 */
 let memory = JSON.parse(localStorage.getItem("memory") || "[]");
 function saveMemory(u,a){
-  memory.push({user:u,ai:a});
-  if(memory.length>20) memory.shift();
-  localStorage.setItem("memory",JSON.stringify(memory));
+memory.push({user:u,ai:a});
+if(memory.length>20) memory.shift();
+localStorage.setItem("memory",JSON.stringify(memory));
 }
 
-/* ===== 設定 ===== */
+/* 設定 */
 settingsBtn.onclick=()=>{
-  const key=prompt("APIキー");
-  if(key){
-    localStorage.setItem("apiKey",key);
-    API_KEY=key;
-  }
+const key=prompt("APIキー");
+if(key){
+localStorage.setItem("apiKey",key);
+API_KEY=key;
+}
 };
 
-/* ===== 表情（29種対応ベース） ===== */
+/* 表情 */
 const emotionGroups={
-happy:["happy.png","smile.png","applause.png"],
+happy:["happy.png","smile.png"],
 sad:["sad.png","cry.png"],
-anger:["anger.png"],
-anxiety:["anxiety.png"],
 calm:["normal.png"]
 };
 
 function getEmotionGroup(t){
 if(/嬉|ありがとう/.test(t)) return "happy";
 if(/悲|辛/.test(t)) return "sad";
-if(/怒/.test(t)) return "anger";
-if(/不安|怖/.test(t)) return "anxiety";
 return "calm";
 }
 
-/* 🔥 自然化ロジック */
 let currentEmotion="";
 let lastChangeTime=0;
 let lastImage="";
 
 function changeEmotion(text){
-
 const group=getEmotionGroup(text);
 const now=Date.now();
 
-/* 同じ感情なら基本変えない */
 if(group===currentEmotion){
-  if(Math.random()>0.2) return;
-  if(now-lastChangeTime<2000) return;
+if(Math.random()>0.2) return;
+if(now-lastChangeTime<2000) return;
 }
 
 currentEmotion=group;
 lastChangeTime=now;
 
-const list=emotionGroups[group]||["normal.png"];
+const list=emotionGroups[group];
 
 let img;
 do{
@@ -164,7 +187,7 @@ lastImage=img;
 character.src=img;
 }
 
-/* ===== タイピング ===== */
+/* タイピング */
 async function typeText(t){
 bubble.innerText="";
 for(let c of t){
@@ -173,7 +196,7 @@ await new Promise(r=>setTimeout(r,15));
 }
 }
 
-/* ===== AI ===== */
+/* AI */
 async function getAIResponse(msg){
 if(!API_KEY) return "APIキー入れてね";
 
@@ -200,7 +223,7 @@ const d=await r.json();
 return d.choices?.[0]?.message?.content||"うまく話せない";
 }
 
-/* ===== 考え中 ===== */
+/* 考え中 */
 function startThinking(){
 bubble.classList.add("thinking");
 let dots=0;
@@ -210,7 +233,7 @@ bubble.innerText="考え中" + "…".slice(0,dots+1);
 },400);
 }
 
-/* ===== 送信 ===== */
+/* 送信 */
 async function send(){
 const text=input.value;
 if(!text) return;
@@ -232,7 +255,7 @@ saveMemory(text,reply);
 followMouth();
 }
 
-/* ===== しっぽ追従 ===== */
+/* しっぽ追従 */
 function followMouth(){
 const rect=character.getBoundingClientRect();
 const bubbleRect=bubble.getBoundingClientRect();
@@ -244,7 +267,7 @@ bubble.style.setProperty('--tail-x',offsetX+'px');
 window.addEventListener("load",followMouth);
 window.addEventListener("resize",followMouth);
 
-/* ===== 音声入力 ===== */
+/* 音声入力 */
 if ('webkitSpeechRecognition' in window){
 const rec=new webkitSpeechRecognition();
 rec.lang='ja-JP';
