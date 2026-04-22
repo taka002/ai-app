@@ -141,6 +141,16 @@ font-size:14px;
 <script>
 let API_KEY = localStorage.getItem("apiKey") || "";
 
+/* ===== 性格モード ===== */
+let mode = localStorage.getItem("mode") || "優しい";
+
+const modePrompts = {
+  "優しい":"やさしく寄り添う女性。共感重視。",
+  "甘え":"少し甘えた女性。距離近めで話す。",
+  "ツンデレ":"基本ツンだけど少し優しい女性。",
+  "冷静":"落ち着いた女性。淡々と短く話す。"
+};
+
 /* ===== 記憶 ===== */
 let memory = JSON.parse(localStorage.getItem("memory") || "[]");
 function saveMemory(user, ai){
@@ -151,10 +161,29 @@ function saveMemory(user, ai){
 
 /* ===== 設定 ===== */
 settingsBtn.onclick = ()=>{
-  const key = prompt("APIキー");
-  if(key){
-    localStorage.setItem("apiKey", key);
-    API_KEY = key;
+  const choice = prompt(
+`設定
+1: APIキー
+2: 性格モード
+
+現在: ${mode}`
+  );
+
+  if(choice === "1"){
+    const key = prompt("APIキー");
+    if(key){
+      localStorage.setItem("apiKey", key);
+      API_KEY = key;
+    }
+  }
+
+  if(choice === "2"){
+    const m = prompt("優しい / 甘え / ツンデレ / 冷静");
+    if(modePrompts[m]){
+      mode = m;
+      localStorage.setItem("mode", m);
+      alert("変更: " + m);
+    }
   }
 };
 
@@ -177,18 +206,9 @@ const emotionGroups = {
 
 function getEmotionGroup(text){
   if(/ありがとう|助か|嬉|最高/.test(text)) return "happy";
-  if(/悲|辛|しんど|落ち込/.test(text)) return "sad";
-  if(/泣/.test(text)) return "sad";
-  if(/怒|イライラ|ムカ/.test(text)) return "anger";
-  if(/不安|怖|心配/.test(text)) return "anxiety";
-  if(/無理|やばい/.test(text)) return "anxiety";
-  if(/恥|照/.test(text)) return "shy";
-  if(/え|！？|まじ/.test(text)) return "surprise";
-  if(/考え|どう思う|説明/.test(text)) return "thinking";
-  if(/そうだね|いいね/.test(text)) return "agree";
-  if(/違う|やだ/.test(text)) return "disagree";
-  if(/安心|よかった/.test(text)) return "calm";
-  if(/眠い|疲れ/.test(text)) return "tired";
+  if(/悲|辛|落ち込/.test(text)) return "sad";
+  if(/怒|イライラ/.test(text)) return "anger";
+  if(/不安|怖/.test(text)) return "anxiety";
   return "calm";
 }
 
@@ -215,8 +235,7 @@ function pickImage(list,text){
 function changeEmotion(text){
   const group=getEmotionGroup(text);
   const list=emotionGroups[group]||["normal.png"];
-  const next=pickImage(list,text);
-  character.src=next;
+  character.src=pickImage(list,text);
 }
 
 /* ===== 思考中 ===== */
@@ -228,20 +247,15 @@ function startThinking(){
   },400);
 }
 
-/* ===== 会話自然化（重要） ===== */
+/* ===== 会話自然化 ===== */
 function softText(t){
-
   if(t.includes("。")){
     t = t.split("。")[0] + "。";
   }
-
   return t
     .replace(/です。/g,"だよ。")
     .replace(/ます。/g,"するね。")
-    .replace(/でしょう。/g,"かな。")
-    .replace(/と思います。/g,"かな。")
-    .replace(/必要があります。/g,"したほうがいいかも。")
-    .slice(0,50);
+    .slice(0,40);
 }
 
 /* ===== タイピング ===== */
@@ -253,7 +267,7 @@ async function typeText(t){
   }
 }
 
-/* ===== AI（記憶反映） ===== */
+/* ===== AI ===== */
 async function getAIResponse(msg){
 
   if(!API_KEY) return "設定からAPIキー入れてね🙏";
@@ -275,7 +289,10 @@ async function getAIResponse(msg){
         model:"gpt-4o-mini",
         max_tokens:60,
         messages:[
-          {role:"system",content:"1文で話す女性キャラ。やさしく共感する。"},
+          {
+            role:"system",
+            content:`1文で話す女性キャラ。${modePrompts[mode]} 共感優先`
+          },
           ...history,
           {role:"user",content:msg}
         ]
@@ -283,7 +300,7 @@ async function getAIResponse(msg){
     });
 
     const data=await res.json();
-    return data.choices?.[0]?.message?.content || "うまく返せなかった";
+    return data.choices?.[0]?.message?.content || "うまく話せなかった";
 
   }catch{
     return "通信エラー…";
