@@ -29,7 +29,7 @@ transform:scale(1.08);
 
 #bubble{
 position:absolute;
-bottom:110px;
+bottom:90px;
 left:50%;
 transform:translateX(-50%);
 width:92%;
@@ -47,11 +47,11 @@ z-index:5;
 #bubble::after{
 content:"";
 position:absolute;
-top:-10px;
-left:53%;
+top:-12px;
+left:50%;
 transform:translateX(-50%) rotate(45deg);
-width:20px;
-height:20px;
+width:22px;
+height:22px;
 background:rgba(255,255,255,0.9);
 }
 
@@ -79,7 +79,6 @@ border-radius:18px;
 border:none;
 font-size:14px;
 background:#eee;
-margin-right:4px;
 }
 
 #send{
@@ -90,8 +89,6 @@ border-radius:999px;
 background:#4da6ff;
 color:white;
 font-size:14px;
-flex-shrink:0;
-white-space:nowrap;
 }
 
 #mic{
@@ -101,22 +98,21 @@ border-radius:50%;
 border:none;
 background:#eee;
 font-size:16px;
-flex-shrink:0;
 }
 
 #settingsBtn,#appBtn{
 position:fixed;
-bottom:70px;
-width:36px;
-height:36px;
+bottom:60px;
+width:44px;
+height:44px;
 border-radius:50%;
 background:white;
 display:flex;
 align-items:center;
 justify-content:center;
-box-shadow:0 3px 8px rgba(0,0,0,0.2);
+box-shadow:0 4px 10px rgba(0,0,0,0.2);
 z-index:20;
-font-size:14px;
+font-size:18px;
 }
 
 #settingsBtn{left:20px;}
@@ -151,8 +147,20 @@ const modePrompts = {
   "冷静":"落ち着いた女性。淡々と短く話す。"
 };
 
+/* ===== 名前 ===== */
+let userName = localStorage.getItem("userName") || "";
+
+function getCallName(name){
+  if(!name) return "";
+  if(/子$|ちゃん$/.test(name)) return name + "ちゃん";
+  if(/くん$/.test(name)) return name;
+  if(/さん$/.test(name)) return name;
+  return name + "さん";
+}
+
 /* ===== 記憶 ===== */
 let memory = JSON.parse(localStorage.getItem("memory") || "[]");
+
 function saveMemory(user, ai){
   memory.push({user, ai});
   if(memory.length > 20) memory.shift();
@@ -165,8 +173,10 @@ settingsBtn.onclick = ()=>{
 `設定
 1: APIキー
 2: 性格モード
+3: 名前設定
 
-現在: ${mode}`
+現在モード: ${mode}
+名前: ${userName || "未設定"}`
   );
 
   if(choice === "1"){
@@ -185,34 +195,36 @@ settingsBtn.onclick = ()=>{
       alert("変更: " + m);
     }
   }
+
+  if(choice === "3"){
+    const name = prompt("名前を入力");
+    if(name){
+      userName = name;
+      localStorage.setItem("userName", name);
+      alert("登録: " + name);
+    }
+  }
 };
 
-/* ===== 表情29種 ===== */
+/* ===== 表情 ===== */
 const emotionGroups = {
   happy:["happy.png","smile.png","applause.png","impressed.png"],
   sad:["sad.png","cry.png"],
   anger:["anger.png","irritation.png"],
   anxiety:["anxiety.png","panic.png"],
-  shy:["shy.png","embarrassed.png"],
-  surprise:["surprise.png","impressed.png"],
-  thinking:["curious.png","focused.png","explaining.png"],
-  agree:["agree.png"],
-  disagree:["disagree.png","refuse.png"],
-  calm:["relieved.png","normal.png"],
-  tired:["sleepy.png","hesitation.png"],
-  action:["hold.png","typing.png"],
-  special:["glitch.png","robot.png"]
+  calm:["relieved.png","normal.png"]
 };
 
 function getEmotionGroup(text){
-  if(/ありがとう|助か|嬉|最高/.test(text)) return "happy";
-  if(/悲|辛|落ち込/.test(text)) return "sad";
-  if(/怒|イライラ/.test(text)) return "anger";
+  if(/ありがとう|嬉/.test(text)) return "happy";
+  if(/悲|辛|泣/.test(text)) return "sad";
+  if(/怒/.test(text)) return "anger";
   if(/不安|怖/.test(text)) return "anxiety";
   return "calm";
 }
 
 let lastImage="";
+
 function hashString(str){
   let hash=0;
   for(let i=0;i<str.length;i++){
@@ -224,10 +236,12 @@ function hashString(str){
 function pickImage(list,text){
   let index=Math.abs(hashString(text))%list.length;
   let selected=list[index];
+
   if(selected===lastImage){
     index=(index+1)%list.length;
     selected=list[index];
   }
+
   lastImage=selected;
   return selected;
 }
@@ -249,13 +263,23 @@ function startThinking(){
 
 /* ===== 会話自然化 ===== */
 function softText(t){
+
   if(t.includes("。")){
     t = t.split("。")[0] + "。";
   }
-  return t
+
+  t = t
     .replace(/です。/g,"だよ。")
     .replace(/ます。/g,"するね。")
+    .replace(/でしょう。/g,"かな。")
+    .replace(/と思います。/g,"かな。")
     .slice(0,40);
+
+  if(userName && Math.random()<0.3){
+    t = getCallName(userName) + "、" + t;
+  }
+
+  return t;
 }
 
 /* ===== タイピング ===== */
@@ -291,7 +315,7 @@ async function getAIResponse(msg){
         messages:[
           {
             role:"system",
-            content:`1文で話す女性キャラ。${modePrompts[mode]} 共感優先`
+            content:`1文で話す女性キャラ。${modePrompts[mode]} 共感優先。ユーザー名:${userName}`
           },
           ...history,
           {role:"user",content:msg}
