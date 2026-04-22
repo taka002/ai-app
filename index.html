@@ -7,115 +7,43 @@
 
 <style>
 *{box-sizing:border-box;}
-
-body{
-margin:0;
-font-family:sans-serif;
-background:#f5f5f5;
-height:100dvh;
-overflow:hidden;
-}
+body{margin:0;font-family:sans-serif;background:#f5f5f5;height:100dvh;overflow:hidden;}
 
 #character{
-position:absolute;
-top:0;
-left:0;
-width:100%;
-height:100%;
-object-fit:cover;
-object-position:center 28%;
-transform:scale(1.08);
+position:absolute;top:0;left:0;width:100%;height:100%;
+object-fit:cover;object-position:center 28%;transform:scale(1.08);
 }
 
 #bubble{
-position:absolute;
-bottom:90px;
-left:50%;
-transform:translateX(-50%);
-width:92%;
-max-width:92%;
-background:rgba(255,255,255,0.9);
-border-radius:25px;
-padding:14px;
-font-size:16px;
-line-height:1.4;
-text-align:center;
-backdrop-filter:blur(8px);
-z-index:5;
+position:absolute;bottom:90px;left:50%;transform:translateX(-50%);
+width:92%;background:rgba(255,255,255,0.9);border-radius:25px;
+padding:14px;font-size:16px;line-height:1.4;text-align:center;
+backdrop-filter:blur(8px);z-index:5;
 }
 
 #bubble::after{
-content:"";
-position:absolute;
-top:-11px;
-left:50%;
+content:"";position:absolute;top:-11px;left:50%;
 transform:translateX(-50%) rotate(45deg);
-width:20px;
-height:20px;
-background:rgba(255,255,255,0.9);
+width:20px;height:20px;background:rgba(255,255,255,0.9);
 }
 
 #inputArea{
-position:fixed;
-left:50%;
-transform:translateX(-50%);
-width:92%;
-display:flex;
-align-items:center;
-gap:6px;
+position:fixed;left:50%;transform:translateX(-50%);
+width:92%;display:flex;gap:6px;
 padding:8px 10px calc(env(safe-area-inset-bottom) + 10px);
-background:rgba(255,255,255,0.95);
-border-radius:20px;
-z-index:10;
-bottom:0;
+background:rgba(255,255,255,0.95);border-radius:20px;bottom:0;
 }
 
-#input{
-flex:1;
-height:38px;
-padding:0 10px;
-border-radius:18px;
-border:none;
-font-size:14px;
-background:#eee;
-}
-
-#send{
-height:38px;
-padding:0 14px;
-border:none;
-border-radius:999px;
-background:#4da6ff;
-color:white;
-font-size:14px;
-}
-
-#mic{
-width:38px;
-height:38px;
-border-radius:50%;
-border:none;
-background:#eee;
-font-size:16px;
-}
+#input{flex:1;height:38px;padding:0 10px;border-radius:18px;border:none;background:#eee;}
+#send{height:38px;padding:0 14px;border:none;border-radius:999px;background:#4da6ff;color:white;}
+#mic{width:38px;height:38px;border-radius:50%;border:none;background:#eee;}
 
 #settingsBtn,#appBtn{
-position:fixed;
-bottom:60px;
-width:44px;
-height:44px;
-border-radius:50%;
-background:white;
-display:flex;
-align-items:center;
-justify-content:center;
+position:fixed;bottom:60px;width:44px;height:44px;border-radius:50%;
+background:white;display:flex;align-items:center;justify-content:center;
 box-shadow:0 4px 10px rgba(0,0,0,0.2);
-z-index:20;
-font-size:18px;
 }
-
-#settingsBtn{left:20px;}
-#appBtn{right:20px;}
+#settingsBtn{left:20px;} #appBtn{right:20px;}
 </style>
 </head>
 
@@ -135,98 +63,109 @@ font-size:18px;
 
 <script>
 let API_KEY = localStorage.getItem("apiKey") || "";
-
-/* ===== 名前記憶 ===== */
 let userName = localStorage.getItem("userName") || "";
+let personality = localStorage.getItem("personality") || "優しい";
 
-function askName(){
-  if(!userName){
-    setTimeout(()=>{
-      const name = prompt("名前、なんて呼べばいい？");
-      if(name){
-        userName = name;
-        localStorage.setItem("userName", name);
-      }
-    },800);
+/* ===== 呼び方自動 ===== */
+function getName(){
+  if(!userName) return "";
+
+  if(/ちゃん|たん/.test(userName)) return userName;
+  if(/子$|み|な|り|え/.test(userName)) return userName+"ちゃん";
+  if(userName.length<=3) return userName+"くん";
+
+  return userName+"さん";
+}
+
+/* ===== 名前初回 ===== */
+if(!userName){
+  setTimeout(()=>{
+    const name=prompt("名前なんて呼べばいい？");
+    if(name){
+      userName=name;
+      localStorage.setItem("userName",name);
+    }
+  },500);
+}
+
+/* ===== 記憶 ===== */
+let memory=JSON.parse(localStorage.getItem("memory")||"[]");
+let worries=JSON.parse(localStorage.getItem("worries")||"[]");
+
+function saveMemory(u,a){
+  memory.push({user:u,ai:a});
+  if(memory.length>20) memory.shift();
+  localStorage.setItem("memory",JSON.stringify(memory));
+}
+
+function saveWorry(t){
+  if(/悩|つら|不安|しんど/.test(t)){
+    worries.push(t);
+    if(worries.length>10) worries.shift();
+    localStorage.setItem("worries",JSON.stringify(worries));
   }
 }
-askName();
 
-/* ===== 長期記憶 ===== */
-let memory = JSON.parse(localStorage.getItem("memory") || "[]");
-
-function saveMemory(user, ai){
-  memory.push({user, ai});
-  if(memory.length > 20) memory.shift();
-  localStorage.setItem("memory", JSON.stringify(memory));
-}
-
-/* ===== 悩み記憶 ===== */
-let worries = JSON.parse(localStorage.getItem("worries") || "[]");
-
-function saveWorry(text){
-  if(/悩|つら|不安|しんど|悲/.test(text)){
-    worries.push(text);
-    if(worries.length > 10) worries.shift();
-    localStorage.setItem("worries", JSON.stringify(worries));
-  }
-}
+/* ===== 性格 ===== */
+const personalities={
+  優しい:"優しく共感する",
+  甘え:"甘えた感じで寄り添う",
+  クール:"落ち着いて短く話す",
+  元気:"明るく前向き"
+};
 
 /* ===== 設定 ===== */
 settingsBtn.onclick=()=>{
-  const key=prompt("APIキー");
-  if(key){
-    localStorage.setItem("apiKey",key);
-    API_KEY=key;
+  const c=prompt(`設定
+1:APIキー
+2:性格
+3:名前`);
+
+  if(c==="1"){
+    const k=prompt("APIキー");
+    if(k){localStorage.setItem("apiKey",k);API_KEY=k;}
+  }
+
+  if(c==="2"){
+    const p=prompt("優しい/甘え/クール/元気");
+    if(personalities[p]){
+      personality=p;
+      localStorage.setItem("personality",p);
+    }
+  }
+
+  if(c==="3"){
+    const n=prompt("新しい名前");
+    if(n){
+      userName=n;
+      localStorage.setItem("userName",n);
+      bubble.innerText=n+"って呼ぶね😊";
+    }
   }
 };
 
 /* ===== 表情 ===== */
-const emotionGroups={
-  happy:["happy.png","smile.png"],
-  sad:["sad.png","cry.png"],
-  anxiety:["anxiety.png"],
-  calm:["normal.png"]
-};
-
-function getEmotionGroup(t){
-  if(/嬉|ありがとう/.test(t)) return "happy";
-  if(/悲|辛/.test(t)) return "sad";
-  if(/不安|怖/.test(t)) return "anxiety";
-  return "calm";
-}
-
 function changeEmotion(t){
-  const list=emotionGroups[getEmotionGroup(t)];
-  character.src=list[Math.floor(Math.random()*list.length)];
-}
-
-/* ===== 名前付与 ===== */
-function addName(t){
-  if(!userName) return t;
-  if(Math.random()<0.5){
-    return userName + "、" + t;
-  }
-  return t;
+  if(/嬉|ありがとう/.test(t)) character.src="happy.png";
+  else if(/悲|辛/.test(t)) character.src="sad.png";
+  else character.src="normal.png";
 }
 
 /* ===== 会話化 ===== */
 function softText(t){
+  t=t.split(/[。！？]/)[0];
 
-  t = t.split(/[。！？]/)[0];
+  t=t
+  .replace(/です/g,"だよ")
+  .replace(/ます/g,"するね")
+  .replace(/必要があります/g,"したほうがいいかも")
+  .replace(/危険です/g,"ちょっと心配かも")
+  .slice(0,25);
 
-  t = t
-    .replace(/分かりする/g,"わかる")
-    .replace(/分かります/g,"わかるよ")
-    .replace(/必要があります/g,"したほうがいいかも")
-    .replace(/危険です/g,"ちょっと心配かも")
-    .replace(/です/g,"だよ")
-    .replace(/ます/g,"するね")
-    .replace(/でしょう/g,"かな")
-    .replace(/だから.*/,"")
-    .slice(0,25);
-
-  return addName(t);
+  if(Math.random()<0.6 && userName){
+    return getName()+"、"+t;
+  }
+  return t;
 }
 
 /* ===== タイピング ===== */
@@ -241,34 +180,25 @@ async function typeText(t){
 /* ===== TTS ===== */
 async function speak(t){
   if(!API_KEY) return;
-
-  try{
-    const r=await fetch("https://api.openai.com/v1/audio/speech",{
-      method:"POST",
-      headers:{
-        "Authorization":"Bearer "+API_KEY,
-        "Content-Type":"application/json"
-      },
-      body:JSON.stringify({
-        model:"gpt-4o-mini-tts",
-        voice:"nova",
-        speed:1.15,
-        input:t
-      })
-    });
-
-    const b=await r.blob();
-    new Audio(URL.createObjectURL(b)).play();
-
-  }catch(e){
-    console.log("TTSエラー");
-  }
+  const r=await fetch("https://api.openai.com/v1/audio/speech",{
+    method:"POST",
+    headers:{
+      "Authorization":"Bearer "+API_KEY,
+      "Content-Type":"application/json"
+    },
+    body:JSON.stringify({
+      model:"gpt-4o-mini-tts",
+      voice:"nova",
+      speed:1.15,
+      input:t
+    })
+  });
+  const b=await r.blob();
+  new Audio(URL.createObjectURL(b)).play();
 }
 
 /* ===== AI ===== */
 async function getAIResponse(msg){
-
-  if(!API_KEY) return "設定からAPIキー入れてね🙏";
 
   const history=[];
   memory.forEach(m=>{
@@ -286,14 +216,8 @@ async function getAIResponse(msg){
       model:"gpt-4o-mini",
       max_tokens:20,
       messages:[
-        {
-          role:"system",
-          content:"一言だけで返す女性キャラ。共感だけ。名前を自然に呼ぶ。"
-        },
-        {
-          role:"system",
-          content:"過去の悩み: "+worries.join(" / ")
-        },
+        {role:"system",content:personality+"女性キャラ。一言で共感だけ返す"},
+        {role:"system",content:"悩み:"+worries.join("/")},
         ...history,
         {role:"user",content:msg}
       ]
@@ -301,7 +225,7 @@ async function getAIResponse(msg){
   });
 
   const d=await r.json();
-  return d.choices?.[0]?.message?.content || "うまく話せなかった…";
+  return d.choices?.[0]?.message?.content||"うまく話せなかった…";
 }
 
 /* ===== 送信 ===== */
@@ -314,14 +238,7 @@ async function send(){
 
   saveWorry(text);
 
-  const thinking=setInterval(()=>{
-    bubble.innerText="・・・";
-  },400);
-
   let reply=await getAIResponse(text);
-
-  clearInterval(thinking);
-
   reply=softText(reply);
 
   await typeText(reply);
@@ -335,19 +252,12 @@ if ('webkitSpeechRecognition' in window){
   const rec=new webkitSpeechRecognition();
   rec.lang='ja-JP';
 
-  mic.onclick=()=>{
-    rec.start();
-    mic.innerText="🎙️";
-  };
+  mic.onclick=()=>rec.start();
 
   rec.onresult=e=>{
     input.value=e.results[0][0].transcript;
-    mic.innerText="🎤";
     send();
   };
-
-  rec.onend=()=>mic.innerText="🎤";
-
 }else{
   mic.onclick=()=>alert("非対応");
 }
