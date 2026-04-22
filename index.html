@@ -156,65 +156,63 @@ function saveMemory(user, ai){
   localStorage.setItem("memory", JSON.stringify(memory));
 }
 
-/* ===== 設定（APIキー） ===== */
+/* ===== 設定 ===== */
 document.getElementById("settingsBtn").onclick = ()=>{
   const key = prompt("APIキーを入力");
   if(key){
     sessionStorage.setItem("apiKey", key);
     API_KEY = key;
-    alert("保存したよ！（このタブのみ有効）");
   }
 };
 
 /* ===== 表情 ===== */
-const emotionGroups = {
+const emo={
   happy:["happy.png","smile.png"],
   sad:["sad.png","cry.png"],
-  anger:["anger.png"],
   anxiety:["anxiety.png"],
   calm:["normal.png"]
 };
 
-function getEmotionGroup(text){
-  if(/ありがとう|嬉/.test(text)) return "happy";
-  if(/悲|辛|泣/.test(text)) return "sad";
-  if(/怒/.test(text)) return "anger";
-  if(/不安|怖/.test(text)) return "anxiety";
-  return "calm";
+function changeEmotion(t){
+  if(/嬉|ありがとう/.test(t)) character.src=emo.happy[0];
+  else if(/悲|辛/.test(t)) character.src=emo.sad[0];
+  else if(/不安|怖/.test(t)) character.src=emo.anxiety[0];
+  else character.src=emo.calm[0];
 }
 
-function changeEmotion(text){
-  const list = emotionGroups[getEmotionGroup(text)];
-  const img = list[Math.floor(Math.random()*list.length)];
-  document.getElementById("character").src = img;
+/* ===== 会話特化変換 ===== */
+function softText(t){
+
+  if(t.includes("。")){
+    t = t.split("。")[0] + "。";
+  }
+
+  return t
+    .replace(/です。/g,"だよ。")
+    .replace(/ます。/g,"するね。")
+    .replace(/でしょう。/g,"かな。")
+    .replace(/と思います。/g,"かな。")
+    .replace(/必要があります。/g,"したほうがいいかも。")
+    .replace(/本当に/g,"")
+    .replace(/少しでも/g,"")
+    .slice(0,40);
 }
 
-/* ===== 思考中 ===== */
-function startThinking(){
-  const bubble=document.getElementById("bubble");
-  let dots=0;
-  return setInterval(()=>{
-    dots=(dots+1)%4;
-    bubble.innerText="・・・".slice(0,dots+1);
-  },400);
-}
-
-/* ===== 文字表示 ===== */
-async function typeText(text){
-  const bubble=document.getElementById("bubble");
+/* ===== タイピング ===== */
+async function typeText(t){
   bubble.innerText="";
-  for(let i=0;i<text.length;i++){
-    bubble.innerText+=text[i];
+  for(let c of t){
+    bubble.innerText+=c;
     await new Promise(r=>setTimeout(r,15));
   }
 }
 
 /* ===== TTS ===== */
-async function speak(text){
+async function speak(t){
   if(!API_KEY) return;
 
   try{
-    const res = await fetch("https://api.openai.com/v1/audio/speech",{
+    const r=await fetch("https://api.openai.com/v1/audio/speech",{
       method:"POST",
       headers:{
         "Authorization":"Bearer "+API_KEY,
@@ -223,112 +221,88 @@ async function speak(text){
       body:JSON.stringify({
         model:"gpt-4o-mini-tts",
         voice:"alloy",
-        input:text
+        input:t
       })
     });
 
-    const blob = await res.blob();
-    const url = URL.createObjectURL(blob);
-    new Audio(url).play();
+    const b=await r.blob();
+    new Audio(URL.createObjectURL(b)).play();
 
   }catch(e){
-    console.log("TTSエラー", e);
+    console.log("TTSエラー");
   }
 }
 
-/* ===== API ===== */
-async function getAIResponse(message){
+/* ===== AI ===== */
+async function getAIResponse(msg){
 
   if(!API_KEY) return "設定からAPIキー入れてね🙏";
 
-  const history = [];
+  const history=[];
   memory.forEach(m=>{
     history.push({role:"user",content:m.user});
     history.push({role:"assistant",content:m.ai});
   });
 
-  try{
-    const res = await fetch("https://api.openai.com/v1/chat/completions",{
-      method:"POST",
-      headers:{
-        "Content-Type":"application/json",
-        "Authorization":"Bearer "+API_KEY
-      },
-      body:JSON.stringify({
-        model:"gpt-4o-mini",
-        messages:[
-          {role:"system",content:"短く自然に話す女性キャラ。少し甘め"},
-          ...history,
-          {role:"user",content:message}
-        ]
-      })
-    });
+  const r=await fetch("https://api.openai.com/v1/chat/completions",{
+    method:"POST",
+    headers:{
+      "Content-Type":"application/json",
+      "Authorization":"Bearer "+API_KEY
+    },
+    body:JSON.stringify({
+      model:"gpt-4o-mini",
+      max_tokens:30,
+      messages:[
+        {
+          role:"system",
+          content:"1文だけで話す女性キャラ。説明は禁止。短く共感だけ返す。語尾はやわらかく。"
+        },
+        ...history,
+        {role:"user",content:msg}
+      ]
+    })
+  });
 
-    const data = await res.json();
-    return data.choices?.[0]?.message?.content || "うまく返せなかった💦";
-
-  }catch(e){
-    return "通信エラー…";
-  }
+  const d=await r.json();
+  return d.choices?.[0]?.message?.content || "うまく話せなかった…";
 }
 
 /* ===== 送信 ===== */
 async function send(){
-  const input=document.getElementById("input");
   const text=input.value;
   if(!text) return;
 
   input.value="";
-  document.getElementById("character").src="typing.png";
+  character.src="typing.png";
 
-  const thinking=startThinking();
+  const thinking=setInterval(()=>{
+    bubble.innerText="・・・";
+  },400);
 
-  const reply = await getAIResponse(text);
+  let reply=await getAIResponse(text);
 
   clearInterval(thinking);
+
+  reply=softText(reply);
+
   await typeText(reply);
   changeEmotion(reply);
-  speak(reply); // 🔥 音声
-  saveMemory(text, reply);
+  speak(reply);
+  saveMemory(text,reply);
 }
 
 /* ===== 音声入力 ===== */
-const micBtn = document.getElementById("mic");
-let recognition;
-
-if ('webkitSpeechRecognition' in window) {
-
-  recognition = new webkitSpeechRecognition();
-  recognition.lang = 'ja-JP';
-
-  micBtn.onclick = () => {
-    recognition.start();
-    micBtn.innerText="🎙️";
-    micBtn.style.background="#ffcccc";
-  };
-
-  recognition.onresult = (event) => {
-    const text = event.results[0][0].transcript;
-    document.getElementById("input").value=text;
-    micBtn.innerText="🎤";
-    micBtn.style.background="#eee";
+if ('webkitSpeechRecognition' in window){
+  const rec=new webkitSpeechRecognition();
+  rec.lang='ja-JP';
+  mic.onclick=()=>rec.start();
+  rec.onresult=e=>{
+    input.value=e.results[0][0].transcript;
     send();
   };
-
-  recognition.onerror = ()=>{
-    micBtn.innerText="🎤";
-    micBtn.style.background="#eee";
-  };
-
-  recognition.onend = ()=>{
-    micBtn.innerText="🎤";
-    micBtn.style.background="#eee";
-  };
-
 }else{
-  micBtn.onclick = ()=>{
-    alert("この端末は音声入力に対応してないよ🙏");
-  };
+  mic.onclick=()=>alert("非対応");
 }
 </script>
 
