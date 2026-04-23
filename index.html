@@ -14,7 +14,6 @@ position:absolute;top:0;left:0;width:100%;height:100%;
 object-fit:cover;object-position:center 28%;transform:scale(1.08);
 }
 
-/* ===== 吹き出し（ガラス） ===== */
 #bubble{
 position:absolute;bottom:65px;left:50%;transform:translateX(-50%);
 width:92%;
@@ -32,7 +31,6 @@ box-shadow:0 8px 30px rgba(0,0,0,0.15);
 }
 #bubble::after{display:none;}
 
-/* ===== 考え中アニメ ===== */
 @keyframes thinkingFloat{
 0%{transform:translateX(-50%) translateY(0);}
 50%{transform:translateX(-50%) translateY(-4px);}
@@ -44,7 +42,6 @@ backdrop-filter:blur(25px);
 animation:thinkingFloat 1.5s infinite;
 }
 
-/* ===== 入力 ===== */
 #inputArea{
 position:fixed;left:50%;transform:translateX(-50%);
 width:92%;display:flex;align-items:center;gap:6px;
@@ -70,7 +67,6 @@ border:none;border-radius:999px;background:#4da6ff;
 color:white;font-size:13px;white-space:nowrap;
 }
 
-/* ===== 下ボタン ===== */
 #settingsBtn,#appBtn{
 position:fixed;bottom:10px;width:36px;height:36px;
 border-radius:50%;background:white;
@@ -127,7 +123,7 @@ if(name){localStorage.setItem("userName",name);}
 }
 
 if(menu==="3"){
-const mode=prompt("性格（優しい/ツンデレ等）");
+const mode=prompt("性格");
 if(mode){localStorage.setItem("aiMode",mode);}
 }
 
@@ -152,18 +148,14 @@ return "calm";
 
 let currentEmotion="";
 let lastImage="";
-
-/* ===== 🔥 表情遅延システム ===== */
 let emotionTimer=null;
 let pendingEmotion=null;
 
 function changeEmotion(text){
-
 const group=getEmotionGroup(text);
 if(group===currentEmotion) return;
 
 pendingEmotion=group;
-
 if(emotionTimer) clearTimeout(emotionTimer);
 
 const delay = 700 + Math.random()*800;
@@ -186,7 +178,7 @@ lastImage=img;
 character.src=img;
 }
 
-/* ===== 名前呼び ===== */
+/* ===== 名前 ===== */
 function addName(text){
 const name=localStorage.getItem("userName");
 if(!name) return text;
@@ -205,34 +197,61 @@ await new Promise(r=>setTimeout(r,15));
 }
 }
 
-/* ===== AI ===== */
+/* ===== AI（エラー対応強化） ===== */
 async function getAIResponse(msg){
-if(!API_KEY) return "APIキー入れてね";
 
-const name=localStorage.getItem("userName")||"";
-const mode=localStorage.getItem("aiMode")||"優しい";
+if(!API_KEY) return "設定からAPIキー入れてね🙏";
 
-const r=await fetch("https://api.openai.com/v1/chat/completions",{
-method:"POST",
-headers:{
-"Content-Type":"application/json",
-"Authorization":"Bearer "+API_KEY
-},
-body:JSON.stringify({
-model:"gpt-4o-mini",
-messages:[
-{role:"system",content:`${mode}女性キャラ。${name}と自然に会話。短く優しく。`},
-...memory.flatMap(m=>[
-{role:"user",content:m.user},
-{role:"assistant",content:m.ai}
-]),
-{role:"user",content:msg}
-]
-})
-});
+try{
 
-const d=await r.json();
-return d.choices?.[0]?.message?.content||"うまく話せない";
+  const controller = new AbortController();
+  const timeout = setTimeout(()=>controller.abort(),10000);
+
+  const r = await fetch("https://api.openai.com/v1/chat/completions",{
+    method:"POST",
+    headers:{
+      "Content-Type":"application/json",
+      "Authorization":"Bearer "+API_KEY
+    },
+    signal:controller.signal,
+    body:JSON.stringify({
+      model:"gpt-4o-mini",
+      messages:[
+        {
+          role:"system",
+          content:`優しい女性キャラ。自然に会話する`
+        },
+        ...memory.flatMap(m=>[
+          {role:"user",content:m.user},
+          {role:"assistant",content:m.ai}
+        ]),
+        {role:"user",content:msg}
+      ]
+    })
+  });
+
+  clearTimeout(timeout);
+
+  if(!r.ok){
+    return "ちょっと調子悪いみたい…もう一回話しかけてくれる？";
+  }
+
+  const d = await r.json();
+
+  if(!d.choices || !d.choices[0]){
+    return "うまく考えられなかった…もう一回お願いしてもいい？";
+  }
+
+  return d.choices[0].message.content;
+
+}catch(e){
+
+  if(e.name==="AbortError"){
+    return "少し時間かかっちゃった…もう一回お願いしてもいい？";
+  }
+
+  return "通信が不安定みたい…少し待ってね";
+}
 }
 
 /* ===== 考え中 ===== */
@@ -245,15 +264,22 @@ bubble.innerText="考え中" + "…".slice(0,dots+1);
 },400);
 }
 
-/* ===== 送信 ===== */
+/* ===== 送信（エラー対応） ===== */
 async function send(){
+
 const text=input.value;
-if(!text) return;
+
+if(!text.trim()){
+bubble.innerText="何か話してくれると嬉しいな😊";
+return;
+}
 
 input.value="";
 character.src="typing.png";
 
 const thinking=startThinking();
+
+try{
 
 let reply=await getAIResponse(text);
 
@@ -263,8 +289,19 @@ bubble.classList.remove("thinking");
 reply=addName(reply);
 
 await typeText(reply);
-changeEmotion(reply); // 🔥 遅延発動
+changeEmotion(reply);
+
 saveMemory(text,reply);
+
+}catch(e){
+
+clearInterval(thinking);
+bubble.classList.remove("thinking");
+
+bubble.innerText="エラーが出ちゃった…もう一回お願いしてもいい？";
+character.src="sad.png";
+
+}
 }
 
 /* ===== 音声入力 ===== */
