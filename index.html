@@ -14,16 +14,37 @@ position:absolute;top:0;left:0;width:100%;height:100%;
 object-fit:cover;object-position:center 28%;transform:scale(1.08);
 }
 
+/* 🔥 吹き出し改良（フェード） */
 #bubble{
-position:absolute;bottom:65px;left:50%;transform:translateX(-50%);
-width:92%;
+position:absolute;
+bottom:65px;
+left:50%;
+transform:translateX(-50%) translateY(10px);
+
+width:88%;
 background:rgba(255,255,255,0.25);
 backdrop-filter:blur(20px);
-border-radius:25px;
-padding:14px;
-font-size:16px;
+border-radius:20px;
+
+padding:10px 12px;
+font-size:14px;
+line-height:1.4;
 text-align:center;
 z-index:5;
+
+max-height:120px;
+overflow:hidden;
+word-break:break-word;
+
+/* 初期状態 */
+opacity:0;
+transition:all 0.4s ease;
+}
+
+/* 表示状態 */
+#bubble.show{
+opacity:1;
+transform:translateX(-50%) translateY(0);
 }
 
 #inputArea{
@@ -48,7 +69,7 @@ background:white;display:flex;align-items:center;justify-content:center;
 <body>
 
 <img id="character" src="normal.png">
-<div id="bubble">どうしたのかな？😊</div>
+<div id="bubble" class="show">どうしたのかな？😊</div>
 
 <div id="settingsBtn">⚙️</div>
 <div id="appBtn">📱</div>
@@ -63,9 +84,6 @@ background:white;display:flex;align-items:center;justify-content:center;
 
 /* ===== 初期 ===== */
 let API_KEY = localStorage.getItem("apiKey") || "";
-let userInteracted = false;
-
-document.body.addEventListener("click", ()=>{ userInteracted = true; });
 
 /* ===== 記憶 ===== */
 let memory = JSON.parse(localStorage.getItem("memory") || "[]");
@@ -75,7 +93,7 @@ if(memory.length>20) memory.shift();
 localStorage.setItem("memory",JSON.stringify(memory));
 }
 
-/* ===== 設定UI ===== */
+/* ===== 設定UI（そのまま） ===== */
 settingsBtn.onclick = () => {
 
 const box = document.createElement("div");
@@ -91,7 +109,6 @@ z-index:999;
 
 box.innerHTML = `
 <div style="background:#fff;width:90%;border-radius:20px;padding:20px;font-size:14px;">
-
 <h3>設定</h3>
 
 <label>APIキー</label><br>
@@ -115,7 +132,6 @@ box.innerHTML = `
 
 <button id="saveBtn" style="width:100%;padding:10px;border:none;background:#4da6ff;color:#fff;border-radius:10px;">保存</button>
 <button id="closeBtn" style="width:100%;margin-top:8px;padding:10px;border:none;background:#ccc;border-radius:10px;">閉じる</button>
-
 </div>
 `;
 
@@ -134,62 +150,31 @@ box.remove();
 document.getElementById("closeBtn").onclick = ()=>box.remove();
 };
 
-/* ===== 🔥 音声（aria固定） ===== */
-async function speak(text){
+/* ===== 🔥 フェード表示関数 ===== */
+function showBubble(text){
 
+bubble.classList.remove("show");   // 一旦消す
+
+setTimeout(()=>{
+bubble.innerText = text;
+bubble.classList.add("show");      // ぬるっと表示
+},150);
+
+}
+
+/* ===== 音声 ===== */
+async function speak(text){
 if(localStorage.getItem("voice")==="off") return;
 
-/* ChatGPT音声（aria固定） */
-if(API_KEY){
-try{
-const res = await fetch("https://api.openai.com/v1/audio/speech",{
-method:"POST",
-headers:{
-"Authorization":"Bearer "+API_KEY,
-"Content-Type":"application/json"
-},
-body:JSON.stringify({
-model:"gpt-4o-mini-tts",
-voice:"aria",
-input:text
-})
-});
-
-if(res.ok){
-const blob = await res.blob();
-const url = URL.createObjectURL(blob);
-const audio = new Audio(url);
-
-try{
-await audio.play();
-}catch(e){
-setTimeout(()=>audio.play().catch(()=>{}),300);
-}
-
-return;
-}
-
-}catch(e){
-console.log("API失敗 → ローカルへ");
-}
-}
-
-/* ローカルfallback（女性寄り） */
 const uttr = new SpeechSynthesisUtterance(text);
 uttr.lang="ja-JP";
-
-/* 女性寄り調整 */
 uttr.pitch = 1.2;
-uttr.rate = 1;
-
 speechSynthesis.speak(uttr);
 }
 
 /* ===== AI ===== */
 async function getAIResponse(msg){
 if(!API_KEY) return "APIキー入れてね";
-
-const mode=localStorage.getItem("aiMode")||"優しい";
 
 const r=await fetch("https://api.openai.com/v1/chat/completions",{
 method:"POST",
@@ -199,14 +184,7 @@ headers:{
 },
 body:JSON.stringify({
 model:"gpt-4o-mini",
-messages:[
-{role:"system",content:`${mode}女性。短く優しく最後に質問`},
-...memory.flatMap(m=>[
-{role:"user",content:m.user},
-{role:"assistant",content:m.ai}
-]),
-{role:"user",content:msg}
-]
+messages:[{role:"user",content:msg}]
 })
 });
 
@@ -217,25 +195,23 @@ return d.choices?.[0]?.message?.content || "うまく話せない…";
 /* ===== 送信 ===== */
 async function send(){
 
-userInteracted = true;
-
 const text=input.value;
 if(!text.trim()){
-bubble.innerText="何か話して😊";
+showBubble("何か話して😊");
 return;
 }
 
 input.value="";
-bubble.innerText="考え中…";
+showBubble("考え中…");
 
 let reply=await getAIResponse(text);
 
+/* 短く */
 if(reply.length>60) reply=reply.slice(0,60)+"…";
-if(!reply.match(/？/)) reply+=" どう思う？";
 
-bubble.innerText=reply;
+showBubble(reply);
 
-await speak(reply);
+speak(reply);
 
 saveMemory(text,reply);
 }
