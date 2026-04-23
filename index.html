@@ -26,6 +26,7 @@ object-fit:cover;object-position:center 28%;
 transform:scale(1.08);
 pointer-events:none;
 opacity:0;
+transition:opacity 0.1s;
 }
 
 /* ===== 吹き出し ===== */
@@ -101,8 +102,12 @@ const input = document.getElementById("input");
 const character = document.getElementById("character");
 const blinkEye = document.getElementById("blinkEye");
 
+/* ===== 状態 ===== */
+let isSpeaking = false;
+let blinkRunning = false;
+
 /* =========================
-   🔥 口パク（滑らか）
+   口パク
 ========================= */
 const mouthFrames = [
 "normal.png",
@@ -119,6 +124,8 @@ let lipIndex = 0;
 function startLipSync(){
 if(lipTimer) return;
 
+isSpeaking = true;
+
 function loop(){
 character.src = mouthFrames[lipIndex];
 lipIndex = (lipIndex + 1) % mouthFrames.length;
@@ -132,25 +139,47 @@ clearTimeout(lipTimer);
 lipTimer = null;
 lipIndex = 0;
 character.src = "normal.png";
+
+isSpeaking = false;
+
+/* 🔥 話し終わり瞬き */
+setTimeout(()=>{
+blink();
+},80 + Math.random()*120);
 }
 
 /* =========================
-   🔥 瞬き（目だけ）
+   瞬き（安全版）
 ========================= */
 function blink(){
+
+if(blinkRunning || isSpeaking) return;
+
+blinkRunning = true;
+
+blinkEye.style.transition = "opacity 0.06s ease-out";
 blinkEye.style.opacity = 1;
 
 setTimeout(()=>{
+blinkEye.style.transition = "opacity 0.12s ease-in";
 blinkEye.style.opacity = 0;
-},100);
+
+blinkRunning = false;
+},70);
 }
 
 function autoBlink(){
-const time = 2500 + Math.random()*4000;
+
+const time = 2000 + Math.random()*3000;
 
 setTimeout(()=>{
-blink();
+
+if(!isSpeaking){
+  blink();
+}
+
 autoBlink();
+
 },time);
 }
 autoBlink();
@@ -167,13 +196,12 @@ bubble.classList.add("show");
 }
 
 /* =========================
-   🔥 音声（aria＋口パク）
+   音声
 ========================= */
 let API_KEY = localStorage.getItem("apiKey") || "";
 
 async function speak(text){
 
-/* 口パク開始 */
 startLipSync();
 
 /* ChatGPT音声 */
