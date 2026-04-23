@@ -9,46 +9,34 @@
 *{box-sizing:border-box;}
 body{margin:0;font-family:sans-serif;background:#f5f5f5;height:100dvh;overflow:hidden;}
 
-/* ===== キャラ（2枚クロスフェード） ===== */
-#charA,#charB{
-position:absolute;
-top:0;left:0;
-width:100%;height:100%;
-object-fit:cover;
-object-position:center 28%;
-transform:scale(1.08);
-
-opacity:0;
-transition:opacity 0.4s ease;
-
-will-change: opacity;
+#character{
+position:absolute;top:0;left:0;width:100%;height:100%;
+object-fit:cover;object-position:center 28%;transform:scale(1.08);
+transition:opacity 0.3s ease;
 }
 
-/* 初期表示 */
-#charA{opacity:1;}
+#character.fade{
+opacity:0;
+}
 
-/* ===== 吹き出し ===== */
+/* 吹き出し */
 #bubble{
 position:absolute;
 bottom:65px;
 left:50%;
 transform:translateX(-50%) translateY(10px);
-
 width:88%;
 background:rgba(255,255,255,0.25);
 backdrop-filter:blur(20px);
 border-radius:20px;
-
 padding:10px 12px;
 font-size:14px;
 line-height:1.4;
 text-align:center;
 z-index:5;
-
 max-height:120px;
 overflow:hidden;
 word-break:break-word;
-
 opacity:0;
 transition:all 0.4s ease;
 }
@@ -58,7 +46,6 @@ opacity:1;
 transform:translateX(-50%) translateY(0);
 }
 
-/* ===== 入力UI（そのまま） ===== */
 #inputArea{
 position:fixed;left:50%;transform:translateX(-50%);
 width:92%;display:flex;gap:6px;
@@ -80,11 +67,8 @@ background:white;display:flex;align-items:center;justify-content:center;
 
 <body>
 
-<!-- 🔥 2枚構成 -->
-<img id="charA" src="normal.png">
-<img id="charB" src="normal.png">
-
-<div id="bubble"></div>
+<img id="character" src="normal.png">
+<div id="bubble" class="show">どうしたのかな？😊</div>
 
 <div id="settingsBtn">⚙️</div>
 <div id="appBtn">📱</div>
@@ -100,12 +84,23 @@ background:white;display:flex;align-items:center;justify-content:center;
 /* ===== 初期 ===== */
 let API_KEY = localStorage.getItem("apiKey") || "";
 
-/* ===== メモリ ===== */
+/* ===== 記憶 ===== */
 let memory = JSON.parse(localStorage.getItem("memory") || "[]");
 function saveMemory(u,a){
 memory.push({user:u,ai:a});
 if(memory.length>20) memory.shift();
 localStorage.setItem("memory",JSON.stringify(memory));
+}
+
+/* ===== 表情切替（フェード） ===== */
+function changeFace(src){
+const img = document.getElementById("character");
+img.classList.add("fade");
+
+setTimeout(()=>{
+img.src = src;
+img.classList.remove("fade");
+},200);
 }
 
 /* ===== 吹き出し ===== */
@@ -117,72 +112,10 @@ bubble.classList.add("show");
 },150);
 }
 
-/* ===== 🔥 画像プリロード ===== */
-const preload = {};
-["normal.png","thinking.png"].forEach(src=>{
-const img = new Image();
-img.src = src;
-preload[src] = img;
-});
-
-/* ===== 🔥 クロスフェード（完全版） ===== */
-let isA = true;
-
-function changeFace(src){
-
-const front = isA ? charA : charB;
-const back  = isA ? charB : charA;
-
-/* 同じなら無視 */
-if(back.src.includes(src)) return;
-
-/* 透明状態でセット */
-back.style.opacity = 0;
-back.src = preload[src].src;
-
-/* 描画待ち（超重要） */
-requestAnimationFrame(()=>{
-requestAnimationFrame(()=>{
-
-front.style.opacity = 0;
-back.style.opacity = 1;
-
-isA = !isA;
-
-});
-});
-}
-
 /* ===== 音声 ===== */
 async function speak(text){
 if(localStorage.getItem("voice")==="off") return;
 
-if(API_KEY){
-try{
-const res = await fetch("https://api.openai.com/v1/audio/speech",{
-method:"POST",
-headers:{
-"Authorization":"Bearer "+API_KEY,
-"Content-Type":"application/json"
-},
-body:JSON.stringify({
-model:"gpt-4o-mini-tts",
-voice:"aria",
-input:text
-})
-});
-
-if(res.ok){
-const blob = await res.blob();
-const url = URL.createObjectURL(blob);
-const audio = new Audio(url);
-await audio.play().catch(()=>setTimeout(()=>audio.play(),300));
-return;
-}
-}catch(e){}
-}
-
-/* fallback */
 const uttr = new SpeechSynthesisUtterance(text);
 uttr.lang="ja-JP";
 uttr.pitch = 1.2;
@@ -201,14 +134,7 @@ headers:{
 },
 body:JSON.stringify({
 model:"gpt-4o-mini",
-messages:[
-{role:"system",content:"優しい女性。短く自然。最後に軽く質問"},
-...memory.flatMap(m=>[
-{role:"user",content:m.user},
-{role:"assistant",content:m.ai}
-]),
-{role:"user",content:msg}
-]
+messages:[{role:"user",content:msg}]
 })
 });
 
@@ -216,7 +142,7 @@ const d=await r.json();
 return d.choices?.[0]?.message?.content || "うまく話せない…";
 }
 
-/* ===== 送信 ===== */
+/* ===== 送信（🔥ここが修正ポイント） ===== */
 async function send(){
 
 const text=input.value;
@@ -227,24 +153,34 @@ return;
 
 input.value="";
 
-/* 考え中 */
+/* 吹き出し */
 showBubble("考え中…");
-setTimeout(()=>{
+
+/* 🔥 thinking確実表示 */
 changeFace("thinking.png");
-},200);
 
-let reply=await getAIResponse(text);
+/* 🔥 表示時間キープ */
+const start = Date.now();
 
-/* 短く */
-if(reply.length>60) reply=reply.slice(0,60)+"…";
-if(!reply.match(/？/)) reply+=" どう思う？";
+let reply = await getAIResponse(text);
+
+/* 最低0.8秒表示 */
+const wait = Math.max(0, 800 - (Date.now() - start));
+await new Promise(r => setTimeout(r, wait));
 
 /* 戻す */
 changeFace("normal.png");
 
+/* 短く自然に */
+if(reply.length>60) reply = reply.slice(0,60)+"…";
+
+/* 表示 */
 showBubble(reply);
+
+/* 音声 */
 speak(reply);
 
+/* 保存 */
 saveMemory(text,reply);
 }
 
@@ -262,13 +198,6 @@ send();
 }else{
 mic.onclick=()=>alert("非対応");
 }
-
-/* ===== 起動 ===== */
-window.onload=()=>{
-const msg="どうしたのかな？😊";
-showBubble(msg);
-setTimeout(()=>speak(msg),500);
-};
 
 </script>
 
