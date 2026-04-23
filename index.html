@@ -9,7 +9,7 @@
 *{box-sizing:border-box;}
 body{margin:0;font-family:sans-serif;background:#f5f5f5;height:100dvh;overflow:hidden;}
 
-/* ===== 🔥 キャラ2枚（クロスフェード） ===== */
+/* ===== キャラ（2枚クロスフェード） ===== */
 #charA,#charB{
 position:absolute;
 top:0;left:0;
@@ -17,12 +17,15 @@ width:100%;height:100%;
 object-fit:cover;
 object-position:center 28%;
 transform:scale(1.08);
-transition:opacity 0.4s ease, transform 0.4s ease;
+
+opacity:0;
+transition:opacity 0.4s ease;
+
+will-change: opacity;
 }
 
-/* 前面・背面 */
+/* 初期表示 */
 #charA{opacity:1;}
-#charB{opacity:0;}
 
 /* ===== 吹き出し ===== */
 #bubble{
@@ -55,6 +58,7 @@ opacity:1;
 transform:translateX(-50%) translateY(0);
 }
 
+/* ===== 入力UI（そのまま） ===== */
 #inputArea{
 position:fixed;left:50%;transform:translateX(-50%);
 width:92%;display:flex;gap:6px;
@@ -104,7 +108,7 @@ if(memory.length>20) memory.shift();
 localStorage.setItem("memory",JSON.stringify(memory));
 }
 
-/* ===== 🔥 バブル ===== */
+/* ===== 吹き出し ===== */
 function showBubble(text){
 bubble.classList.remove("show");
 setTimeout(()=>{
@@ -113,27 +117,43 @@ bubble.classList.add("show");
 },150);
 }
 
-/* ===== 🔥 表情クロスフェード ===== */
+/* ===== 🔥 画像プリロード ===== */
+const preload = {};
+["normal.png","thinking.png"].forEach(src=>{
+const img = new Image();
+img.src = src;
+preload[src] = img;
+});
+
+/* ===== 🔥 クロスフェード（完全版） ===== */
 let isA = true;
 
-function changeFace(img){
+function changeFace(src){
+
 const front = isA ? charA : charB;
 const back  = isA ? charB : charA;
 
-back.src = img;
+/* 同じなら無視 */
+if(back.src.includes(src)) return;
 
-/* 少しズーム差 */
-back.style.transform = "scale(1.12)";
-front.style.transform = "scale(1.08)";
+/* 透明状態でセット */
+back.style.opacity = 0;
+back.src = preload[src].src;
 
-setTimeout(()=>{
+/* 描画待ち（超重要） */
+requestAnimationFrame(()=>{
+requestAnimationFrame(()=>{
+
 front.style.opacity = 0;
 back.style.opacity = 1;
+
 isA = !isA;
-},50);
+
+});
+});
 }
 
-/* ===== 🔥 音声 ===== */
+/* ===== 音声 ===== */
 async function speak(text){
 if(localStorage.getItem("voice")==="off") return;
 
@@ -207,7 +227,7 @@ return;
 
 input.value="";
 
-/* 🔥 考え中 */
+/* 考え中 */
 showBubble("考え中…");
 setTimeout(()=>{
 changeFace("thinking.png");
@@ -215,7 +235,7 @@ changeFace("thinking.png");
 
 let reply=await getAIResponse(text);
 
-/* 短く自然 */
+/* 短く */
 if(reply.length>60) reply=reply.slice(0,60)+"…";
 if(!reply.match(/？/)) reply+=" どう思う？";
 
