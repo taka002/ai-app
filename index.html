@@ -161,6 +161,32 @@ await new Promise(r=>setTimeout(r,15));
 }
 }
 
+/* ===== 🔥 無音（考え中） ===== */
+function thinkingPause(text){
+let delay = 600;
+if(text.length > 40) delay = 1200;
+if(text.length > 80) delay = 1800;
+return delay + Math.random()*400;
+}
+
+/* ===== 🔥 感情ボイス ===== */
+function getVoiceStyle(text){
+
+if(/悲|つらい|泣/.test(text)){
+  return {voice:"verse", speed:0.9};
+}
+
+if(/嬉|ありがとう/.test(text)){
+  return {voice:"aria", speed:1.05};
+}
+
+if(/大丈夫|ゆっくり/.test(text)){
+  return {voice:"verse", speed:0.95};
+}
+
+return {voice:"aria", speed:1.0};
+}
+
 /* ===== 🔥 ChatGPT音声 ===== */
 async function speak(text){
 
@@ -170,6 +196,7 @@ if(!API_KEY) return;
 try{
 
 const short = text.replace(/….*$/,"");
+const style = getVoiceStyle(text);
 
 const res = await fetch("https://api.openai.com/v1/audio/speech",{
 method:"POST",
@@ -179,20 +206,16 @@ headers:{
 },
 body:JSON.stringify({
 model:"gpt-4o-mini-tts",
-voice:"alloy",
+voice:style.voice,
 input:short
 })
 });
-
-if(!res.ok){
-console.log("音声エラー");
-return;
-}
 
 const blob = await res.blob();
 const url = URL.createObjectURL(blob);
 
 const audio = new Audio(url);
+audio.playbackRate = style.speed;
 audio.play();
 
 }catch(e){
@@ -269,9 +292,15 @@ return;
 
 input.value="";
 character.src="thinking.png";
-bubble.innerText="考え中…";
+
+const thinkingTexts=["考え中…","うーん…","ちょっと待ってね…"];
+bubble.innerText=thinkingTexts[Math.floor(Math.random()*thinkingTexts.length)];
 
 let reply=await getAIResponse(text);
+
+/* 🔥 無音 */
+let wait = thinkingPause(reply);
+await new Promise(r => setTimeout(r, wait));
 
 reply=shorten(reply);
 reply=softenEnding(reply);
@@ -280,10 +309,10 @@ reply=addName(reply);
 await typeText(reply);
 changeEmotion(reply);
 
-/* 🔥 ChatGPT音声 */
+/* 🔥 音声 */
 setTimeout(()=>{
   speak(reply);
-},150);
+},300 + Math.random()*300);
 
 saveMemory(text,reply);
 }
