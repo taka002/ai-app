@@ -64,15 +64,16 @@ background:white;display:flex;align-items:center;justify-content:center;
 /* ===== 初期 ===== */
 let API_KEY = localStorage.getItem("apiKey") || "";
 
+/* 🔥 AudioContext（音声ブロック対策） */
+let audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
 /* ===== 音声アンロック ===== */
 let audioUnlocked = false;
 document.body.addEventListener("click", async ()=>{
 if(audioUnlocked) return;
 try{
-const a=new Audio();
-a.src="data:audio/mp3;base64,//uQxAAAA";
-await a.play();
-audioUnlocked=true;
+await audioCtx.resume();
+audioUnlocked = true;
 }catch(e){}
 },{once:true});
 
@@ -84,7 +85,7 @@ if(memory.length>20) memory.shift();
 localStorage.setItem("memory",JSON.stringify(memory));
 }
 
-/* ===== 🔥 新・設定UI ===== */
+/* ===== 設定UI ===== */
 settingsBtn.onclick = () => {
 
 const box = document.createElement("div");
@@ -141,7 +142,6 @@ font-size:14px;
 
 document.body.appendChild(box);
 
-/* 保存 */
 document.getElementById("saveBtn").onclick = () => {
 localStorage.setItem("apiKey", document.getElementById("set_api").value);
 localStorage.setItem("userName", document.getElementById("set_name").value);
@@ -154,19 +154,24 @@ alert("保存したよ 👍");
 box.remove();
 };
 
-/* 閉じる */
 document.getElementById("closeBtn").onclick = () => {
 box.remove();
 };
 
 };
 
-/* ===== 音声 ===== */
+/* ===== 🔥 音声（完全版） ===== */
+let currentSource = null;
+
 async function speak(text){
+
 if(localStorage.getItem("voice")==="off") return;
 if(!API_KEY) return;
 
 try{
+
+await audioCtx.resume();
+
 const res = await fetch("https://api.openai.com/v1/audio/speech",{
 method:"POST",
 headers:{
@@ -180,17 +185,30 @@ input:text
 })
 });
 
+if(!res.ok){
+console.log("音声API失敗");
+return;
+}
+
 const blob = await res.blob();
-const url = URL.createObjectURL(blob);
+const arrayBuffer = await blob.arrayBuffer();
 
-const audio = new Audio(url);
-audio.volume = 1;
+const audioBuffer = await audioCtx.decodeAudioData(arrayBuffer);
 
-await audio.play().catch(()=>{
-setTimeout(()=>audio.play(),300);
-});
+const source = audioCtx.createBufferSource();
+source.buffer = audioBuffer;
+source.connect(audioCtx.destination);
 
-}catch(e){}
+if(currentSource){
+try{ currentSource.stop(); }catch(e){}
+}
+
+currentSource = source;
+source.start(0);
+
+}catch(e){
+console.log("音声エラー", e);
+}
 }
 
 /* ===== AI ===== */
@@ -236,7 +254,6 @@ bubble.innerText="考え中…";
 
 let reply=await getAIResponse(text);
 
-/* 短く＆続きたくなる */
 if(reply.length>60) reply=reply.slice(0,60)+"…";
 if(!reply.match(/？/)) reply+=" どう思う？";
 
