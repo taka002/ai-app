@@ -160,38 +160,48 @@ const idx = cut.lastIndexOf("。");
 return idx !== -1 ? cut.slice(0, idx+1) : cut+"…";
 }
 
-/* ===== 音声 ===== */
-function speak(text){
+/* ===== 🔥 音声進化版 ===== */
+async function speak(text){
+
 if(localStorage.getItem("voice")==="off") return;
 
-const uttr = new SpeechSynthesisUtterance(text);
+/* 文ごとに分割 */
+const parts = text.split("。");
+
+for(let p of parts){
+
+if(!p.trim()) continue;
+
+/* 🔥 間（考えてる感じ） */
+await new Promise(r=>setTimeout(r,600));
+
+const uttr = new SpeechSynthesisUtterance(p + "。");
 uttr.lang="ja-JP";
+
+/* 🔥 優しさ調整 */
 uttr.pitch = 1.2;
+uttr.rate = 0.95;
+uttr.volume = 0.9;
+
 speechSynthesis.speak(uttr);
+
+/* 🔥 再生待ち */
+await new Promise(res=>{
+uttr.onend = res;
+});
+
 }
 
-/* ===== 起動後タップで音声解放 ===== */
-let firstSpeakDone = false;
+}
 
+/* ===== 起動後音声 ===== */
+let firstSpeakDone = false;
 document.body.addEventListener("click", () => {
 
 if(firstSpeakDone) return;
 firstSpeakDone = true;
 
-/* 時間帯 */
-const h = new Date().getHours();
-let list = [];
-
-if(h < 11){
-list = ["おはよう、調子どう？","朝ゆっくりできてる？"];
-}else if(h < 18){
-list = ["こんにちは、どうしてる？","少し話す？"];
-}else{
-list = ["お疲れ様、無理してない？","ゆっくりできてる？"];
-}
-
-const g = list[Math.floor(Math.random()*list.length)];
-
+const g = "どうしたのかな？";
 showBubble(g);
 speak(g);
 
