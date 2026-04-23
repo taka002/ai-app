@@ -15,28 +15,30 @@ object-fit:cover;object-position:center 28%;transform:scale(1.08);
 transition:opacity 0.3s ease;
 }
 
-#character.fade{
-opacity:0;
-}
-
-/* 吹き出し */
+/* 吹き出し（🔥切れない版） */
 #bubble{
 position:absolute;
 bottom:65px;
 left:50%;
 transform:translateX(-50%) translateY(10px);
+
 width:88%;
 background:rgba(255,255,255,0.25);
 backdrop-filter:blur(20px);
 border-radius:20px;
+
 padding:10px 12px;
 font-size:14px;
-line-height:1.4;
+line-height:1.5;
 text-align:center;
 z-index:5;
-max-height:120px;
-overflow:hidden;
+
+/* 🔥修正 */
+max-height:none;
+overflow:visible;
+
 word-break:break-word;
+
 opacity:0;
 transition:all 0.4s ease;
 }
@@ -92,15 +94,19 @@ if(memory.length>20) memory.shift();
 localStorage.setItem("memory",JSON.stringify(memory));
 }
 
-/* ===== 表情切替（フェード） ===== */
+/* ===== 表情切替（🔥確実版） ===== */
 function changeFace(src){
+
 const img = document.getElementById("character");
-img.classList.add("fade");
+
+/* 同じ画像でも強制切替 */
+img.style.opacity = 0;
 
 setTimeout(()=>{
-img.src = src;
-img.classList.remove("fade");
-},200);
+img.src = src + "?t=" + Date.now(); // キャッシュ回避
+img.style.opacity = 1;
+},150);
+
 }
 
 /* ===== 吹き出し ===== */
@@ -142,7 +148,7 @@ const d=await r.json();
 return d.choices?.[0]?.message?.content || "うまく話せない…";
 }
 
-/* ===== 送信（🔥ここが修正ポイント） ===== */
+/* ===== 送信（🔥完全修正版） ===== */
 async function send(){
 
 const text=input.value;
@@ -153,26 +159,28 @@ return;
 
 input.value="";
 
-/* 吹き出し */
+/* thinking */
 showBubble("考え中…");
-
-/* 🔥 thinking確実表示 */
 changeFace("thinking.png");
 
-/* 🔥 表示時間キープ */
+/* 🔥最低表示時間 */
 const start = Date.now();
 
 let reply = await getAIResponse(text);
 
-/* 最低0.8秒表示 */
-const wait = Math.max(0, 800 - (Date.now() - start));
+/* 🔥しっかり見せる */
+const wait = Math.max(0, 1200 - (Date.now() - start));
 await new Promise(r => setTimeout(r, wait));
 
 /* 戻す */
 changeFace("normal.png");
 
-/* 短く自然に */
-if(reply.length>60) reply = reply.slice(0,60)+"…";
+/* 🔥自然な文章（切れにくい） */
+if(reply.length > 80){
+const cut = reply.slice(0,80);
+const last = cut.lastIndexOf("。");
+reply = last > 20 ? cut.slice(0,last+1) : cut + "…";
+}
 
 /* 表示 */
 showBubble(reply);
