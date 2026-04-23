@@ -30,11 +30,9 @@ z-index:5;
 border:1px solid rgba(255,255,255,0.4);
 box-shadow:0 8px 30px rgba(0,0,0,0.15);
 }
+#bubble::after{display:none;}
 
-/* 🔥 しっぽ削除 */
-#bubble::after{ display:none; }
-
-/* ===== 考え中 ===== */
+/* ===== 考え中アニメ ===== */
 @keyframes thinkingFloat{
 0%{transform:translateX(-50%) translateY(0);}
 50%{transform:translateX(-50%) translateY(-4px);}
@@ -153,22 +151,32 @@ return "calm";
 }
 
 let currentEmotion="";
-let lastChangeTime=0;
 let lastImage="";
 
-function changeEmotion(text){
-const group=getEmotionGroup(text);
-const now=Date.now();
+/* ===== 🔥 表情遅延システム ===== */
+let emotionTimer=null;
+let pendingEmotion=null;
 
-if(group===currentEmotion){
-if(Math.random()>0.2) return;
-if(now-lastChangeTime<2000) return;
+function changeEmotion(text){
+
+const group=getEmotionGroup(text);
+if(group===currentEmotion) return;
+
+pendingEmotion=group;
+
+if(emotionTimer) clearTimeout(emotionTimer);
+
+const delay = 700 + Math.random()*800;
+
+emotionTimer=setTimeout(()=>{
+applyEmotion(pendingEmotion);
+currentEmotion=pendingEmotion;
+},delay);
 }
 
-currentEmotion=group;
-lastChangeTime=now;
+function applyEmotion(group){
+const list=emotionGroups[group]||["normal.png"];
 
-const list=emotionGroups[group];
 let img;
 do{
 img=list[Math.floor(Math.random()*list.length)];
@@ -255,7 +263,7 @@ bubble.classList.remove("thinking");
 reply=addName(reply);
 
 await typeText(reply);
-changeEmotion(reply);
+changeEmotion(reply); // 🔥 遅延発動
 saveMemory(text,reply);
 }
 
