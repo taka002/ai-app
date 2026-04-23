@@ -72,7 +72,7 @@ localStorage.setItem("memory",JSON.stringify(memory));
 
 /* ===== 設定 ===== */
 settingsBtn.onclick=()=>{
-const m=prompt("1:APIキー 2:名前 3:性格 4:リセット");
+const m=prompt("1:APIキー 2:名前 3:性格 4:履歴 5:リセット");
 
 if(m==="1"){
 const k=prompt("APIキー");
@@ -87,100 +87,72 @@ const mode=prompt("性格");
 if(mode)localStorage.setItem("aiMode",mode);
 }
 if(m==="4"){
+alert(memory.map(m=>"あなた: "+m.user+"\nAI: "+m.ai).join("\n\n"));
+}
+if(m==="5"){
 localStorage.clear();location.reload();
 }
 };
 
-/* ===== 感情データ ===== */
-const emotionGroups = {
-
+/* ===== 感情 ===== */
+const emotionGroups={
 happy:["happy.png","smile.png"],
-joy:["happy.png","smile.png"],
-love:["shy.png","embarrassed.png"],
-
 sad:["sad.png","cry.png"],
-depressed:["sad.png","cry.png"],
-
-anger:["anger.png"],
-frustration:["irritation.png"],
-
-anxiety:["anxiety.png"],
-fear:["panic.png"],
-
-thinking:["thinking.png"],
 neutral:["normal.png"],
-
-relief:["relieved.png"],
-tired:["sleepy.png"],
-
-surprise:["surprise.png"],
-
-agree:["agree.png"],
-disagree:["disagree.png"]
+thinking:["thinking.png"]
 };
 
-/* ===== 感情判定 ===== */
-function getEmotionGroup(text){
-
-if(Math.random()<0.15) return "neutral";
-
-if(/ありがとう|嬉しい/.test(text)) return "happy";
-if(/好き|大事/.test(text)) return "love";
-
-if(/悲しい|つらい/.test(text)) return "sad";
-if(/疲れた/.test(text)) return "tired";
-
-if(/イライラ|ムカ/.test(text)) return "anger";
-
-if(/不安|怖い/.test(text)) return "anxiety";
-
-if(/どう思う|考え/.test(text)) return "thinking";
-
-if(/え？|本当/.test(text)) return "surprise";
-
-if(/いいね/.test(text)) return "agree";
-if(/違う/.test(text)) return "disagree";
-
+function getEmotionGroup(t){
+if(/嬉|ありがとう/.test(t)) return "happy";
+if(/悲|つらい/.test(t)) return "sad";
 return "neutral";
 }
 
-/* ===== 表情制御 ===== */
-let currentEmotion="";
-let lastImage="";
-let timer=null;
+let currentEmotion="", lastImage="", timer;
 
 function changeEmotion(text){
-
 const group=getEmotionGroup(text);
 if(group===currentEmotion) return;
 
-if(timer) clearTimeout(timer);
-
-const delay=700+Math.random()*800;
-
+clearTimeout(timer);
 timer=setTimeout(()=>{
-applyEmotion(group);
-currentEmotion=group;
-},delay);
-}
-
-function applyEmotion(group){
-
 const list=emotionGroups[group]||["normal.png"];
-
-const index=Math.floor(Math.pow(Math.random(),1.5)*list.length);
-
-let img=list[index];
-
-if(img===lastImage && list.length>1){
-img=list[(index+1)%list.length];
-}
-
+let img=list[Math.floor(Math.random()*list.length)];
+if(img===lastImage && list.length>1) img=list[0];
 lastImage=img;
 character.src=img;
+currentEmotion=group;
+},700+Math.random()*800);
 }
 
-/* ===== 名前 ===== */
+/* ===== 会話強化 ===== */
+
+// 🔥 短くする
+function shorten(text){
+if(text.length>60){
+return text.slice(0,60)+"…";
+}
+return text;
+}
+
+// 🔥 余韻＋質問
+function softenEnding(text){
+
+const endings=[
+"どう思う？",
+"少し話してみる？",
+"今どんな感じ？",
+"もう少し聞いてもいい？"
+];
+
+if(!text.match(/？|\?/)){
+text += " " + endings[Math.floor(Math.random()*endings.length)];
+}
+
+return text;
+}
+
+// 🔥 名前
 function addName(text){
 const name=localStorage.getItem("userName");
 if(name && Math.random()<0.4){
@@ -208,6 +180,8 @@ try{
 const controller=new AbortController();
 setTimeout(()=>controller.abort(),10000);
 
+const mode=localStorage.getItem("aiMode")||"優しい";
+
 const r=await fetch("https://api.openai.com/v1/chat/completions",{
 method:"POST",
 headers:{
@@ -218,7 +192,16 @@ signal:controller.signal,
 body:JSON.stringify({
 model:"gpt-4o-mini",
 messages:[
-{role:"system",content:"優しい女性キャラ"},
+{
+role:"system",
+content:`
+${mode}女性キャラ。
+返答は1〜2文で短く。
+言い切らず余韻を残す。
+最後は軽く問いかけ。
+寄り添うが重くしすぎない。
+`
+},
 ...memory.flatMap(m=>[
 {role:"user",content:m.user},
 {role:"assistant",content:m.ai}
@@ -228,21 +211,19 @@ messages:[
 })
 });
 
-if(!r.ok) return "ちょっと調子悪いみたい…";
+if(!r.ok) return "ちょっと調子悪いみたい…もう一回いい？";
 
 const d=await r.json();
-
-if(!d.choices) return "うまく考えられない…";
+if(!d.choices) return "うまく考えられない…もう一回いい？";
 
 return d.choices[0].message.content;
 
 }catch(e){
 
 if(e.name==="AbortError"){
-return "少し時間かかっちゃった…";
+return "少し時間かかっちゃった…もう一回いい？";
 }
-
-return "通信が不安定みたい…";
+return "通信が不安定みたい…少し待ってね";
 }
 }
 
@@ -258,10 +239,13 @@ return;
 
 input.value="";
 character.src="thinking.png";
-bubble.innerText="考え中...";
+bubble.innerText="考え中…";
 
 let reply=await getAIResponse(text);
 
+// 🔥 会話を止めない処理
+reply=shorten(reply);
+reply=softenEnding(reply);
 reply=addName(reply);
 
 await typeText(reply);
