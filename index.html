@@ -65,10 +65,7 @@ background:white;display:flex;align-items:center;justify-content:center;
 let API_KEY = localStorage.getItem("apiKey") || "";
 let userInteracted = false;
 
-/* ユーザー操作検知 */
-document.body.addEventListener("click", ()=>{
-userInteracted = true;
-});
+document.body.addEventListener("click", ()=>{ userInteracted = true; });
 
 /* ===== 記憶 ===== */
 let memory = JSON.parse(localStorage.getItem("memory") || "[]");
@@ -78,7 +75,7 @@ if(memory.length>20) memory.shift();
 localStorage.setItem("memory",JSON.stringify(memory));
 }
 
-/* ===== 設定UI ===== */
+/* ===== 設定UI（そのまま） ===== */
 settingsBtn.onclick = () => {
 
 const box = document.createElement("div");
@@ -137,21 +134,20 @@ box.remove();
 document.getElementById("closeBtn").onclick = ()=>box.remove();
 };
 
-/* ===== 🔥 音声（感情切替） ===== */
+/* ===== 🔥 音声（aria / verse切替＋女性固定） ===== */
 async function speak(text){
 
 if(localStorage.getItem("voice")==="off") return;
 
-/* 感情で声選択 */
+/* 感情で声切替 */
 let voiceType = "aria";
-if(text.match(/つらい|悲しい|疲れ|大丈夫|しんどい/)){
+if(text.match(/つらい|悲しい|疲れ|しんどい|大丈夫/)){
 voiceType = "verse";
 }
 
-/* ChatGPT音声 */
+/* ===== ChatGPT音声 ===== */
 if(API_KEY){
 try{
-
 const res = await fetch("https://api.openai.com/v1/audio/speech",{
 method:"POST",
 headers:{
@@ -166,7 +162,6 @@ input:text
 });
 
 if(res.ok){
-
 const blob = await res.blob();
 const url = URL.createObjectURL(blob);
 const audio = new Audio(url);
@@ -176,29 +171,40 @@ await audio.play();
 }catch(e){
 setTimeout(()=>audio.play().catch(()=>{}),300);
 }
-
 return;
 }
-
 }catch(e){
-console.log("API失敗→ローカルへ");
+console.log("API失敗 → ローカルへ");
 }
 }
 
-/* ローカルfallback */
+/* ===== 🔥 ローカル女性ボイス ===== */
 const uttr = new SpeechSynthesisUtterance(text);
-uttr.lang="ja-JP";
+uttr.lang = "ja-JP";
 
+const voices = speechSynthesis.getVoices();
+const femaleVoice = voices.find(v =>
+v.lang.includes("ja") &&
+(v.name.includes("Female") || v.name.includes("Google") || v.name.includes("女性"))
+);
+
+if(femaleVoice){
+uttr.voice = femaleVoice;
+}
+
+/* 感情調整 */
 if(voiceType==="verse"){
-uttr.rate=0.9;
-uttr.pitch=0.8;
+uttr.rate = 0.9;
+uttr.pitch = 0.85;
 }else{
-uttr.rate=1;
-uttr.pitch=1;
+uttr.rate = 1;
+uttr.pitch = 1.1;
 }
 
 speechSynthesis.speak(uttr);
 }
+
+speechSynthesis.onvoiceschanged = () => {};
 
 /* ===== AI ===== */
 async function getAIResponse(msg){
