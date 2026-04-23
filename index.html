@@ -14,19 +14,22 @@ body{margin:0;font-family:sans-serif;background:#f5f5f5;height:100dvh;overflow:h
 position:absolute;top:0;left:0;width:100%;height:100%;
 }
 
+/* ベース顔 */
 .base-face{
 position:absolute;width:100%;height:100%;
-object-fit:cover;object-position:center 28%;
+object-fit:cover;
+object-position:center 28%;
 transform:scale(1.08);
 }
 
+/* 瞬きレイヤー（目だけ） */
 .eye-layer{
 position:absolute;width:100%;height:100%;
-object-fit:cover;object-position:center 28%;
+object-fit:cover;
+object-position:center 28%;
 transform:scale(1.08);
 pointer-events:none;
 opacity:0;
-transition:opacity 0.1s;
 }
 
 /* ===== 吹き出し ===== */
@@ -57,8 +60,12 @@ transform:translateX(-50%) translateY(0);
 
 /* ===== 入力 ===== */
 #inputArea{
-position:fixed;left:50%;transform:translateX(-50%);
-width:92%;display:flex;gap:6px;
+position:fixed;
+left:50%;
+transform:translateX(-50%);
+width:92%;
+display:flex;
+gap:6px;
 bottom:50px;
 }
 
@@ -67,8 +74,14 @@ bottom:50px;
 #send{height:34px;border-radius:999px;background:#4da6ff;color:white;border:none;}
 
 #settingsBtn,#appBtn{
-position:fixed;bottom:10px;width:36px;height:36px;border-radius:50%;
-background:white;display:flex;align-items:center;justify-content:center;
+position:fixed;
+bottom:10px;
+width:36px;height:36px;
+border-radius:50%;
+background:white;
+display:flex;
+align-items:center;
+justify-content:center;
 }
 #settingsBtn{left:calc(50% - 45px);}
 #appBtn{left:calc(50% + 10px);}
@@ -80,7 +93,7 @@ background:white;display:flex;align-items:center;justify-content:center;
 <!-- ===== キャラ ===== -->
 <div class="avatar">
   <img id="character" src="normal.png" class="base-face">
-  <img id="blinkEye" src="blink2.png" class="eye-layer">
+  <img id="blinkEye" src="blink.png" class="eye-layer">
 </div>
 
 <div id="bubble" class="show">どうしたのかな？😊</div>
@@ -142,14 +155,14 @@ character.src = "normal.png";
 
 isSpeaking = false;
 
-/* 🔥 話し終わり瞬き */
+/* 話し終わり瞬き */
 setTimeout(()=>{
 blink();
 },80 + Math.random()*120);
 }
 
 /* =========================
-   瞬き（安全版）
+   瞬き（自然・競合なし）
 ========================= */
 function blink(){
 
@@ -157,9 +170,11 @@ if(blinkRunning || isSpeaking) return;
 
 blinkRunning = true;
 
-blinkEye.style.transition = "opacity 0.06s ease-out";
+/* 閉じる */
+blinkEye.style.transition = "opacity 0.05s ease-out";
 blinkEye.style.opacity = 1;
 
+/* 開く */
 setTimeout(()=>{
 blinkEye.style.transition = "opacity 0.12s ease-in";
 blinkEye.style.opacity = 0;
@@ -168,9 +183,8 @@ blinkRunning = false;
 },70);
 }
 
+/* 自動瞬き */
 function autoBlink(){
-
-const time = 2000 + Math.random()*3000;
 
 setTimeout(()=>{
 
@@ -180,8 +194,9 @@ if(!isSpeaking){
 
 autoBlink();
 
-},time);
+},2000 + Math.random()*3000);
 }
+
 autoBlink();
 
 /* =========================
