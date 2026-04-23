@@ -65,7 +65,7 @@ background:white;display:flex;align-items:center;justify-content:center;
 let API_KEY = localStorage.getItem("apiKey") || "";
 let userInteracted = false;
 
-/* 🔥 ユーザー操作検知（最重要） */
+/* ユーザー操作検知 */
 document.body.addEventListener("click", ()=>{
 userInteracted = true;
 });
@@ -78,7 +78,7 @@ if(memory.length>20) memory.shift();
 localStorage.setItem("memory",JSON.stringify(memory));
 }
 
-/* ===== 設定UI（そのまま） ===== */
+/* ===== 設定UI ===== */
 settingsBtn.onclick = () => {
 
 const box = document.createElement("div");
@@ -137,15 +137,20 @@ box.remove();
 document.getElementById("closeBtn").onclick = ()=>box.remove();
 };
 
-/* ===== 🔥 音声（安定版） ===== */
+/* ===== 🔥 音声（感情切替） ===== */
 async function speak(text){
 
 if(localStorage.getItem("voice")==="off") return;
 
-try{
+/* 感情で声選択 */
+let voiceType = "aria";
+if(text.match(/つらい|悲しい|疲れ|大丈夫|しんどい/)){
+voiceType = "verse";
+}
 
-// ChatGPT音声
+/* ChatGPT音声 */
 if(API_KEY){
+try{
 
 const res = await fetch("https://api.openai.com/v1/audio/speech",{
 method:"POST",
@@ -155,7 +160,7 @@ headers:{
 },
 body:JSON.stringify({
 model:"gpt-4o-mini-tts",
-voice:"aria",
+voice: voiceType,
 input:text
 })
 });
@@ -166,7 +171,6 @@ const blob = await res.blob();
 const url = URL.createObjectURL(blob);
 const audio = new Audio(url);
 
-// 🔥 再生保証
 try{
 await audio.play();
 }catch(e){
@@ -176,20 +180,24 @@ setTimeout(()=>audio.play().catch(()=>{}),300);
 return;
 }
 
-}
-
-// 🔥 fallback（絶対鳴る）
-const uttr = new SpeechSynthesisUtterance(text);
-uttr.lang="ja-JP";
-speechSynthesis.speak(uttr);
-
 }catch(e){
+console.log("API失敗→ローカルへ");
+}
+}
 
+/* ローカルfallback */
 const uttr = new SpeechSynthesisUtterance(text);
 uttr.lang="ja-JP";
-speechSynthesis.speak(uttr);
 
+if(voiceType==="verse"){
+uttr.rate=0.9;
+uttr.pitch=0.8;
+}else{
+uttr.rate=1;
+uttr.pitch=1;
 }
+
+speechSynthesis.speak(uttr);
 }
 
 /* ===== AI ===== */
@@ -247,7 +255,6 @@ await speak(reply);
 saveMemory(text,reply);
 }
 
-/* 🔥 ボタンイベント（重要） */
 document.getElementById("send").onclick = send;
 
 /* ===== 音声入力 ===== */
