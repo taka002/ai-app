@@ -161,21 +161,43 @@ await new Promise(r=>setTimeout(r,15));
 }
 }
 
-/* ===== 🔥 音声応答 ===== */
-function speak(text){
+/* ===== 🔥 ChatGPT音声 ===== */
+async function speak(text){
 
 if(localStorage.getItem("voice")==="off") return;
+if(!API_KEY) return;
 
-speechSynthesis.cancel();
+try{
 
-const short = text.replace(/….*$/,""); // 長すぎ防止
+const short = text.replace(/….*$/,"");
 
-const uttr = new SpeechSynthesisUtterance(short);
-uttr.lang="ja-JP";
-uttr.rate=1.0;
-uttr.pitch=1.2;
+const res = await fetch("https://api.openai.com/v1/audio/speech",{
+method:"POST",
+headers:{
+"Authorization":"Bearer "+API_KEY,
+"Content-Type":"application/json"
+},
+body:JSON.stringify({
+model:"gpt-4o-mini-tts",
+voice:"alloy",
+input:short
+})
+});
 
-speechSynthesis.speak(uttr);
+if(!res.ok){
+console.log("音声エラー");
+return;
+}
+
+const blob = await res.blob();
+const url = URL.createObjectURL(blob);
+
+const audio = new Audio(url);
+audio.play();
+
+}catch(e){
+console.log("音声失敗",e);
+}
 }
 
 /* ===== AI ===== */
@@ -258,8 +280,10 @@ reply=addName(reply);
 await typeText(reply);
 changeEmotion(reply);
 
-/* 🔥 音声ここ */
-speak(reply);
+/* 🔥 ChatGPT音声 */
+setTimeout(()=>{
+  speak(reply);
+},150);
 
 saveMemory(text,reply);
 }
