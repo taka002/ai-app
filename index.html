@@ -56,26 +56,19 @@ background:white;display:flex;align-items:center;justify-content:center;
 <div id="inputArea">
 <button id="mic">🎤</button>
 <input id="input" placeholder="話しかけて">
-<button id="send" onclick="send()">送信</button>
+<button id="send">送信</button>
 </div>
 
 <script>
 
 /* ===== 初期 ===== */
 let API_KEY = localStorage.getItem("apiKey") || "";
+let userInteracted = false;
 
-/* 🔥 AudioContext（音声ブロック対策） */
-let audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-
-/* ===== 音声アンロック ===== */
-let audioUnlocked = false;
-document.body.addEventListener("click", async ()=>{
-if(audioUnlocked) return;
-try{
-await audioCtx.resume();
-audioUnlocked = true;
-}catch(e){}
-},{once:true});
+/* 🔥 ユーザー操作検知（最重要） */
+document.body.addEventListener("click", ()=>{
+userInteracted = true;
+});
 
 /* ===== 記憶 ===== */
 let memory = JSON.parse(localStorage.getItem("memory") || "[]");
@@ -85,7 +78,7 @@ if(memory.length>20) memory.shift();
 localStorage.setItem("memory",JSON.stringify(memory));
 }
 
-/* ===== 設定UI ===== */
+/* ===== 設定UI（そのまま） ===== */
 settingsBtn.onclick = () => {
 
 const box = document.createElement("div");
@@ -100,13 +93,7 @@ z-index:999;
 `;
 
 box.innerHTML = `
-<div style="
-background:#fff;
-width:90%;
-border-radius:20px;
-padding:20px;
-font-size:14px;
-">
+<div style="background:#fff;width:90%;border-radius:20px;padding:20px;font-size:14px;">
 
 <h3>設定</h3>
 
@@ -129,13 +116,8 @@ font-size:14px;
 <option value="off" ${localStorage.getItem("voice")==="off"?"selected":""}>OFF</option>
 </select><br><br>
 
-<button id="saveBtn" style="width:100%;padding:10px;border:none;background:#4da6ff;color:#fff;border-radius:10px;">
-保存
-</button>
-
-<button id="closeBtn" style="width:100%;margin-top:8px;padding:10px;border:none;background:#ccc;border-radius:10px;">
-閉じる
-</button>
+<button id="saveBtn" style="width:100%;padding:10px;border:none;background:#4da6ff;color:#fff;border-radius:10px;">保存</button>
+<button id="closeBtn" style="width:100%;margin-top:8px;padding:10px;border:none;background:#ccc;border-radius:10px;">閉じる</button>
 
 </div>
 `;
@@ -147,30 +129,23 @@ localStorage.setItem("apiKey", document.getElementById("set_api").value);
 localStorage.setItem("userName", document.getElementById("set_name").value);
 localStorage.setItem("aiMode", document.getElementById("set_mode").value);
 localStorage.setItem("voice", document.getElementById("set_voice").value);
-
 API_KEY = localStorage.getItem("apiKey");
-
 alert("保存したよ 👍");
 box.remove();
 };
 
-document.getElementById("closeBtn").onclick = () => {
-box.remove();
+document.getElementById("closeBtn").onclick = ()=>box.remove();
 };
 
-};
-
-/* ===== 🔥 音声（完全版） ===== */
-let currentSource = null;
-
+/* ===== 🔥 音声（安定版） ===== */
 async function speak(text){
 
 if(localStorage.getItem("voice")==="off") return;
-if(!API_KEY) return;
 
 try{
 
-await audioCtx.resume();
+// ChatGPT音声
+if(API_KEY){
 
 const res = await fetch("https://api.openai.com/v1/audio/speech",{
 method:"POST",
@@ -185,29 +160,35 @@ input:text
 })
 });
 
-if(!res.ok){
-console.log("音声API失敗");
+if(res.ok){
+
+const blob = await res.blob();
+const url = URL.createObjectURL(blob);
+const audio = new Audio(url);
+
+// 🔥 再生保証
+try{
+await audio.play();
+}catch(e){
+setTimeout(()=>audio.play().catch(()=>{}),300);
+}
+
 return;
 }
 
-const blob = await res.blob();
-const arrayBuffer = await blob.arrayBuffer();
-
-const audioBuffer = await audioCtx.decodeAudioData(arrayBuffer);
-
-const source = audioCtx.createBufferSource();
-source.buffer = audioBuffer;
-source.connect(audioCtx.destination);
-
-if(currentSource){
-try{ currentSource.stop(); }catch(e){}
 }
 
-currentSource = source;
-source.start(0);
+// 🔥 fallback（絶対鳴る）
+const uttr = new SpeechSynthesisUtterance(text);
+uttr.lang="ja-JP";
+speechSynthesis.speak(uttr);
 
 }catch(e){
-console.log("音声エラー", e);
+
+const uttr = new SpeechSynthesisUtterance(text);
+uttr.lang="ja-JP";
+speechSynthesis.speak(uttr);
+
 }
 }
 
@@ -243,6 +224,8 @@ return d.choices?.[0]?.message?.content || "うまく話せない…";
 /* ===== 送信 ===== */
 async function send(){
 
+userInteracted = true;
+
 const text=input.value;
 if(!text.trim()){
 bubble.innerText="何か話して😊";
@@ -263,6 +246,9 @@ await speak(reply);
 
 saveMemory(text,reply);
 }
+
+/* 🔥 ボタンイベント（重要） */
+document.getElementById("send").onclick = send;
 
 /* ===== 音声入力 ===== */
 if('webkitSpeechRecognition' in window){
