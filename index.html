@@ -19,60 +19,26 @@ position:absolute;bottom:65px;left:50%;transform:translateX(-50%);
 width:92%;
 background:rgba(255,255,255,0.25);
 backdrop-filter:blur(20px);
--webkit-backdrop-filter:blur(20px);
 border-radius:25px;
 padding:14px;
 font-size:16px;
-line-height:1.4;
 text-align:center;
 z-index:5;
-border:1px solid rgba(255,255,255,0.4);
-box-shadow:0 8px 30px rgba(0,0,0,0.15);
-}
-#bubble::after{display:none;}
-
-@keyframes thinkingFloat{
-0%{transform:translateX(-50%) translateY(0);}
-50%{transform:translateX(-50%) translateY(-4px);}
-100%{transform:translateX(-50%) translateY(0);}
-}
-#bubble.thinking{
-background:rgba(255,255,255,0.2);
-backdrop-filter:blur(25px);
-animation:thinkingFloat 1.5s infinite;
 }
 
 #inputArea{
 position:fixed;left:50%;transform:translateX(-50%);
-width:92%;display:flex;align-items:center;gap:6px;
-padding:6px 8px calc(env(safe-area-inset-bottom)+6px);
-background:rgba(255,255,255,0.95);
-border-radius:18px;bottom:50px;overflow:hidden;
+width:92%;display:flex;gap:6px;
+bottom:50px;
 }
 
-#mic{
-width:34px;height:34px;flex:0 0 34px;
-border-radius:50%;border:none;background:#eee;
-}
-
-#input{
-flex:1;min-width:0;max-width:60%;
-height:34px;padding:0 8px;border-radius:16px;border:none;
-font-size:13px;background:#eee;
-}
-
-#send{
-flex:0 0 auto;height:34px;padding:0 12px;
-border:none;border-radius:999px;background:#4da6ff;
-color:white;font-size:13px;white-space:nowrap;
-}
+#mic{width:34px;height:34px;border-radius:50%;border:none;}
+#input{flex:1;height:34px;border-radius:16px;border:none;}
+#send{height:34px;border-radius:999px;background:#4da6ff;color:white;border:none;}
 
 #settingsBtn,#appBtn{
-position:fixed;bottom:10px;width:36px;height:36px;
-border-radius:50%;background:white;
-display:flex;align-items:center;justify-content:center;
-box-shadow:0 4px 10px rgba(0,0,0,0.2);
-font-size:16px;
+position:fixed;bottom:10px;width:36px;height:36px;border-radius:50%;
+background:white;display:flex;align-items:center;justify-content:center;
 }
 #settingsBtn{left:calc(50% - 45px);}
 #appBtn{left:calc(50% + 10px);}
@@ -105,74 +71,110 @@ localStorage.setItem("memory",JSON.stringify(memory));
 }
 
 /* ===== 設定 ===== */
-document.getElementById("settingsBtn").onclick = ()=>{
-const menu = prompt(`設定
-1:APIキー
-2:名前
-3:性格
-4:リセット`);
+settingsBtn.onclick=()=>{
+const m=prompt("1:APIキー 2:名前 3:性格 4:リセット");
 
-if(menu==="1"){
-const key=prompt("APIキー");
-if(key){localStorage.setItem("apiKey",key);API_KEY=key;}
+if(m==="1"){
+const k=prompt("APIキー");
+if(k){localStorage.setItem("apiKey",k);API_KEY=k;}
 }
-
-if(menu==="2"){
-const name=prompt("名前");
-if(name){localStorage.setItem("userName",name);}
+if(m==="2"){
+const n=prompt("名前");
+if(n)localStorage.setItem("userName",n);
 }
-
-if(menu==="3"){
+if(m==="3"){
 const mode=prompt("性格");
-if(mode){localStorage.setItem("aiMode",mode);}
+if(mode)localStorage.setItem("aiMode",mode);
 }
-
-if(menu==="4"){
-localStorage.clear();
-alert("リセットしたよ");
+if(m==="4"){
+localStorage.clear();location.reload();
 }
 };
 
-/* ===== 表情 ===== */
-const emotionGroups={
+/* ===== 感情データ ===== */
+const emotionGroups = {
+
 happy:["happy.png","smile.png"],
+joy:["happy.png","smile.png"],
+love:["shy.png","embarrassed.png"],
+
 sad:["sad.png","cry.png"],
-calm:["normal.png"]
+depressed:["sad.png","cry.png"],
+
+anger:["anger.png"],
+frustration:["irritation.png"],
+
+anxiety:["anxiety.png"],
+fear:["panic.png"],
+
+thinking:["thinking.png"],
+neutral:["normal.png"],
+
+relief:["relieved.png"],
+tired:["sleepy.png"],
+
+surprise:["surprise.png"],
+
+agree:["agree.png"],
+disagree:["disagree.png"]
 };
 
-function getEmotionGroup(t){
-if(/嬉|ありがとう/.test(t)) return "happy";
-if(/悲|辛/.test(t)) return "sad";
-return "calm";
+/* ===== 感情判定 ===== */
+function getEmotionGroup(text){
+
+if(Math.random()<0.15) return "neutral";
+
+if(/ありがとう|嬉しい/.test(text)) return "happy";
+if(/好き|大事/.test(text)) return "love";
+
+if(/悲しい|つらい/.test(text)) return "sad";
+if(/疲れた/.test(text)) return "tired";
+
+if(/イライラ|ムカ/.test(text)) return "anger";
+
+if(/不安|怖い/.test(text)) return "anxiety";
+
+if(/どう思う|考え/.test(text)) return "thinking";
+
+if(/え？|本当/.test(text)) return "surprise";
+
+if(/いいね/.test(text)) return "agree";
+if(/違う/.test(text)) return "disagree";
+
+return "neutral";
 }
 
+/* ===== 表情制御 ===== */
 let currentEmotion="";
 let lastImage="";
-let emotionTimer=null;
-let pendingEmotion=null;
+let timer=null;
 
 function changeEmotion(text){
+
 const group=getEmotionGroup(text);
 if(group===currentEmotion) return;
 
-pendingEmotion=group;
-if(emotionTimer) clearTimeout(emotionTimer);
+if(timer) clearTimeout(timer);
 
-const delay = 700 + Math.random()*800;
+const delay=700+Math.random()*800;
 
-emotionTimer=setTimeout(()=>{
-applyEmotion(pendingEmotion);
-currentEmotion=pendingEmotion;
+timer=setTimeout(()=>{
+applyEmotion(group);
+currentEmotion=group;
 },delay);
 }
 
 function applyEmotion(group){
+
 const list=emotionGroups[group]||["normal.png"];
 
-let img;
-do{
-img=list[Math.floor(Math.random()*list.length)];
-}while(img===lastImage && list.length>1);
+const index=Math.floor(Math.pow(Math.random(),1.5)*list.length);
+
+let img=list[index];
+
+if(img===lastImage && list.length>1){
+img=list[(index+1)%list.length];
+}
 
 lastImage=img;
 character.src=img;
@@ -181,8 +183,7 @@ character.src=img;
 /* ===== 名前 ===== */
 function addName(text){
 const name=localStorage.getItem("userName");
-if(!name) return text;
-if(Math.random()<0.4){
+if(name && Math.random()<0.4){
 return name+"、"+text;
 }
 return text;
@@ -197,94 +198,69 @@ await new Promise(r=>setTimeout(r,15));
 }
 }
 
-/* ===== AI（エラー対応強化） ===== */
+/* ===== AI ===== */
 async function getAIResponse(msg){
 
-if(!API_KEY) return "設定からAPIキー入れてね🙏";
+if(!API_KEY) return "APIキー入れてね";
 
 try{
 
-  const controller = new AbortController();
-  const timeout = setTimeout(()=>controller.abort(),10000);
+const controller=new AbortController();
+setTimeout(()=>controller.abort(),10000);
 
-  const r = await fetch("https://api.openai.com/v1/chat/completions",{
-    method:"POST",
-    headers:{
-      "Content-Type":"application/json",
-      "Authorization":"Bearer "+API_KEY
-    },
-    signal:controller.signal,
-    body:JSON.stringify({
-      model:"gpt-4o-mini",
-      messages:[
-        {
-          role:"system",
-          content:`優しい女性キャラ。自然に会話する`
-        },
-        ...memory.flatMap(m=>[
-          {role:"user",content:m.user},
-          {role:"assistant",content:m.ai}
-        ]),
-        {role:"user",content:msg}
-      ]
-    })
-  });
+const r=await fetch("https://api.openai.com/v1/chat/completions",{
+method:"POST",
+headers:{
+"Content-Type":"application/json",
+"Authorization":"Bearer "+API_KEY
+},
+signal:controller.signal,
+body:JSON.stringify({
+model:"gpt-4o-mini",
+messages:[
+{role:"system",content:"優しい女性キャラ"},
+...memory.flatMap(m=>[
+{role:"user",content:m.user},
+{role:"assistant",content:m.ai}
+]),
+{role:"user",content:msg}
+]
+})
+});
 
-  clearTimeout(timeout);
+if(!r.ok) return "ちょっと調子悪いみたい…";
 
-  if(!r.ok){
-    return "ちょっと調子悪いみたい…もう一回話しかけてくれる？";
-  }
+const d=await r.json();
 
-  const d = await r.json();
+if(!d.choices) return "うまく考えられない…";
 
-  if(!d.choices || !d.choices[0]){
-    return "うまく考えられなかった…もう一回お願いしてもいい？";
-  }
-
-  return d.choices[0].message.content;
+return d.choices[0].message.content;
 
 }catch(e){
 
-  if(e.name==="AbortError"){
-    return "少し時間かかっちゃった…もう一回お願いしてもいい？";
-  }
+if(e.name==="AbortError"){
+return "少し時間かかっちゃった…";
+}
 
-  return "通信が不安定みたい…少し待ってね";
+return "通信が不安定みたい…";
 }
 }
 
-/* ===== 考え中 ===== */
-function startThinking(){
-bubble.classList.add("thinking");
-let dots=0;
-return setInterval(()=>{
-dots=(dots+1)%4;
-bubble.innerText="考え中" + "…".slice(0,dots+1);
-},400);
-}
-
-/* ===== 送信（エラー対応） ===== */
+/* ===== 送信 ===== */
 async function send(){
 
 const text=input.value;
 
 if(!text.trim()){
-bubble.innerText="何か話してくれると嬉しいな😊";
+bubble.innerText="何か話して😊";
 return;
 }
 
 input.value="";
-character.src="typing.png";
-
-const thinking=startThinking();
-
-try{
+character.src="thinking.png";
+bubble.innerText="考え中...";
 
 let reply=await getAIResponse(text);
-
-clearInterval(thinking);
-bubble.classList.remove("thinking");
 
 reply=addName(reply);
 
@@ -292,24 +268,14 @@ await typeText(reply);
 changeEmotion(reply);
 
 saveMemory(text,reply);
-
-}catch(e){
-
-clearInterval(thinking);
-bubble.classList.remove("thinking");
-
-bubble.innerText="エラーが出ちゃった…もう一回お願いしてもいい？";
-character.src="sad.png";
-
-}
 }
 
-/* ===== 音声入力 ===== */
-if ('webkitSpeechRecognition' in window){
-const rec=new webkitSpeechRecognition();
-rec.lang='ja-JP';
-mic.onclick=()=>rec.start();
-rec.onresult=e=>{
+/* ===== 音声 ===== */
+if('webkitSpeechRecognition' in window){
+const r=new webkitSpeechRecognition();
+r.lang='ja-JP';
+mic.onclick=()=>r.start();
+r.onresult=e=>{
 input.value=e.results[0][0].transcript;
 send();
 };
