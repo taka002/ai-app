@@ -2,166 +2,227 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>美咲AI 完全版</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>美咲AI</title>
 
 <style>
 *{box-sizing:border-box;}
-body{margin:0;background:#f5f5f5;font-family:sans-serif;overflow:hidden;}
+body{margin:0;font-family:sans-serif;background:#f5f5f5;height:100dvh;overflow:hidden;}
 
-.avatar{position:absolute;width:100%;height:100%;}
-.base-face,.eye-layer{
+/* ===== キャラ ===== */
+.avatar{
+position:absolute;top:0;left:0;width:100%;height:100%;
+}
+
+/* ベース顔 */
+.base-face{
 position:absolute;width:100%;height:100%;
-object-fit:cover;transform:scale(1.08);
+object-fit:cover;
+object-position:center 28%;
+transform:scale(1.08);
 }
-.eye-layer{opacity:0;transition:.1s;}
 
+/* 瞬きレイヤー（目だけ） */
+.eye-layer{
+position:absolute;width:100%;height:100%;
+object-fit:cover;
+object-position:center 28%;
+transform:scale(1.08);
+pointer-events:none;
+opacity:0;
+}
+
+/* ===== 吹き出し ===== */
 #bubble{
-position:absolute;bottom:70px;left:50%;
+position:absolute;
+bottom:65px;
+left:50%;
 transform:translateX(-50%) translateY(10px);
-background:rgba(255,255,255,0.3);
-padding:10px 14px;border-radius:20px;
-opacity:0;transition:.3s;
-}
-#bubble.show{opacity:1;transform:translateX(-50%) translateY(0);}
-
-#inputArea{position:fixed;bottom:50px;width:100%;display:flex;}
-#input{flex:1;border-radius:20px;}
-#send{border-radius:20px;}
-
-#settingsBtn{
-position:fixed;bottom:10px;left:10px;
-background:white;border-radius:50%;
-width:40px;height:40px;
-display:flex;align-items:center;justify-content:center;
+width:88%;
+background:rgba(255,255,255,0.25);
+backdrop-filter:blur(20px);
+border-radius:20px;
+padding:10px 12px;
+font-size:14px;
+line-height:1.5;
+text-align:center;
+z-index:5;
+max-height:160px;
+overflow:auto;
+opacity:0;
+transition:all 0.4s ease;
 }
 
-/* 設定 */
-#settingsPanel{
-position:fixed;top:0;left:0;width:100%;height:100%;
-background:rgba(0,0,0,.5);
-display:none;align-items:center;justify-content:center;
+#bubble.show{
+opacity:1;
+transform:translateX(-50%) translateY(0);
 }
-#settingsBox{
-background:#fff;padding:20px;border-radius:15px;width:80%;
+
+/* ===== 入力 ===== */
+#inputArea{
+position:fixed;
+left:50%;
+transform:translateX(-50%);
+width:92%;
+display:flex;
+gap:6px;
+bottom:50px;
 }
+
+#mic{width:34px;height:34px;border-radius:50%;border:none;}
+#input{flex:1;height:34px;border-radius:16px;border:none;}
+#send{height:34px;border-radius:999px;background:#4da6ff;color:white;border:none;}
+
+#settingsBtn,#appBtn{
+position:fixed;
+bottom:10px;
+width:36px;height:36px;
+border-radius:50%;
+background:white;
+display:flex;
+align-items:center;
+justify-content:center;
+}
+#settingsBtn{left:calc(50% - 45px);}
+#appBtn{left:calc(50% + 10px);}
 </style>
 </head>
 
 <body>
 
+<!-- ===== キャラ ===== -->
 <div class="avatar">
-<img id="character" src="normal.png" class="base-face">
-<img id="blinkEye" src="blink.png" class="eye-layer">
+  <img id="character" src="normal.png" class="base-face">
+  <img id="blinkEye" src="blink.png" class="eye-layer">
 </div>
 
-<div id="bubble">どうしたのかな？😊</div>
+<div id="bubble" class="show">どうしたのかな？😊</div>
 
 <div id="settingsBtn">⚙️</div>
-
-<div id="settingsPanel">
-<div id="settingsBox">
-APIキー<br>
-<input id="apiInput"><br>
-<button onclick="saveApi()">保存</button>
-<button onclick="closeSettings()">閉じる</button>
-</div>
-</div>
+<div id="appBtn">📱</div>
 
 <div id="inputArea">
-<input id="input">
+<button id="mic">🎤</button>
+<input id="input" placeholder="話しかけて">
 <button id="send">送信</button>
 </div>
 
 <script>
 
-/* ===== 状態 ===== */
-let API_KEY=localStorage.getItem("apiKey")||"";
-let isSpeaking=false;
-let blinkRunning=false;
-
 /* ===== 要素 ===== */
-const character=document.getElementById("character");
-const blinkEye=document.getElementById("blinkEye");
-const bubble=document.getElementById("bubble");
+const bubble = document.getElementById("bubble");
+const input = document.getElementById("input");
+const character = document.getElementById("character");
+const blinkEye = document.getElementById("blinkEye");
 
-/* ===== 設定 ===== */
-settingsBtn.onclick=()=>{
-settingsPanel.style.display="flex";
-apiInput.value=API_KEY;
-};
-function closeSettings(){settingsPanel.style.display="none";}
-function saveApi(){
-API_KEY=apiInput.value;
-localStorage.setItem("apiKey",API_KEY);
-alert("保存OK");
-}
+/* ===== 状態 ===== */
+let isSpeaking = false;
+let blinkRunning = false;
 
-/* ===== 吹き出し ===== */
-function showBubble(t){
-bubble.classList.remove("show");
-setTimeout(()=>{
-bubble.innerText=t;
-bubble.classList.add("show");
-},100);
-}
+/* =========================
+   口パク
+========================= */
+const mouthFrames = [
+"normal.png",
+"mouth1.png",
+"mouth2.png",
+"mouth3.png",
+"mouth2.png",
+"mouth1.png"
+];
 
-/* ===== 瞬き ===== */
-function blink(){
-if(blinkRunning||isSpeaking)return;
-blinkRunning=true;
-blinkEye.style.opacity=1;
-setTimeout(()=>{
-blinkEye.style.opacity=0;
-blinkRunning=false;
-},80);
-}
-function autoBlink(){
-setTimeout(()=>{
-if(!isSpeaking)blink();
-autoBlink();
-},2000+Math.random()*3000);
-}
-autoBlink();
-
-/* ===== 音声解析口パク ===== */
-let audioCtx, analyser, dataArray;
+let lipTimer = null;
+let lipIndex = 0;
 
 function startLipSync(){
+if(lipTimer) return;
+
+isSpeaking = true;
+
 function loop(){
-if(!isSpeaking)return;
-
-analyser.getByteTimeDomainData(dataArray);
-
-let sum=0;
-for(let i=0;i<dataArray.length;i++){
-let v=(dataArray[i]-128)/128;
-sum+=v*v;
-}
-let vol=Math.sqrt(sum/dataArray.length);
-
-if(vol<0.02) character.src="normal.png";
-else if(vol<0.05) character.src="mouth1.png";
-else if(vol<0.1) character.src="mouth2.png";
-else character.src="mouth3.png";
-
-requestAnimationFrame(loop);
+character.src = mouthFrames[lipIndex];
+lipIndex = (lipIndex + 1) % mouthFrames.length;
+lipTimer = setTimeout(loop, 70 + Math.random()*80);
 }
 loop();
 }
 
 function stopLipSync(){
-isSpeaking=false;
-character.src="normal.png";
-setTimeout(()=>blink(),120);
+clearTimeout(lipTimer);
+lipTimer = null;
+lipIndex = 0;
+character.src = "normal.png";
+
+isSpeaking = false;
+
+/* 話し終わり瞬き */
+setTimeout(()=>{
+blink();
+},80 + Math.random()*120);
 }
 
-/* ===== 音声 ===== */
+/* =========================
+   瞬き（自然・競合なし）
+========================= */
+function blink(){
+
+if(blinkRunning || isSpeaking) return;
+
+blinkRunning = true;
+
+/* 閉じる */
+blinkEye.style.transition = "opacity 0.05s ease-out";
+blinkEye.style.opacity = 1;
+
+/* 開く */
+setTimeout(()=>{
+blinkEye.style.transition = "opacity 0.12s ease-in";
+blinkEye.style.opacity = 0;
+
+blinkRunning = false;
+},70);
+}
+
+/* 自動瞬き */
+function autoBlink(){
+
+setTimeout(()=>{
+
+if(!isSpeaking){
+  blink();
+}
+
+autoBlink();
+
+},2000 + Math.random()*3000);
+}
+
+autoBlink();
+
+/* =========================
+   吹き出し
+========================= */
+function showBubble(text){
+bubble.classList.remove("show");
+setTimeout(()=>{
+bubble.innerText = text;
+bubble.classList.add("show");
+},150);
+}
+
+/* =========================
+   音声
+========================= */
+let API_KEY = localStorage.getItem("apiKey") || "";
+
 async function speak(text){
 
-if(!API_KEY){alert("APIキー設定");return;}
+startLipSync();
 
-const res=await fetch("https://api.openai.com/v1/audio/speech",{
+/* ChatGPT音声 */
+if(API_KEY){
+try{
+const res = await fetch("https://api.openai.com/v1/audio/speech",{
 method:"POST",
 headers:{
 "Authorization":"Bearer "+API_KEY,
@@ -174,64 +235,108 @@ input:text
 })
 });
 
-const blob=await res.blob();
-const url=URL.createObjectURL(blob);
+if(res.ok){
+const blob = await res.blob();
+const url = URL.createObjectURL(blob);
+const audio = new Audio(url);
 
-const audio=document.createElement("audio");
-audio.src=url;
+audio.onended = stopLipSync;
 
-audio.onplay=async ()=>{
-audioCtx=new AudioContext();
-const src=audioCtx.createMediaElementSource(audio);
-analyser=audioCtx.createAnalyser();
-dataArray=new Uint8Array(analyser.frequencyBinCount);
-src.connect(analyser);
-analyser.connect(audioCtx.destination);
-
-await audioCtx.resume();
-isSpeaking=true;
-startLipSync();
-};
-
-audio.onended=stopLipSync;
-
-audio.play().catch(()=>{
-document.body.onclick=()=>audio.play();
-});
+await audio.play().catch(()=>setTimeout(()=>audio.play(),300));
+return;
+}
+}catch(e){}
 }
 
-/* ===== AI ===== */
-async function getAI(msg){
+/* fallback */
+const uttr = new SpeechSynthesisUtterance(text);
+uttr.lang="ja-JP";
+uttr.pitch = 1.2;
+uttr.rate = 0.95;
+
+uttr.onstart = startLipSync;
+uttr.onend = stopLipSync;
+
+speechSynthesis.speak(uttr);
+}
+
+/* =========================
+   AI
+========================= */
+async function getAIResponse(msg){
+if(!API_KEY) return "APIキー入れてね";
+
 const r=await fetch("https://api.openai.com/v1/chat/completions",{
 method:"POST",
 headers:{
-"Authorization":"Bearer "+API_KEY,
-"Content-Type":"application/json"
+"Content-Type":"application/json",
+"Authorization":"Bearer "+API_KEY
 },
 body:JSON.stringify({
 model:"gpt-4o-mini",
-messages:[{role:"user",content:msg}]
+messages:[
+{role:"system",content:"優しい女性。短く自然に。最後は軽く質問。"},
+{role:"user",content:msg}
+]
 })
 });
+
 const d=await r.json();
-return d.choices[0].message.content;
+return d.choices?.[0]?.message?.content || "うまく話せない…";
 }
 
-/* ===== 送信 ===== */
+/* =========================
+   送信
+========================= */
 async function send(){
-const t=input.value;
-if(!t)return;
+
+const text=input.value;
+
+if(!text.trim()){
+showBubble("何か話して😊");
+return;
+}
 
 input.value="";
-showBubble("考え中…");
+showBubble("…");
 
-let r=await getAI(t);
+await new Promise(r=>setTimeout(r,400));
 
-showBubble(r);
-speak(r);
+let reply = await getAIResponse(text);
+
+/* 間を作る */
+reply = reply
+.replace(/。/g,"。… ")
+.replace(/、/g,"、 ")
+.replace(/！/g,"！… ")
+.replace(/？/g,"？… ");
+
+if(reply.length>100) reply=reply.slice(0,100)+"…";
+
+showBubble(reply);
+speak(reply);
 }
-send.onclick=send;
+
+send.onclick = send;
+
+/* =========================
+   音声入力
+========================= */
+if('webkitSpeechRecognition' in window){
+const r=new webkitSpeechRecognition();
+r.lang='ja-JP';
+
+mic.onclick=()=>r.start();
+
+r.onresult=e=>{
+input.value=e.results[0][0].transcript;
+send();
+};
+}else{
+mic.onclick=()=>alert("非対応");
+}
 
 </script>
+
 </body>
 </html>
