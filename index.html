@@ -72,7 +72,7 @@ localStorage.setItem("memory",JSON.stringify(memory));
 
 /* ===== 設定 ===== */
 settingsBtn.onclick=()=>{
-const m=prompt("1:APIキー 2:名前 3:性格 4:履歴 5:リセット");
+const m=prompt("1:APIキー 2:名前 3:性格 4:履歴 5:音声ON/OFF 6:リセット");
 
 if(m==="1"){
 const k=prompt("APIキー");
@@ -90,6 +90,11 @@ if(m==="4"){
 alert(memory.map(m=>"あなた: "+m.user+"\nAI: "+m.ai).join("\n\n"));
 }
 if(m==="5"){
+const flag = localStorage.getItem("voice")==="on" ? "off":"on";
+localStorage.setItem("voice",flag);
+alert("音声: "+flag);
+}
+if(m==="6"){
 localStorage.clear();location.reload();
 }
 };
@@ -126,33 +131,19 @@ currentEmotion=group;
 }
 
 /* ===== 会話強化 ===== */
-
-// 🔥 短くする
 function shorten(text){
-if(text.length>60){
-return text.slice(0,60)+"…";
-}
+if(text.length>60) return text.slice(0,60)+"…";
 return text;
 }
 
-// 🔥 余韻＋質問
 function softenEnding(text){
-
-const endings=[
-"どう思う？",
-"少し話してみる？",
-"今どんな感じ？",
-"もう少し聞いてもいい？"
-];
-
+const endings=["どう思う？","少し話してみる？","今どんな感じ？","もう少し聞いてもいい？"];
 if(!text.match(/？|\?/)){
 text += " " + endings[Math.floor(Math.random()*endings.length)];
 }
-
 return text;
 }
 
-// 🔥 名前
 function addName(text){
 const name=localStorage.getItem("userName");
 if(name && Math.random()<0.4){
@@ -168,6 +159,23 @@ for(let c of t){
 bubble.innerText+=c;
 await new Promise(r=>setTimeout(r,15));
 }
+}
+
+/* ===== 🔥 音声応答 ===== */
+function speak(text){
+
+if(localStorage.getItem("voice")==="off") return;
+
+speechSynthesis.cancel();
+
+const short = text.replace(/….*$/,""); // 長すぎ防止
+
+const uttr = new SpeechSynthesisUtterance(short);
+uttr.lang="ja-JP";
+uttr.rate=1.0;
+uttr.pitch=1.2;
+
+speechSynthesis.speak(uttr);
 }
 
 /* ===== AI ===== */
@@ -243,7 +251,6 @@ bubble.innerText="考え中…";
 
 let reply=await getAIResponse(text);
 
-// 🔥 会話を止めない処理
 reply=shorten(reply);
 reply=softenEnding(reply);
 reply=addName(reply);
@@ -251,10 +258,13 @@ reply=addName(reply);
 await typeText(reply);
 changeEmotion(reply);
 
+/* 🔥 音声ここ */
+speak(reply);
+
 saveMemory(text,reply);
 }
 
-/* ===== 音声 ===== */
+/* ===== 音声入力 ===== */
 if('webkitSpeechRecognition' in window){
 const r=new webkitSpeechRecognition();
 r.lang='ja-JP';
