@@ -15,25 +15,22 @@ object-fit:cover;object-position:center 28%;transform:scale(1.08);
 transition:opacity 0.3s ease;
 }
 
-/* 吹き出し（🔥切れない版） */
 #bubble{
 position:absolute;
 bottom:65px;
 left:50%;
 transform:translateX(-50%) translateY(10px);
-
 width:88%;
 background:rgba(255,255,255,0.25);
 backdrop-filter:blur(20px);
 border-radius:20px;
-
 padding:10px 12px;
 font-size:14px;
 line-height:1.5;
 text-align:center;
 z-index:5;
 
-/* 🔥修正 */
+/* 切れ防止 */
 max-height:none;
 overflow:visible;
 
@@ -83,6 +80,11 @@ background:white;display:flex;align-items:center;justify-content:center;
 
 <script>
 
+/* ===== 要素 ===== */
+const bubble = document.getElementById("bubble");
+const input = document.getElementById("input");
+const settingsBtn = document.getElementById("settingsBtn");
+
 /* ===== 初期 ===== */
 let API_KEY = localStorage.getItem("apiKey") || "";
 
@@ -94,21 +96,6 @@ if(memory.length>20) memory.shift();
 localStorage.setItem("memory",JSON.stringify(memory));
 }
 
-/* ===== 表情切替（🔥確実版） ===== */
-function changeFace(src){
-
-const img = document.getElementById("character");
-
-/* 同じ画像でも強制切替 */
-img.style.opacity = 0;
-
-setTimeout(()=>{
-img.src = src + "?t=" + Date.now(); // キャッシュ回避
-img.style.opacity = 1;
-},150);
-
-}
-
 /* ===== 吹き出し ===== */
 function showBubble(text){
 bubble.classList.remove("show");
@@ -118,13 +105,46 @@ bubble.classList.add("show");
 },150);
 }
 
-/* ===== 音声 ===== */
+/* ===== 🔥 aria音声＋間 ===== */
 async function speak(text){
+
 if(localStorage.getItem("voice")==="off") return;
 
+/* ChatGPT音声 */
+if(API_KEY){
+try{
+const res = await fetch("https://api.openai.com/v1/audio/speech",{
+method:"POST",
+headers:{
+"Authorization":"Bearer "+API_KEY,
+"Content-Type":"application/json"
+},
+body:JSON.stringify({
+model:"gpt-4o-mini-tts",
+voice:"aria",
+input:text
+})
+});
+
+if(res.ok){
+const blob = await res.blob();
+const url = URL.createObjectURL(blob);
+const audio = new Audio(url);
+
+await audio.play().catch(()=>{
+setTimeout(()=>audio.play(),300);
+});
+
+return;
+}
+}catch(e){}
+}
+
+/* fallback（女性寄り） */
 const uttr = new SpeechSynthesisUtterance(text);
 uttr.lang="ja-JP";
 uttr.pitch = 1.2;
+uttr.rate = 0.95;
 speechSynthesis.speak(uttr);
 }
 
@@ -140,7 +160,14 @@ headers:{
 },
 body:JSON.stringify({
 model:"gpt-4o-mini",
-messages:[{role:"user",content:msg}]
+messages:[
+{role:"system",content:"優しい女性。短く自然に話す。最後は軽く質問。"},
+...memory.flatMap(m=>[
+{role:"user",content:m.user},
+{role:"assistant",content:m.ai}
+]),
+{role:"user",content:msg}
+]
 })
 });
 
@@ -148,7 +175,7 @@ const d=await r.json();
 return d.choices?.[0]?.message?.content || "うまく話せない…";
 }
 
-/* ===== 送信（🔥完全修正版） ===== */
+/* ===== 送信 ===== */
 async function send(){
 
 const text=input.value;
@@ -158,24 +185,21 @@ return;
 }
 
 input.value="";
+showBubble("…");
 
-/* thinking */
-showBubble("考え中…");
-changeFace("thinking.png");
-
-/* 🔥最低表示時間 */
-const start = Date.now();
+/* 少し間 */
+await new Promise(r=>setTimeout(r,400));
 
 let reply = await getAIResponse(text);
 
-/* 🔥しっかり見せる */
-const wait = Math.max(0, 1200 - (Date.now() - start));
-await new Promise(r => setTimeout(r, wait));
+/* 🔥 自然な間 */
+reply = reply
+.replace(/。/g,"。… ")
+.replace(/、/g,"、 ")
+.replace(/！/g,"！… ")
+.replace(/？/g,"？… ");
 
-/* 戻す */
-changeFace("normal.png");
-
-/* 🔥自然な文章（切れにくい） */
+/* 🔥 自然短縮 */
 if(reply.length > 80){
 const cut = reply.slice(0,80);
 const last = cut.lastIndexOf("。");
@@ -193,6 +217,13 @@ saveMemory(text,reply);
 }
 
 document.getElementById("send").onclick = send;
+
+/* ===== 設定ボタン（動作保証） ===== */
+if(settingsBtn){
+settingsBtn.onclick = ()=>{
+alert("設定はここから拡張できる 👍");
+};
+}
 
 /* ===== 音声入力 ===== */
 if('webkitSpeechRecognition' in window){
