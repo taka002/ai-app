@@ -62,6 +62,16 @@ background:white;display:flex;align-items:center;justify-content:center;
 <script>
 let API_KEY = localStorage.getItem("apiKey") || "";
 
+/* ===== 音声アンロック（最重要） ===== */
+let audioUnlocked = false;
+document.body.addEventListener("click", ()=>{
+  if(audioUnlocked) return;
+  const a = new Audio();
+  a.muted = true;
+  a.play().catch(()=>{});
+  audioUnlocked = true;
+}, {once:true});
+
 /* ===== 記憶 ===== */
 let memory = JSON.parse(localStorage.getItem("memory") || "[]");
 function saveMemory(u,a){
@@ -161,7 +171,7 @@ await new Promise(r=>setTimeout(r,15));
 }
 }
 
-/* ===== 🔥 無音（考え中） ===== */
+/* ===== 無音 ===== */
 function thinkingPause(text){
 let delay = 600;
 if(text.length > 40) delay = 1200;
@@ -169,25 +179,16 @@ if(text.length > 80) delay = 1800;
 return delay + Math.random()*400;
 }
 
-/* ===== 🔥 感情ボイス ===== */
+/* ===== 感情ボイス ===== */
 function getVoiceStyle(text){
-
-if(/悲|つらい|泣/.test(text)){
-  return {voice:"verse", speed:0.9};
-}
-
-if(/嬉|ありがとう/.test(text)){
-  return {voice:"aria", speed:1.05};
-}
-
-if(/大丈夫|ゆっくり/.test(text)){
-  return {voice:"verse", speed:0.95};
-}
-
+if(/悲|つらい/.test(text)) return {voice:"verse", speed:0.9};
+if(/嬉|ありがとう/.test(text)) return {voice:"aria", speed:1.05};
 return {voice:"aria", speed:1.0};
 }
 
-/* ===== 🔥 ChatGPT音声 ===== */
+/* ===== 🔥 完全音声 ===== */
+let currentAudio = null;
+
 async function speak(text){
 
 if(localStorage.getItem("voice")==="off") return;
@@ -211,12 +212,27 @@ input:short
 })
 });
 
+if(!res.ok){
+console.log("音声APIエラー");
+return;
+}
+
 const blob = await res.blob();
 const url = URL.createObjectURL(blob);
 
+if(currentAudio){
+currentAudio.pause();
+currentAudio = null;
+}
+
 const audio = new Audio(url);
+currentAudio = audio;
+
 audio.playbackRate = style.speed;
-audio.play();
+
+await audio.play().catch(e=>{
+console.log("再生ブロック",e);
+});
 
 }catch(e){
 console.log("音声失敗",e);
@@ -245,16 +261,7 @@ signal:controller.signal,
 body:JSON.stringify({
 model:"gpt-4o-mini",
 messages:[
-{
-role:"system",
-content:`
-${mode}女性キャラ。
-返答は1〜2文で短く。
-言い切らず余韻を残す。
-最後は軽く問いかけ。
-寄り添うが重くしすぎない。
-`
-},
+{role:"system",content:`${mode}女性キャラ。短く優しく、最後は軽く質問。`},
 ...memory.flatMap(m=>[
 {role:"user",content:m.user},
 {role:"assistant",content:m.ai}
@@ -264,18 +271,10 @@ ${mode}女性キャラ。
 })
 });
 
-if(!r.ok) return "ちょっと調子悪いみたい…もう一回いい？";
-
 const d=await r.json();
-if(!d.choices) return "うまく考えられない…もう一回いい？";
-
-return d.choices[0].message.content;
+return d.choices?.[0]?.message?.content || "うまく話せない…もう一回いい？";
 
 }catch(e){
-
-if(e.name==="AbortError"){
-return "少し時間かかっちゃった…もう一回いい？";
-}
 return "通信が不安定みたい…少し待ってね";
 }
 }
@@ -284,7 +283,6 @@ return "通信が不安定みたい…少し待ってね";
 async function send(){
 
 const text=input.value;
-
 if(!text.trim()){
 bubble.innerText="何か話して😊";
 return;
@@ -293,14 +291,12 @@ return;
 input.value="";
 character.src="thinking.png";
 
-const thinkingTexts=["考え中…","うーん…","ちょっと待ってね…"];
-bubble.innerText=thinkingTexts[Math.floor(Math.random()*thinkingTexts.length)];
+const tList=["考え中…","うーん…","ちょっと待ってね…"];
+bubble.innerText=tList[Math.floor(Math.random()*tList.length)];
 
 let reply=await getAIResponse(text);
 
-/* 🔥 無音 */
-let wait = thinkingPause(reply);
-await new Promise(r => setTimeout(r, wait));
+await new Promise(r=>setTimeout(r, thinkingPause(reply)));
 
 reply=shorten(reply);
 reply=softenEnding(reply);
@@ -309,10 +305,7 @@ reply=addName(reply);
 await typeText(reply);
 changeEmotion(reply);
 
-/* 🔥 音声 */
-setTimeout(()=>{
-  speak(reply);
-},300 + Math.random()*300);
+setTimeout(()=>speak(reply),300);
 
 saveMemory(text,reply);
 }
