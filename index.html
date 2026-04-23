@@ -75,7 +75,7 @@ if(memory.length>20) memory.shift();
 localStorage.setItem("memory",JSON.stringify(memory));
 }
 
-/* ===== 設定UI（そのまま） ===== */
+/* ===== 設定UI ===== */
 settingsBtn.onclick = () => {
 
 const box = document.createElement("div");
@@ -134,18 +134,12 @@ box.remove();
 document.getElementById("closeBtn").onclick = ()=>box.remove();
 };
 
-/* ===== 🔥 音声（aria / verse切替＋女性固定） ===== */
+/* ===== 🔥 音声（aria固定） ===== */
 async function speak(text){
 
 if(localStorage.getItem("voice")==="off") return;
 
-/* 感情で声切替 */
-let voiceType = "aria";
-if(text.match(/つらい|悲しい|疲れ|しんどい|大丈夫/)){
-voiceType = "verse";
-}
-
-/* ===== ChatGPT音声 ===== */
+/* ChatGPT音声（aria固定） */
 if(API_KEY){
 try{
 const res = await fetch("https://api.openai.com/v1/audio/speech",{
@@ -156,7 +150,7 @@ headers:{
 },
 body:JSON.stringify({
 model:"gpt-4o-mini-tts",
-voice: voiceType,
+voice:"aria",
 input:text
 })
 });
@@ -171,40 +165,25 @@ await audio.play();
 }catch(e){
 setTimeout(()=>audio.play().catch(()=>{}),300);
 }
+
 return;
 }
+
 }catch(e){
 console.log("API失敗 → ローカルへ");
 }
 }
 
-/* ===== 🔥 ローカル女性ボイス ===== */
+/* ローカルfallback（女性寄り） */
 const uttr = new SpeechSynthesisUtterance(text);
-uttr.lang = "ja-JP";
+uttr.lang="ja-JP";
 
-const voices = speechSynthesis.getVoices();
-const femaleVoice = voices.find(v =>
-v.lang.includes("ja") &&
-(v.name.includes("Female") || v.name.includes("Google") || v.name.includes("女性"))
-);
-
-if(femaleVoice){
-uttr.voice = femaleVoice;
-}
-
-/* 感情調整 */
-if(voiceType==="verse"){
-uttr.rate = 0.9;
-uttr.pitch = 0.85;
-}else{
+/* 女性寄り調整 */
+uttr.pitch = 1.2;
 uttr.rate = 1;
-uttr.pitch = 1.1;
-}
 
 speechSynthesis.speak(uttr);
 }
-
-speechSynthesis.onvoiceschanged = () => {};
 
 /* ===== AI ===== */
 async function getAIResponse(msg){
