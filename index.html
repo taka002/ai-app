@@ -9,13 +9,28 @@
 *{box-sizing:border-box;}
 body{margin:0;font-family:sans-serif;background:#f5f5f5;height:100dvh;overflow:hidden;}
 
-#character{
+/* ===== ここ追加（ラップ） ===== */
+#charaWrap{
 position:absolute;top:0;left:0;width:100%;height:100%;
-object-fit:cover;object-position:center 28%;
-transform:scale(1.08);
-transition:opacity .15s ease;
 }
 
+/* ベース顔 */
+#character{
+position:absolute;width:100%;height:100%;
+object-fit:cover;object-position:center 28%;
+transform:scale(1.08);
+}
+
+/* 瞬きレイヤー */
+#blink{
+position:absolute;width:100%;height:100%;
+object-fit:cover;object-position:center 28%;
+transform:scale(1.08);
+opacity:0;
+transition:opacity 0.1s;
+}
+
+/* ===== 吹き出し ===== */
 #bubble{
 position:absolute;
 bottom:65px;
@@ -62,7 +77,12 @@ background:white;display:flex;align-items:center;justify-content:center;
 
 <body>
 
+<!-- ===== ここだけ構造変更 ===== -->
+<div id="charaWrap">
 <img id="character" src="normal.png">
+<img id="blink" src="blink.png">
+</div>
+
 <div id="bubble" class="show">どうしたのかな？😊</div>
 
 <div id="settingsBtn">⚙️</div>
@@ -77,7 +97,7 @@ background:white;display:flex;align-items:center;justify-content:center;
 <script>
 
 /* =========================
-   🔥 口パク（安定版）
+   口パク（そのまま）
 ========================= */
 const mouthFrames = [
 "normal.png",
@@ -97,7 +117,6 @@ if(lipTimer) return;
 function loop(){
 character.src = mouthFrames[lipIndex];
 lipIndex = (lipIndex + 1) % mouthFrames.length;
-
 lipTimer = setTimeout(loop, 70 + Math.random()*80);
 }
 loop();
@@ -111,55 +130,31 @@ character.src = "normal.png";
 }
 
 /* =========================
-   🔥 瞬き（自律・競合なし）
+   🔥 瞬き（目だけ・安定）
 ========================= */
-let blinkTimer = null;
-
 function startBlink(){
 
 function loop(){
+
 const next = 2000 + Math.random()*4000;
 
-blinkTimer = setTimeout(()=>{
+setTimeout(()=>{
 
-/* 口パク中はスキップ */
-if(!lipTimer){
-doBlink();
-}
+blink.style.opacity = 1;
+
+setTimeout(()=>{
+blink.style.opacity = 0;
+},120);
 
 loop();
 
 }, next);
+
 }
 
 loop();
 }
 
-function doBlink(){
-
-const doubleBlink = Math.random() < 0.3;
-
-character.src = "blink.png";
-
-setTimeout(()=>{
-character.src = "normal.png";
-
-/* 2回瞬き */
-if(doubleBlink){
-setTimeout(()=>{
-character.src = "blink.png";
-
-setTimeout(()=>{
-character.src = "normal.png";
-},120);
-
-},120);
-}
-
-},120);
-}
-
-/* 起動時 */
 startBlink();
 
 /* =========================
@@ -174,7 +169,7 @@ bubble.classList.add("show");
 }
 
 /* =========================
-   音声（口パク連動）
+   音声
 ========================= */
 function speak(text){
 if(localStorage.getItem("voice")==="off") return;
