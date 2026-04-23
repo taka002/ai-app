@@ -60,17 +60,21 @@ background:white;display:flex;align-items:center;justify-content:center;
 </div>
 
 <script>
+
+/* ===== 初期 ===== */
 let API_KEY = localStorage.getItem("apiKey") || "";
 
-/* ===== 音声アンロック（最重要） ===== */
+/* ===== 音声アンロック ===== */
 let audioUnlocked = false;
-document.body.addEventListener("click", ()=>{
-  if(audioUnlocked) return;
-  const a = new Audio();
-  a.muted = true;
-  a.play().catch(()=>{});
-  audioUnlocked = true;
-}, {once:true});
+document.body.addEventListener("click", async ()=>{
+if(audioUnlocked) return;
+try{
+const a=new Audio();
+a.src="data:audio/mp3;base64,//uQxAAAA";
+await a.play();
+audioUnlocked=true;
+}catch(e){}
+},{once:true});
 
 /* ===== 記憶 ===== */
 let memory = JSON.parse(localStorage.getItem("memory") || "[]");
@@ -80,125 +84,89 @@ if(memory.length>20) memory.shift();
 localStorage.setItem("memory",JSON.stringify(memory));
 }
 
-/* ===== 設定 ===== */
-settingsBtn.onclick=()=>{
-const m=prompt("1:APIキー 2:名前 3:性格 4:履歴 5:音声ON/OFF 6:リセット");
+/* ===== 🔥 新・設定UI ===== */
+settingsBtn.onclick = () => {
 
-if(m==="1"){
-const k=prompt("APIキー");
-if(k){localStorage.setItem("apiKey",k);API_KEY=k;}
-}
-if(m==="2"){
-const n=prompt("名前");
-if(n)localStorage.setItem("userName",n);
-}
-if(m==="3"){
-const mode=prompt("性格");
-if(mode)localStorage.setItem("aiMode",mode);
-}
-if(m==="4"){
-alert(memory.map(m=>"あなた: "+m.user+"\nAI: "+m.ai).join("\n\n"));
-}
-if(m==="5"){
-const flag = localStorage.getItem("voice")==="on" ? "off":"on";
-localStorage.setItem("voice",flag);
-alert("音声: "+flag);
-}
-if(m==="6"){
-localStorage.clear();location.reload();
-}
+const box = document.createElement("div");
+box.style = `
+position:fixed;
+top:0;left:0;width:100%;height:100%;
+background:rgba(0,0,0,0.5);
+display:flex;
+align-items:center;
+justify-content:center;
+z-index:999;
+`;
+
+box.innerHTML = `
+<div style="
+background:#fff;
+width:90%;
+border-radius:20px;
+padding:20px;
+font-size:14px;
+">
+
+<h3>設定</h3>
+
+<label>APIキー</label><br>
+<input id="set_api" style="width:100%" value="${localStorage.getItem("apiKey")||""}"><br><br>
+
+<label>名前</label><br>
+<input id="set_name" style="width:100%" value="${localStorage.getItem("userName")||""}"><br><br>
+
+<label>性格</label><br>
+<select id="set_mode" style="width:100%">
+<option ${localStorage.getItem("aiMode")==="優しい"?"selected":""}>優しい</option>
+<option ${localStorage.getItem("aiMode")==="元気"?"selected":""}>元気</option>
+<option ${localStorage.getItem("aiMode")==="クール"?"selected":""}>クール</option>
+</select><br><br>
+
+<label>音声</label><br>
+<select id="set_voice" style="width:100%">
+<option value="on" ${localStorage.getItem("voice")==="on"?"selected":""}>ON</option>
+<option value="off" ${localStorage.getItem("voice")==="off"?"selected":""}>OFF</option>
+</select><br><br>
+
+<button id="saveBtn" style="width:100%;padding:10px;border:none;background:#4da6ff;color:#fff;border-radius:10px;">
+保存
+</button>
+
+<button id="closeBtn" style="width:100%;margin-top:8px;padding:10px;border:none;background:#ccc;border-radius:10px;">
+閉じる
+</button>
+
+</div>
+`;
+
+document.body.appendChild(box);
+
+/* 保存 */
+document.getElementById("saveBtn").onclick = () => {
+localStorage.setItem("apiKey", document.getElementById("set_api").value);
+localStorage.setItem("userName", document.getElementById("set_name").value);
+localStorage.setItem("aiMode", document.getElementById("set_mode").value);
+localStorage.setItem("voice", document.getElementById("set_voice").value);
+
+API_KEY = localStorage.getItem("apiKey");
+
+alert("保存したよ 👍");
+box.remove();
 };
 
-/* ===== 感情 ===== */
-const emotionGroups={
-happy:["happy.png","smile.png"],
-sad:["sad.png","cry.png"],
-neutral:["normal.png"],
-thinking:["thinking.png"]
+/* 閉じる */
+document.getElementById("closeBtn").onclick = () => {
+box.remove();
 };
 
-function getEmotionGroup(t){
-if(/嬉|ありがとう/.test(t)) return "happy";
-if(/悲|つらい/.test(t)) return "sad";
-return "neutral";
-}
+};
 
-let currentEmotion="", lastImage="", timer;
-
-function changeEmotion(text){
-const group=getEmotionGroup(text);
-if(group===currentEmotion) return;
-
-clearTimeout(timer);
-timer=setTimeout(()=>{
-const list=emotionGroups[group]||["normal.png"];
-let img=list[Math.floor(Math.random()*list.length)];
-if(img===lastImage && list.length>1) img=list[0];
-lastImage=img;
-character.src=img;
-currentEmotion=group;
-},700+Math.random()*800);
-}
-
-/* ===== 会話強化 ===== */
-function shorten(text){
-if(text.length>60) return text.slice(0,60)+"…";
-return text;
-}
-
-function softenEnding(text){
-const endings=["どう思う？","少し話してみる？","今どんな感じ？","もう少し聞いてもいい？"];
-if(!text.match(/？|\?/)){
-text += " " + endings[Math.floor(Math.random()*endings.length)];
-}
-return text;
-}
-
-function addName(text){
-const name=localStorage.getItem("userName");
-if(name && Math.random()<0.4){
-return name+"、"+text;
-}
-return text;
-}
-
-/* ===== タイピング ===== */
-async function typeText(t){
-bubble.innerText="";
-for(let c of t){
-bubble.innerText+=c;
-await new Promise(r=>setTimeout(r,15));
-}
-}
-
-/* ===== 無音 ===== */
-function thinkingPause(text){
-let delay = 600;
-if(text.length > 40) delay = 1200;
-if(text.length > 80) delay = 1800;
-return delay + Math.random()*400;
-}
-
-/* ===== 感情ボイス ===== */
-function getVoiceStyle(text){
-if(/悲|つらい/.test(text)) return {voice:"verse", speed:0.9};
-if(/嬉|ありがとう/.test(text)) return {voice:"aria", speed:1.05};
-return {voice:"aria", speed:1.0};
-}
-
-/* ===== 🔥 完全音声 ===== */
-let currentAudio = null;
-
+/* ===== 音声 ===== */
 async function speak(text){
-
 if(localStorage.getItem("voice")==="off") return;
 if(!API_KEY) return;
 
 try{
-
-const short = text.replace(/….*$/,"");
-const style = getVoiceStyle(text);
-
 const res = await fetch("https://api.openai.com/v1/audio/speech",{
 method:"POST",
 headers:{
@@ -207,47 +175,27 @@ headers:{
 },
 body:JSON.stringify({
 model:"gpt-4o-mini-tts",
-voice:style.voice,
-input:short
+voice:"aria",
+input:text
 })
 });
-
-if(!res.ok){
-console.log("音声APIエラー");
-return;
-}
 
 const blob = await res.blob();
 const url = URL.createObjectURL(blob);
 
-if(currentAudio){
-currentAudio.pause();
-currentAudio = null;
-}
-
 const audio = new Audio(url);
-currentAudio = audio;
+audio.volume = 1;
 
-audio.playbackRate = style.speed;
-
-await audio.play().catch(e=>{
-console.log("再生ブロック",e);
+await audio.play().catch(()=>{
+setTimeout(()=>audio.play(),300);
 });
 
-}catch(e){
-console.log("音声失敗",e);
-}
+}catch(e){}
 }
 
 /* ===== AI ===== */
 async function getAIResponse(msg){
-
 if(!API_KEY) return "APIキー入れてね";
-
-try{
-
-const controller=new AbortController();
-setTimeout(()=>controller.abort(),10000);
 
 const mode=localStorage.getItem("aiMode")||"優しい";
 
@@ -257,11 +205,10 @@ headers:{
 "Content-Type":"application/json",
 "Authorization":"Bearer "+API_KEY
 },
-signal:controller.signal,
 body:JSON.stringify({
 model:"gpt-4o-mini",
 messages:[
-{role:"system",content:`${mode}女性キャラ。短く優しく、最後は軽く質問。`},
+{role:"system",content:`${mode}女性。短く優しく最後に質問`},
 ...memory.flatMap(m=>[
 {role:"user",content:m.user},
 {role:"assistant",content:m.ai}
@@ -272,11 +219,7 @@ messages:[
 });
 
 const d=await r.json();
-return d.choices?.[0]?.message?.content || "うまく話せない…もう一回いい？";
-
-}catch(e){
-return "通信が不安定みたい…少し待ってね";
-}
+return d.choices?.[0]?.message?.content || "うまく話せない…";
 }
 
 /* ===== 送信 ===== */
@@ -289,23 +232,17 @@ return;
 }
 
 input.value="";
-character.src="thinking.png";
-
-const tList=["考え中…","うーん…","ちょっと待ってね…"];
-bubble.innerText=tList[Math.floor(Math.random()*tList.length)];
+bubble.innerText="考え中…";
 
 let reply=await getAIResponse(text);
 
-await new Promise(r=>setTimeout(r, thinkingPause(reply)));
+/* 短く＆続きたくなる */
+if(reply.length>60) reply=reply.slice(0,60)+"…";
+if(!reply.match(/？/)) reply+=" どう思う？";
 
-reply=shorten(reply);
-reply=softenEnding(reply);
-reply=addName(reply);
+bubble.innerText=reply;
 
-await typeText(reply);
-changeEmotion(reply);
-
-setTimeout(()=>speak(reply),300);
+await speak(reply);
 
 saveMemory(text,reply);
 }
@@ -322,6 +259,7 @@ send();
 }else{
 mic.onclick=()=>alert("非対応");
 }
+
 </script>
 
 </body>
