@@ -4,40 +4,62 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>美咲AI</title>
-
 <style>
 *{box-sizing:border-box;}
-body{margin:0;font-family:sans-serif;background:#f5f5f5;height:100dvh;overflow:hidden;}
+html,body{margin:0;padding:0;height:100%;}
+body{
+font-family:sans-serif;
+background:#f5f5f5;
+min-height:100dvh;
+overflow:hidden;
+position:relative;
+}
 
 .avatar{
-position:absolute;top:0;left:0;width:100%;height:100%;
+position:absolute;
+inset:0;
+width:100%;
+height:100%;
+overflow:hidden;
+background:#f6f3f1;
 }
 
 .base-face{
-position:absolute;width:100%;height:100%;
+position:absolute;
+width:100%;
+height:100%;
 object-fit:cover;
-object-position:center 28%;
-transform:scale(1.08);
+object-position:center 22%;
+transform:scale(1);
+transition:transform .25s ease, filter .25s ease;
+}
+
+.avatar.speaking .base-face{
+filter:brightness(1.02);
 }
 
 #bubble{
 position:absolute;
-bottom:80px;
+bottom:112px;
 left:50%;
 transform:translateX(-50%) translateY(10px);
-width:88%;
-background:rgba(255,255,255,0.25);
+width:84%;
+max-width:420px;
+background:rgba(255,255,255,0.45);
 backdrop-filter:blur(20px);
-border-radius:20px;
-padding:10px 12px;
-font-size:14px;
-line-height:1.5;
+-webkit-backdrop-filter:blur(20px);
+border-radius:22px;
+padding:12px 14px;
+font-size:15px;
+line-height:1.6;
 text-align:center;
 z-index:5;
-max-height:160px;
+max-height:140px;
 overflow:auto;
 opacity:0;
-transition:all 0.4s ease;
+color:#2a2a2a;
+box-shadow:0 8px 30px rgba(0,0,0,.08);
+transition:all .35s ease;
 }
 
 #bubble.show{
@@ -47,309 +69,349 @@ transform:translateX(-50%) translateY(0);
 
 #bottomBar{
 position:fixed;
-bottom:10px;
 left:50%;
 transform:translateX(-50%);
-width:95%;
+bottom:calc(12px + env(safe-area-inset-bottom, 0px));
+width:calc(100% - 16px);
+max-width:430px;
 display:flex;
 align-items:center;
-gap:6px;
-background:rgba(255,255,255,0.9);
-border-radius:20px;
-padding:6px;
+gap:8px;
+background:rgba(255,255,255,0.92);
+border-radius:24px;
+padding:8px;
 z-index:10;
-backdrop-filter:blur(10px);
+backdrop-filter:blur(14px);
+-webkit-backdrop-filter:blur(14px);
+box-shadow:0 10px 26px rgba(0,0,0,.10);
 }
 
 #bottomBar button{
-height:36px;
-width:36px;
+height:42px;
+width:42px;
 border:none;
 border-radius:50%;
 display:flex;
 align-items:center;
 justify-content:center;
 background:#fff;
+font-size:18px;
+flex:0 0 auto;
+box-shadow:0 2px 8px rgba(0,0,0,.06);
 }
 
 #send{
-border-radius:18px !important;
+border-radius:21px !important;
 width:auto !important;
-padding:0 10px;
+height:42px;
+padding:0 14px;
 background:#4da6ff !important;
 color:#fff;
+font-size:14px;
+font-weight:700;
 }
 
 #input{
 flex:1;
-height:36px;
+height:44px;
 border:none;
-border-radius:18px;
-padding:0 10px;
+border-radius:22px;
+padding:0 14px;
 min-width:0;
+font-size:16px;
+background:#fff;
+outline:none;
+}
+
+#input::placeholder{
+color:#8d8d8d;
+}
+
+@media (max-width:390px){
+#bubble{
+width:86%;
+bottom:108px;
+}
+#bottomBar{
+width:calc(100% - 12px);
+gap:6px;
+}
+#bottomBar button{
+width:40px;
+height:40px;
+font-size:17px;
+}
+#send{
+padding:0 12px;
+}
 }
 </style>
 </head>
-
 <body>
 
-<div class="avatar">
-  <img id="character" src="normal.png" class="base-face">
+<div class="avatar" id="avatarWrap">
+  <img id="character" src="normal.png" class="base-face" alt="美咲AI">
 </div>
 
 <div id="bubble" class="show">どうしたのかな？😊</div>
 
 <div id="bottomBar">
-  <button id="mic">🎤</button>
-  <input id="input" placeholder="話しかけて">
+  <button id="mic" aria-label="音声入力">🎤</button>
+  <input id="input" placeholder="話しかけて" aria-label="メッセージ入力">
   <button id="send">送信</button>
-  <button id="settingsBtn">⚙️</button>
-  <button id="appBtn">📱</button>
+  <button id="settingsBtn" aria-label="設定">⚙️</button>
+  <button id="appBtn" aria-label="アプリ">📱</button>
 </div>
 
 <script>
-
-/* ===== 要素 ===== */
 const bubble = document.getElementById("bubble");
 const input = document.getElementById("input");
 const character = document.getElementById("character");
+const avatarWrap = document.getElementById("avatarWrap");
 const sendBtn = document.getElementById("send");
 const micBtn = document.getElementById("mic");
 const settingsBtn = document.getElementById("settingsBtn");
+const appBtn = document.getElementById("appBtn");
+const STORAGE_PREFIX = "misaki-ai-mobile:";
 
-/* ===== 状態 ===== */
 let isSpeaking = false;
+let recognition = null;
 
-/* ===== 会話履歴（文脈） ===== */
 let conversation = [
-{role:"system", content:"優しい女性。共感重視。短く自然に話す"}
+  {role:"system", content:"優しい女性。共感重視。短く自然に話す"}
 ];
 
-/* ===== 長期記憶 ===== */
-let memory = JSON.parse(localStorage.getItem("memory") || "[]");
+let memory = [];
+try{
+  memory = JSON.parse(localStorage.getItem(STORAGE_PREFIX + "memory") || "[]");
+  if(!Array.isArray(memory)) memory = [];
+}catch{
+  memory = [];
+}
 
-/* =========================
-   記憶保存
-========================= */
 function saveMemory(text){
-
-memory.push(text);
-
-if(memory.length > 20){
-memory.shift();
+  memory.push(text);
+  if(memory.length > 20) memory = memory.slice(-20);
+  try{
+    localStorage.setItem(STORAGE_PREFIX + "memory", JSON.stringify(memory));
+  }catch(e){
+    console.log("記憶保存失敗", e);
+  }
 }
 
-localStorage.setItem("memory", JSON.stringify(memory));
-}
-
-/* =========================
-   口パク
-========================= */
 function startLipSync(){
-let i = 0;
-const frames = ["mouth1.png","mouth2.png","mouth3.png"];
-
-function loop(){
-if(!isSpeaking) return;
-
-character.src = frames[i % frames.length];
-i++;
-
-setTimeout(loop, 90);
-}
-loop();
+  let i = 0;
+  const frames = ["mouth1.png","mouth2.png","mouth3.png"];
+  avatarWrap.classList.add("speaking");
+  function loop(){
+    if(!isSpeaking) return;
+    character.src = frames[i % frames.length];
+    i++;
+    setTimeout(loop, 90);
+  }
+  loop();
 }
 
-/* =========================
-   停止
-========================= */
 function stopLipSync(){
-isSpeaking = false;
-character.src = "normal.png";
+  isSpeaking = false;
+  avatarWrap.classList.remove("speaking");
+  character.src = "normal.png";
 }
 
-/* =========================
-   吹き出し
-========================= */
 function showBubble(text){
-bubble.classList.remove("show");
-setTimeout(()=>{
-bubble.innerText = text;
-bubble.classList.add("show");
-},150);
+  bubble.classList.remove("show");
+  setTimeout(()=>{
+    bubble.innerText = text;
+    bubble.classList.add("show");
+  },150);
 }
 
-/* =========================
-   音声
-========================= */
-let API_KEY = localStorage.getItem("apiKey") || "";
+let API_KEY = "";
+try{
+  API_KEY = localStorage.getItem(STORAGE_PREFIX + "apiKey") || "";
+}catch{
+  API_KEY = "";
+}
+
+async function speakWithBrowser(text){
+  const uttr = new SpeechSynthesisUtterance(text);
+  uttr.lang = "ja-JP";
+  uttr.onstart = ()=>{
+    isSpeaking = true;
+    startLipSync();
+  };
+  uttr.onend = ()=> stopLipSync();
+  speechSynthesis.cancel();
+  speechSynthesis.speak(uttr);
+}
 
 async function speak(text){
+  if(!API_KEY){
+    return speakWithBrowser(text);
+  }
 
-if(!API_KEY){
-const uttr = new SpeechSynthesisUtterance(text);
-uttr.lang="ja-JP";
+  try{
+    const res = await fetch("https://api.openai.com/v1/audio/speech",{
+      method:"POST",
+      headers:{
+        "Authorization":"Bearer " + API_KEY,
+        "Content-Type":"application/json"
+      },
+      body:JSON.stringify({
+        model:"gpt-4o-mini-tts",
+        voice:"aria",
+        input:text
+      })
+    });
 
-uttr.onstart=()=>{
-isSpeaking = true;
-startLipSync();
-};
+    if(!res.ok){
+      throw new Error(await res.text());
+    }
 
-uttr.onend=()=>{
-stopLipSync();
-};
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const audio = new Audio(url);
 
-speechSynthesis.speak(uttr);
-return;
+    audio.onplay = ()=>{
+      isSpeaking = true;
+      startLipSync();
+    };
+
+    audio.onended = ()=>{
+      stopLipSync();
+      URL.revokeObjectURL(url);
+    };
+
+    await audio.play();
+  }catch(e){
+    console.log("音声エラー", e);
+    speakWithBrowser(text);
+  }
 }
 
-try{
-const res = await fetch("https://api.openai.com/v1/audio/speech",{
-method:"POST",
-headers:{
-"Authorization":"Bearer "+API_KEY,
-"Content-Type":"application/json"
-},
-body:JSON.stringify({
-model:"gpt-4o-mini-tts",
-voice:"aria",
-input:text
-})
-});
-
-const blob = await res.blob();
-const url = URL.createObjectURL(blob);
-const audio = new Audio(url);
-
-audio.onplay = ()=>{
-isSpeaking = true;
-startLipSync();
-};
-
-audio.onended = stopLipSync;
-
-await audio.play();
-
-}catch(e){
-console.log("音声エラー", e);
-}
-}
-
-/* =========================
-   AI（文脈＋記憶）
-========================= */
 async function getAIResponse(msg){
+  if(msg.includes("好き") || msg.includes("疲れ") || msg.includes("仕事")){
+    saveMemory(msg);
+  }
 
-/* 記憶追加 */
-if(msg.includes("好き") || msg.includes("疲れ") || msg.includes("仕事")){
-saveMemory(msg);
+  const memoryText = memory.join(" / ");
+  conversation[0] = {
+    role:"system",
+    content:"優しい女性。共感重視。短く自然に話す。ユーザー情報:" + memoryText
+  };
+
+  conversation.push({role:"user", content:msg});
+
+  if(conversation.length > 9){
+    conversation = [conversation[0], ...conversation.slice(-8)];
+  }
+
+  if(!API_KEY){
+    const fallback = "今はAPIキーが入っていないみたい。設定から入れてくれると、もっと自然にお話しできるよ。";
+    conversation.push({role:"assistant", content:fallback});
+    return fallback;
+  }
+
+  try{
+    const r = await fetch("https://api.openai.com/v1/chat/completions",{
+      method:"POST",
+      headers:{
+        "Content-Type":"application/json",
+        "Authorization":"Bearer " + API_KEY
+      },
+      body:JSON.stringify({
+        model:"gpt-4o-mini",
+        messages:conversation
+      })
+    });
+
+    if(!r.ok){
+      throw new Error(await r.text());
+    }
+
+    const d = await r.json();
+    const reply = d.choices?.[0]?.message?.content || "うまく話せない…";
+    conversation.push({role:"assistant", content:reply});
+    return reply;
+  }catch(e){
+    console.log("会話エラー", e);
+    const fallback = "ごめんね、今ちょっと通信が不安定みたい…。少ししてからもう一度話しかけて。";
+    conversation.push({role:"assistant", content:fallback});
+    return fallback;
+  }
 }
 
-/* 記憶をシステムに反映 */
-const memoryText = memory.join(" / ");
-
-conversation[0] = {
-role:"system",
-content:"優しい女性。共感重視。ユーザー情報:"+memoryText
-};
-
-conversation.push({role:"user", content:msg});
-
-/* 履歴制限 */
-if(conversation.length > 10){
-conversation.splice(1,2);
-}
-
-const r=await fetch("https://api.openai.com/v1/chat/completions",{
-method:"POST",
-headers:{
-"Content-Type":"application/json",
-"Authorization":"Bearer "+API_KEY
-},
-body:JSON.stringify({
-model:"gpt-4o-mini",
-messages:conversation
-})
-});
-
-const d=await r.json();
-const reply = d.choices?.[0]?.message?.content || "うまく話せない…";
-
-/* AI返答も記憶 */
-conversation.push({role:"assistant", content:reply});
-
-return reply;
-}
-
-/* =========================
-   送信
-========================= */
 async function send(){
+  const text = input.value.trim();
 
-const text=input.value;
+  if(!text){
+    showBubble("何か話して😊");
+    return;
+  }
 
-if(!text.trim()){
-showBubble("何か話して😊");
-return;
-}
+  input.value = "";
+  showBubble("…");
 
-input.value="";
-showBubble("…");
+  await new Promise(r=>setTimeout(r,300));
 
-await new Promise(r=>setTimeout(r,300));
+  let reply = await getAIResponse(text);
+  reply = reply.replace(/。/g,"。… ").replace(/、/g,"、 ");
 
-let reply = await getAIResponse(text);
-
-reply = reply.replace(/。/g,"。… ").replace(/、/g,"、 ");
-
-showBubble(reply);
-speak(reply);
+  showBubble(reply);
+  speak(reply);
 }
 
 sendBtn.addEventListener("click", send);
 
 input.addEventListener("keydown", e=>{
-if(e.key==="Enter") send();
+  if(e.key === "Enter") send();
 });
 
-/* =========================
-   マイク
-========================= */
-if('webkitSpeechRecognition' in window){
-const r=new webkitSpeechRecognition();
-r.lang='ja-JP';
+if("webkitSpeechRecognition" in window){
+  recognition = new webkitSpeechRecognition();
+  recognition.lang = "ja-JP";
+  recognition.interimResults = false;
+  recognition.continuous = false;
 
-micBtn.onclick=()=>r.start();
+  micBtn.onclick = ()=> recognition.start();
 
-r.onresult=e=>{
-input.value=e.results[0][0].transcript;
-send();
-};
+  recognition.onresult = e=>{
+    input.value = e.results[0][0].transcript;
+    send();
+  };
+
+  recognition.onerror = ()=>{
+    showBubble("うまく聞き取れなかったみたい…もう一度話してみて。");
+  };
+}else{
+  micBtn.disabled = true;
+  micBtn.style.opacity = 0.45;
 }
 
-/* =========================
-   設定
-========================= */
 settingsBtn.onclick = ()=>{
-const key = prompt("APIキー入力", API_KEY || "");
-if(key){
-API_KEY = key;
-localStorage.setItem("apiKey", key);
-alert("保存したよ");
-}
+  const key = prompt("APIキー入力", API_KEY || "");
+  if(key !== null){
+    API_KEY = key.trim();
+    try{
+      localStorage.setItem(STORAGE_PREFIX + "apiKey", API_KEY);
+    }catch(e){
+      console.log("APIキー保存失敗", e);
+    }
+    alert(API_KEY ? "保存したよ" : "APIキーを空にしたよ");
+  }
 };
 
-/* =========================
-   起動ボイス
-========================= */
-window.addEventListener("load", ()=>{
-setTimeout(()=>{
-const text = "おかえり。今日もお疲れさま。";
-showBubble(text);
-speak(text);
-},800);
-});
+appBtn.onclick = ()=>{
+  showBubble("ここに生活アプリ呼び出しを増やしていけるよ。🌷");
+};
 
+window.addEventListener("load", ()=>{
+  setTimeout(()=>{
+    const text = "おかえり。今日もお疲れさま。";
+    showBubble(text);
+    speak(text);
+  },800);
+});
 </script>
 
 </body>
