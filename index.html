@@ -133,56 +133,11 @@ const settingsBtn = document.getElementById("settingsBtn");
 let isSpeaking = false;
 let blinkRunning = false;
 
-/* ===== 音声解析 ===== */
-let audioCtx, analyser, dataArray;
-
-/* 🔥 スマホ対策：クリックで音声許可 */
+/* ===== 音声解放（超重要） ===== */
 document.body.addEventListener("click", ()=>{
-  if(audioCtx){
-    audioCtx.resume();
-  }
-});
-
-/* ===== 音量 ===== */
-function getVolume(){
-if(!analyser) return 0;
-analyser.getByteTimeDomainData(dataArray);
-let sum = 0;
-for(let i=0;i<dataArray.length;i++){
-  const v = (dataArray[i]-128)/128;
-  sum += v*v;
-}
-return Math.sqrt(sum/dataArray.length);
-}
-
-/* ===== 口パク ===== */
-function startLipSyncFromAudio(){
-function loop(){
-if(!isSpeaking) return;
-
-const vol = getVolume();
-
-if(vol < 0.02){
-  character.src = "normal.png";
-}else if(vol < 0.05){
-  character.src = "mouth1.png";
-}else if(vol < 0.1){
-  character.src = "mouth2.png";
-}else{
-  character.src = "mouth3.png";
-}
-
-requestAnimationFrame(loop);
-}
-loop();
-}
-
-/* ===== 停止 ===== */
-function stopLipSync(){
-isSpeaking = false;
-character.src = "normal.png";
-setTimeout(()=>blink(),120);
-}
+  const u = new SpeechSynthesisUtterance("");
+  speechSynthesis.speak(u);
+}, { once:true });
 
 /* ===== 瞬き ===== */
 function blink(){
@@ -212,82 +167,33 @@ bubble.classList.add("show");
 },150);
 }
 
-/* ===== 音声 ===== */
-let API_KEY = localStorage.getItem("apiKey") || "";
-
+/* ===== 音声（確実版） ===== */
 async function speak(text){
 
-if(!audioCtx){
-audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-}
-
-/* 🔥 ここ重要 */
-if(audioCtx.state === "suspended"){
-await audioCtx.resume();
-}
-
-if(!API_KEY){
-
-speechSynthesis.cancel(); // 🔥 追加
+speechSynthesis.cancel();
 
 const uttr = new SpeechSynthesisUtterance(text);
 uttr.lang="ja-JP";
 
-uttr.onstart=()=>{ isSpeaking = true; };
-uttr.onend=()=>{ stopLipSync(); };
-
-speechSynthesis.speak(uttr);
-return;
-}
-
-try{
-
-const res = await fetch("https://api.openai.com/v1/audio/speech",{
-method:"POST",
-headers:{
-"Authorization":"Bearer "+API_KEY,
-"Content-Type":"application/json"
-},
-body:JSON.stringify({
-model:"gpt-4o-mini-tts",
-voice:"aria",
-input:text
-})
-});
-
-const blob = await res.blob();
-const url = URL.createObjectURL(blob);
-const audio = new Audio(url);
-
-audio.onplay = async ()=>{
-
-if(audioCtx.state === "suspended"){
-await audioCtx.resume();
-}
-
-const src = audioCtx.createMediaElementSource(audio);
-analyser = audioCtx.createAnalyser();
-analyser.fftSize = 256;
-
-dataArray = new Uint8Array(analyser.frequencyBinCount);
-
-src.connect(analyser);
-analyser.connect(audioCtx.destination);
-
+uttr.onstart=()=>{
 isSpeaking = true;
-startLipSyncFromAudio();
 };
 
-audio.onended = stopLipSync;
+uttr.onend=()=>{
+isSpeaking = false;
+blink();
+};
 
-await audio.play();
+uttr.onerror=()=>{
+isSpeaking = false;
+};
 
-}catch(e){
-console.log("音声エラー", e);
-}
+speechSynthesis.speak(uttr);
 }
 
 /* ===== AI ===== */
+let API_KEY = localStorage.getItem("apiKey") || "";
+
 async function getAIResponse(msg){
 if(!API_KEY) return "設定でAPIキーを入れてね";
 
@@ -312,6 +218,7 @@ return d.choices?.[0]?.message?.content || "うまく話せない…";
 
 /* ===== 送信 ===== */
 async function send(){
+
 const text=input.value;
 
 if(!text.trim()){
