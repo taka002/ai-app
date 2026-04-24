@@ -9,12 +9,10 @@
 *{box-sizing:border-box;}
 body{margin:0;font-family:sans-serif;background:#f5f5f5;height:100dvh;overflow:hidden;}
 
-/* ===== キャラ ===== */
 .avatar{
 position:absolute;top:0;left:0;width:100%;height:100%;
 }
 
-/* ベース顔 */
 .base-face{
 position:absolute;width:100%;height:100%;
 object-fit:cover;
@@ -22,20 +20,9 @@ object-position:center 28%;
 transform:scale(1.08);
 }
 
-/* 瞬きレイヤー（目だけ） */
-.eye-layer{
-position:absolute;width:100%;height:100%;
-object-fit:cover;
-object-position:center 28%;
-transform:scale(1.08);
-pointer-events:none;
-opacity:0;
-}
-
-/* ===== 吹き出し ===== */
 #bubble{
 position:absolute;
-bottom:65px;
+bottom:80px;
 left:50%;
 transform:translateX(-50%) translateY(10px);
 width:88%;
@@ -58,53 +45,66 @@ opacity:1;
 transform:translateX(-50%) translateY(0);
 }
 
-/* ===== 入力 ===== */
-#inputArea{
-position:fixed;
-left:50%;
-transform:translateX(-50%);
-width:92%;
-display:flex;
-gap:6px;
-bottom:50px;
-}
-
-#mic{width:34px;height:34px;border-radius:50%;border:none;}
-#input{flex:1;height:34px;border-radius:16px;border:none;}
-#send{height:34px;border-radius:999px;background:#4da6ff;color:white;border:none;}
-
-#settingsBtn,#appBtn{
+#bottomBar{
 position:fixed;
 bottom:10px;
-width:36px;height:36px;
+left:50%;
+transform:translateX(-50%);
+width:95%;
+display:flex;
+align-items:center;
+gap:6px;
+background:rgba(255,255,255,0.9);
+border-radius:20px;
+padding:6px;
+z-index:10;
+backdrop-filter:blur(10px);
+}
+
+#bottomBar button{
+height:36px;
+width:36px;
+border:none;
 border-radius:50%;
-background:white;
 display:flex;
 align-items:center;
 justify-content:center;
+background:#fff;
 }
-#settingsBtn{left:calc(50% - 45px);}
-#appBtn{left:calc(50% + 10px);}
+
+#send{
+border-radius:18px !important;
+width:auto !important;
+padding:0 10px;
+background:#4da6ff !important;
+color:#fff;
+}
+
+#input{
+flex:1;
+height:36px;
+border:none;
+border-radius:18px;
+padding:0 10px;
+min-width:0;
+}
 </style>
 </head>
 
 <body>
 
-<!-- ===== キャラ ===== -->
 <div class="avatar">
   <img id="character" src="normal.png" class="base-face">
-  <img id="blinkEye" src="blink.png" class="eye-layer">
 </div>
 
 <div id="bubble" class="show">どうしたのかな？😊</div>
 
-<div id="settingsBtn">⚙️</div>
-<div id="appBtn">📱</div>
-
-<div id="inputArea">
-<button id="mic">🎤</button>
-<input id="input" placeholder="話しかけて">
-<button id="send">送信</button>
+<div id="bottomBar">
+  <button id="mic">🎤</button>
+  <input id="input" placeholder="話しかけて">
+  <button id="send">送信</button>
+  <button id="settingsBtn">⚙️</button>
+  <button id="appBtn">📱</button>
 </div>
 
 <script>
@@ -113,91 +113,60 @@ justify-content:center;
 const bubble = document.getElementById("bubble");
 const input = document.getElementById("input");
 const character = document.getElementById("character");
-const blinkEye = document.getElementById("blinkEye");
+const sendBtn = document.getElementById("send");
+const micBtn = document.getElementById("mic");
+const settingsBtn = document.getElementById("settingsBtn");
 
 /* ===== 状態 ===== */
 let isSpeaking = false;
-let blinkRunning = false;
+
+/* ===== 会話履歴（文脈） ===== */
+let conversation = [
+{role:"system", content:"優しい女性。共感重視。短く自然に話す"}
+];
+
+/* ===== 長期記憶 ===== */
+let memory = JSON.parse(localStorage.getItem("memory") || "[]");
+
+/* =========================
+   記憶保存
+========================= */
+function saveMemory(text){
+
+memory.push(text);
+
+if(memory.length > 20){
+memory.shift();
+}
+
+localStorage.setItem("memory", JSON.stringify(memory));
+}
 
 /* =========================
    口パク
 ========================= */
-const mouthFrames = [
-"normal.png",
-"mouth1.png",
-"mouth2.png",
-"mouth3.png",
-"mouth2.png",
-"mouth1.png"
-];
-
-let lipTimer = null;
-let lipIndex = 0;
-
 function startLipSync(){
-if(lipTimer) return;
-
-isSpeaking = true;
+let i = 0;
+const frames = ["mouth1.png","mouth2.png","mouth3.png"];
 
 function loop(){
-character.src = mouthFrames[lipIndex];
-lipIndex = (lipIndex + 1) % mouthFrames.length;
-lipTimer = setTimeout(loop, 70 + Math.random()*80);
+if(!isSpeaking) return;
+
+character.src = frames[i % frames.length];
+i++;
+
+setTimeout(loop, 90);
 }
 loop();
 }
 
-function stopLipSync(){
-clearTimeout(lipTimer);
-lipTimer = null;
-lipIndex = 0;
-character.src = "normal.png";
-
-isSpeaking = false;
-
-/* 話し終わり瞬き */
-setTimeout(()=>{
-blink();
-},80 + Math.random()*120);
-}
-
 /* =========================
-   瞬き（自然・競合なし）
+   停止
 ========================= */
-function blink(){
-
-if(blinkRunning || isSpeaking) return;
-
-blinkRunning = true;
-
-/* 閉じる */
-blinkEye.style.transition = "opacity 0.05s ease-out";
-blinkEye.style.opacity = 1;
-
-/* 開く */
-setTimeout(()=>{
-blinkEye.style.transition = "opacity 0.12s ease-in";
-blinkEye.style.opacity = 0;
-
-blinkRunning = false;
-},70);
+function stopLipSync(){
+isSpeaking = false;
+character.src = "normal.png";
 }
-
-/* 自動瞬き */
-function autoBlink(){
-
-setTimeout(()=>{
-
-if(!isSpeaking){
-  blink();
-}
-
-autoBlink();
-
-},2000 + Math.random()*3000);
-}
-
-autoBlink();
 
 /* =========================
    吹き出し
@@ -217,10 +186,23 @@ let API_KEY = localStorage.getItem("apiKey") || "";
 
 async function speak(text){
 
-startLipSync();
+if(!API_KEY){
+const uttr = new SpeechSynthesisUtterance(text);
+uttr.lang="ja-JP";
 
-/* ChatGPT音声 */
-if(API_KEY){
+uttr.onstart=()=>{
+isSpeaking = true;
+startLipSync();
+};
+
+uttr.onend=()=>{
+stopLipSync();
+};
+
+speechSynthesis.speak(uttr);
+return;
+}
+
 try{
 const res = await fetch("https://api.openai.com/v1/audio/speech",{
 method:"POST",
@@ -235,36 +217,48 @@ input:text
 })
 });
 
-if(res.ok){
 const blob = await res.blob();
 const url = URL.createObjectURL(blob);
 const audio = new Audio(url);
 
+audio.onplay = ()=>{
+isSpeaking = true;
+startLipSync();
+};
+
 audio.onended = stopLipSync;
 
-await audio.play().catch(()=>setTimeout(()=>audio.play(),300));
-return;
+await audio.play();
+
+}catch(e){
+console.log("音声エラー", e);
 }
-}catch(e){}
-}
-
-/* fallback */
-const uttr = new SpeechSynthesisUtterance(text);
-uttr.lang="ja-JP";
-uttr.pitch = 1.2;
-uttr.rate = 0.95;
-
-uttr.onstart = startLipSync;
-uttr.onend = stopLipSync;
-
-speechSynthesis.speak(uttr);
 }
 
 /* =========================
-   AI
+   AI（文脈＋記憶）
 ========================= */
 async function getAIResponse(msg){
-if(!API_KEY) return "APIキー入れてね";
+
+/* 記憶追加 */
+if(msg.includes("好き") || msg.includes("疲れ") || msg.includes("仕事")){
+saveMemory(msg);
+}
+
+/* 記憶をシステムに反映 */
+const memoryText = memory.join(" / ");
+
+conversation[0] = {
+role:"system",
+content:"優しい女性。共感重視。ユーザー情報:"+memoryText
+};
+
+conversation.push({role:"user", content:msg});
+
+/* 履歴制限 */
+if(conversation.length > 10){
+conversation.splice(1,2);
+}
 
 const r=await fetch("https://api.openai.com/v1/chat/completions",{
 method:"POST",
@@ -274,15 +268,17 @@ headers:{
 },
 body:JSON.stringify({
 model:"gpt-4o-mini",
-messages:[
-{role:"system",content:"優しい女性。短く自然に。最後は軽く質問。"},
-{role:"user",content:msg}
-]
+messages:conversation
 })
 });
 
 const d=await r.json();
-return d.choices?.[0]?.message?.content || "うまく話せない…";
+const reply = d.choices?.[0]?.message?.content || "うまく話せない…";
+
+/* AI返答も記憶 */
+conversation.push({role:"assistant", content:reply});
+
+return reply;
 }
 
 /* =========================
@@ -300,41 +296,59 @@ return;
 input.value="";
 showBubble("…");
 
-await new Promise(r=>setTimeout(r,400));
+await new Promise(r=>setTimeout(r,300));
 
 let reply = await getAIResponse(text);
 
-/* 間を作る */
-reply = reply
-.replace(/。/g,"。… ")
-.replace(/、/g,"、 ")
-.replace(/！/g,"！… ")
-.replace(/？/g,"？… ");
-
-if(reply.length>100) reply=reply.slice(0,100)+"…";
+reply = reply.replace(/。/g,"。… ").replace(/、/g,"、 ");
 
 showBubble(reply);
 speak(reply);
 }
 
-send.onclick = send;
+sendBtn.addEventListener("click", send);
+
+input.addEventListener("keydown", e=>{
+if(e.key==="Enter") send();
+});
 
 /* =========================
-   音声入力
+   マイク
 ========================= */
 if('webkitSpeechRecognition' in window){
 const r=new webkitSpeechRecognition();
 r.lang='ja-JP';
 
-mic.onclick=()=>r.start();
+micBtn.onclick=()=>r.start();
 
 r.onresult=e=>{
 input.value=e.results[0][0].transcript;
 send();
 };
-}else{
-mic.onclick=()=>alert("非対応");
 }
+
+/* =========================
+   設定
+========================= */
+settingsBtn.onclick = ()=>{
+const key = prompt("APIキー入力", API_KEY || "");
+if(key){
+API_KEY = key;
+localStorage.setItem("apiKey", key);
+alert("保存したよ");
+}
+};
+
+/* =========================
+   起動ボイス
+========================= */
+window.addEventListener("load", ()=>{
+setTimeout(()=>{
+const text = "おかえり。今日もお疲れさま。";
+showBubble(text);
+speak(text);
+},800);
+});
 
 </script>
 
