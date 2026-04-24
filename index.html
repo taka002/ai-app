@@ -296,15 +296,15 @@ let isSpeaking = false;
 const PERSONAS = {
   gentle: {
     label: "やさしい",
-    prompt: "優しい女性。共感重視。短く自然に話す。安心感を大切にする。"
+    prompt: "優しい女性。共感重視。短く自然に話す。返答は1〜2文、できるだけ短め。"
   },
   sister: {
     label: "お姉さん",
-    prompt: "少しお姉さんっぽい女性。近い距離感で、やわらかく包み込むように話す。"
+    prompt: "少しお姉さんっぽい女性。近い距離感で、やわらかく包み込むように話す。返答は1〜2文、短め。"
   },
   counselor: {
     label: "相談役",
-    prompt: "傾聴重視の相談役。まず気持ちを受け止めて、落ち着いて整理して話す。"
+    prompt: "傾聴重視の相談役。まず気持ちを受け止めて、落ち着いて整理して話す。返答は1〜2文、短め。"
   }
 };
 
@@ -353,13 +353,18 @@ function stopLipSync(){
 async function speakWithBrowser(text){
   if(!("speechSynthesis" in window)) return;
 
+  speechSynthesis.cancel();
+  speechSynthesis.getVoices();
+
   const uttr = new SpeechSynthesisUtterance(text);
   uttr.lang = "ja-JP";
+  uttr.rate = 1.0;
+  uttr.pitch = 1.0;
+  uttr.volume = 1.0;
   uttr.onstart = ()=> startLipSync();
   uttr.onend = ()=> stopLipSync();
   uttr.onerror = ()=> stopLipSync();
 
-  speechSynthesis.cancel();
   speechSynthesis.speak(uttr);
 }
 
@@ -430,7 +435,9 @@ async function getAIResponse(msg){
     },
     body:JSON.stringify({
       model:"gpt-4o-mini",
-      messages:conversation
+      messages:conversation,
+      max_tokens: 60,
+      temperature: 0.7
     })
   });
 
@@ -459,7 +466,8 @@ async function send(){
 
   try{
     let reply = await getAIResponse(text);
-    reply = reply.replace(/。/g,"。… ").replace(/、/g,"、 ");
+    reply = reply.replace(/
++/g, " ").trim();
     showBubble(reply);
     speak(reply);
   }catch(e){
@@ -540,6 +548,9 @@ appBtn.onclick = ()=>{
 window.addEventListener("load", ()=>{
   resetConversation();
   stopLipSync();
+  if ("speechSynthesis" in window) {
+    speechSynthesis.getVoices();
+  }
 });
 </script>
 
