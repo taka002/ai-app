@@ -7,222 +7,218 @@
 
 <style>
 *{box-sizing:border-box;}
-body{margin:0;font-family:sans-serif;background:#f5f5f5;height:100dvh;overflow:hidden;color:#222;}
+body{
+  margin:0;
+  font-family:sans-serif;
+  background:#f5f5f5;
+  height:100dvh;
+  overflow:hidden;
+  color:#222;
+}
 
 .avatar{
-position:absolute;top:0;left:0;width:100%;height:100%;
-pointer-events:none;
+  position:absolute;
+  top:0;
+  left:0;
+  width:100%;
+  height:100%;
+  pointer-events:none;
 }
 
 .base-face{
-position:absolute;width:100%;height:100%;
-object-fit:cover;
-object-position:center 28%;
-transform:scale(1.08);
-transition:transform .2s ease, filter .2s ease;
+  position:absolute;
+  width:100%;
+  height:100%;
+  object-fit:cover;
+  object-position:center 28%;
+  transform:scale(1.08);
 }
 
 #bubble{
-position:absolute;
-bottom:80px;
-left:50%;
-transform:translateX(-50%) translateY(10px);
-width:88%;
-background:rgba(255,255,255,0.25);
-backdrop-filter:blur(20px);
--webkit-backdrop-filter:blur(20px);
-border-radius:20px;
-padding:10px 12px;
-font-size:14px;
-line-height:1.5;
-text-align:center;
-z-index:5;
-max-height:160px;
-overflow:auto;
-opacity:0;
-transition:all 0.4s ease;
+  position:absolute;
+  bottom:80px;
+  left:50%;
+  transform:translateX(-50%) translateY(10px);
+  width:88%;
+  background:rgba(255,255,255,0.25);
+  backdrop-filter:blur(20px);
+  -webkit-backdrop-filter:blur(20px);
+  border-radius:20px;
+  padding:10px 12px;
+  font-size:14px;
+  line-height:1.5;
+  text-align:center;
+  z-index:5;
+  max-height:160px;
+  overflow:auto;
+  opacity:0;
+  transition:all 0.4s ease;
 }
 
 #bubble.show{
-opacity:1;
-transform:translateX(-50%) translateY(0);
+  opacity:1;
+  transform:translateX(-50%) translateY(0);
 }
 
 #bottomBar{
-position:fixed;
-bottom:10px;
-left:50%;
-transform:translateX(-50%);
-width:95%;
-display:flex;
-align-items:center;
-gap:6px;
-background:rgba(255,255,255,0.9);
-border-radius:20px;
-padding:6px;
-z-index:10;
-backdrop-filter:blur(10px);
--webkit-backdrop-filter:blur(10px);
+  position:fixed;
+  bottom:10px;
+  left:50%;
+  transform:translateX(-50%);
+  width:95%;
+  display:flex;
+  align-items:center;
+  gap:6px;
+  background:rgba(255,255,255,0.9);
+  border-radius:20px;
+  padding:6px;
+  z-index:10;
+  backdrop-filter:blur(10px);
+  -webkit-backdrop-filter:blur(10px);
 }
 
 #bottomBar button{
-height:36px;
-width:36px;
-border:none;
-border-radius:50%;
-display:flex;
-align-items:center;
-justify-content:center;
-background:#fff;
-font-size:16px;
+  height:36px;
+  width:36px;
+  border:none;
+  border-radius:50%;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  background:#fff;
+  font-size:16px;
 }
 
 #send{
-border-radius:18px !important;
-width:auto !important;
-padding:0 10px;
-background:#4da6ff !important;
-color:#fff;
-font-weight:700;
+  border-radius:18px !important;
+  width:auto !important;
+  padding:0 10px;
+  background:#4da6ff !important;
+  color:#fff;
+  font-weight:700;
 }
 
 #input{
-flex:1;
-height:36px;
-border:none;
-border-radius:18px;
-padding:0 10px;
-min-width:0;
-font-size:16px;
-}
-
-#status{
-position:fixed;
-top:10px;
-left:10px;
-z-index:10;
-background:rgba(255,255,255,0.88);
-padding:7px 11px;
-border-radius:999px;
-font-size:12px;
-backdrop-filter:blur(10px);
--webkit-backdrop-filter:blur(10px);
-box-shadow:0 4px 14px rgba(0,0,0,.06);
+  flex:1;
+  height:36px;
+  border:none;
+  border-radius:18px;
+  padding:0 10px;
+  min-width:0;
+  font-size:16px;
 }
 
 #settingsOverlay{
-position:fixed;
-inset:0;
-background:rgba(0,0,0,.24);
-z-index:29;
-display:none;
+  position:fixed;
+  inset:0;
+  background:rgba(0,0,0,.24);
+  z-index:29;
+  display:none;
 }
 
 #settingsSheet{
-position:fixed;
-left:0;
-right:0;
-bottom:0;
-z-index:30;
-background:rgba(255,255,255,0.98);
-border-radius:22px 22px 0 0;
-padding:14px 14px calc(14px + env(safe-area-inset-bottom));
-box-shadow:0 -10px 30px rgba(0,0,0,.12);
-transform:translateY(105%);
-transition:transform .25s ease;
-max-height:78dvh;
-overflow:auto;
+  position:fixed;
+  left:0;
+  right:0;
+  bottom:0;
+  z-index:30;
+  background:rgba(255,255,255,0.98);
+  border-radius:22px 22px 0 0;
+  padding:14px 14px calc(14px + env(safe-area-inset-bottom));
+  box-shadow:0 -10px 30px rgba(0,0,0,.12);
+  transform:translateY(105%);
+  transition:transform .25s ease;
+  max-height:78dvh;
+  overflow:auto;
 }
 
 #settingsSheet.show{
-transform:translateY(0);
+  transform:translateY(0);
 }
 
 .sheetHeader{
-display:flex;
-justify-content:space-between;
-align-items:center;
-margin-bottom:12px;
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  margin-bottom:12px;
 }
 
 .sheetTitle{
-font-size:16px;
-font-weight:700;
+  font-size:16px;
+  font-weight:700;
 }
 
 .sheetClose{
-border:none;
-background:#f2f2f2;
-border-radius:50%;
-width:34px;
-height:34px;
-font-size:18px;
+  border:none;
+  background:#f2f2f2;
+  border-radius:50%;
+  width:34px;
+  height:34px;
+  font-size:18px;
 }
 
 .group{
-margin-bottom:12px;
+  margin-bottom:12px;
 }
 
 .group label{
-display:block;
-font-size:12px;
-font-weight:700;
-margin-bottom:6px;
-color:#555;
+  display:block;
+  font-size:12px;
+  font-weight:700;
+  margin-bottom:6px;
+  color:#555;
 }
 
 .group input,
 .group select{
-width:100%;
-height:42px;
-border:none;
-border-radius:14px;
-background:#f5f6f8;
-padding:0 12px;
-font-size:14px;
+  width:100%;
+  height:42px;
+  border:none;
+  border-radius:14px;
+  background:#f5f6f8;
+  padding:0 12px;
+  font-size:14px;
 }
 
 .help{
-font-size:11px;
-line-height:1.4;
-color:#777;
-margin-top:5px;
+  font-size:11px;
+  line-height:1.4;
+  color:#777;
+  margin-top:5px;
 }
 
 .sheetActions{
-display:flex;
-gap:8px;
-margin-top:12px;
+  display:flex;
+  gap:8px;
+  margin-top:12px;
 }
 
 .sheetActions button{
-flex:1;
-height:44px;
-border:none;
-border-radius:14px;
-font-size:15px;
-font-weight:700;
+  flex:1;
+  height:44px;
+  border:none;
+  border-radius:14px;
+  font-size:15px;
+  font-weight:700;
 }
 
 #cancelSettings{
-background:#eef1f4;
-color:#444;
+  background:#eef1f4;
+  color:#444;
 }
 
 #saveSettings{
-background:#4da6ff;
-color:#fff;
+  background:#4da6ff;
+  color:#fff;
 }
 
 .hidden{
-display:none !important;
+  display:none !important;
 }
 </style>
 </head>
 
 <body>
-
-<div id="status">OpenAI / やさしい</div>
 
 <div class="avatar">
   <img id="character" src="normal.png" class="base-face">
@@ -247,13 +243,13 @@ display:none !important;
   </div>
 
   <div class="group">
-    abel for="apiKeyInput">OpenAI APIキー</label>
+    <label for="apiKeyInput">OpenAI APIキー</label>
     <input id="apiKeyInput" type="password" placeholder="sk-...">
     <div class="help">会話と音声応答に使います。</div>
   </div>
 
   <div class="group">
-    abel for="personaSelect">人格プリセット</label>
+    <label for="personaSelect">人格プリセット</label>
     <select id="personaSelect">
       <option value="gentle">やさしい</option>
       <option value="sister">お姉さん</option>
@@ -262,12 +258,12 @@ display:none !important;
   </div>
 
   <div class="group">
-    abel for="voiceModeSelect">音声応答</label>
+    <label for="voiceModeSelect">音声応答</label>
     <select id="voiceModeSelect">
       <option value="on">オン</option>
       <option value="off">オフ</option>
     </select>
-    <div class="help">OpenAI TTSが失敗した時はブラウザ音声に切り替えます。</div>
+    <div class="help">OpenAI音声が失敗した時はブラウザ音声に切り替えます。</div>
   </div>
 
   <div class="sheetActions">
@@ -284,7 +280,6 @@ const sendBtn = document.getElementById("send");
 const micBtn = document.getElementById("mic");
 const settingsBtn = document.getElementById("settingsBtn");
 const appBtn = document.getElementById("appBtn");
-const statusEl = document.getElementById("status");
 
 const settingsOverlay = document.getElementById("settingsOverlay");
 const settingsSheet = document.getElementById("settingsSheet");
@@ -319,17 +314,12 @@ const state = {
   voiceMode: "on"
 };
 
-let draftState = {...state};
 let conversation = [];
 
 function resetConversation(){
   conversation = [
     {role:"system", content:PERSONAS[state.personaKey].prompt}
   ];
-}
-
-function updateStatus(){
-  statusEl.textContent = "OpenAI / " + PERSONAS[state.personaKey].label;
 }
 
 function showBubble(text){
@@ -344,12 +334,14 @@ function startLipSync(){
   isSpeaking = true;
   let i = 0;
   const frames = ["mouth1.png","mouth2.png","mouth3.png"];
+
   function loop(){
     if(!isSpeaking) return;
     character.src = frames[i % frames.length];
     i++;
-    setTimeout(loop, 95);
+    setTimeout(loop, 90);
   }
+
   loop();
 }
 
@@ -360,11 +352,13 @@ function stopLipSync(){
 
 async function speakWithBrowser(text){
   if(!("speechSynthesis" in window)) return;
+
   const uttr = new SpeechSynthesisUtterance(text);
   uttr.lang = "ja-JP";
   uttr.onstart = ()=> startLipSync();
   uttr.onend = ()=> stopLipSync();
   uttr.onerror = ()=> stopLipSync();
+
   speechSynthesis.cancel();
   speechSynthesis.speak(uttr);
 }
@@ -459,7 +453,6 @@ async function send(){
   }
 
   input.value = "";
-  character.src = "typing.png";
   showBubble("…");
 
   await new Promise(r=>setTimeout(r,300));
@@ -471,16 +464,15 @@ async function send(){
     speak(reply);
   }catch(e){
     console.log("会話エラー", e);
-    character.src = "normal.png";
+    stopLipSync();
     showBubble("ごめんね、今ちょっと通信が不安定みたい…。");
   }
 }
 
 function openSettings(){
-  draftState = {...state};
-  apiKeyInput.value = draftState.apiKey;
-  personaSelect.value = draftState.personaKey;
-  voiceModeSelect.value = draftState.voiceMode;
+  apiKeyInput.value = state.apiKey;
+  personaSelect.value = state.personaKey;
+  voiceModeSelect.value = state.voiceMode;
 
   settingsOverlay.classList.remove("hidden");
   settingsOverlay.style.display = "block";
@@ -499,7 +491,6 @@ function saveSettings(){
   state.voiceMode = voiceModeSelect.value;
 
   resetConversation();
-  updateStatus();
   closeSettings();
   showBubble("設定を保存したよ😊");
 }
@@ -519,23 +510,16 @@ if("webkitSpeechRecognition" in window){
   micBtn.onclick = ()=> r.start();
 
   r.onstart = ()=>{
-    character.src = "curious.png";
     showBubble("聞いてるよ…");
   };
 
   r.onresult = e=>{
     input.value = e.results[0][0].transcript;
-    character.src = "normal.png";
     send();
   };
 
   r.onerror = ()=>{
-    character.src = "normal.png";
     showBubble("うまく聞き取れなかったみたい…");
-  };
-
-  r.onend = ()=>{
-    if(!isSpeaking) character.src = "normal.png";
   };
 }else{
   micBtn.onclick = ()=>{
@@ -550,12 +534,12 @@ saveSettingsBtn.onclick = saveSettings;
 settingsOverlay.onclick = closeSettings;
 
 appBtn.onclick = ()=>{
-  showBubble("今はここを予備ボタンにしてあるよ。");
+  showBubble("ここは今は使わないよ。");
 };
 
 window.addEventListener("load", ()=>{
   resetConversation();
-  updateStatus();
+  stopLipSync();
 });
 </script>
 
