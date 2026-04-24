@@ -9,98 +9,42 @@
 *{box-sizing:border-box;}
 body{margin:0;font-family:sans-serif;background:#f5f5f5;height:100dvh;overflow:hidden;}
 
-/* ===== キャラ ===== */
-.avatar{
-position:absolute;top:0;left:0;width:100%;height:100%;
-}
-
-.base-face{
+.avatar{position:absolute;top:0;left:0;width:100%;height:100%;}
+.base-face,.eye-layer{
 position:absolute;width:100%;height:100%;
-object-fit:cover;
-object-position:center 28%;
+object-fit:cover;object-position:center 28%;
 transform:scale(1.08);
 }
+.eye-layer{opacity:0;z-index:2;}
 
-/* 瞬きレイヤー */
-.eye-layer{
-position:absolute;width:100%;height:100%;
-object-fit:cover;
-object-position:center 28%;
-transform:scale(1.08);
-pointer-events:none;
-opacity:0;
-z-index:2; /* ←重要：前面 */
-}
-
-/* ===== 吹き出し ===== */
 #bubble{
-position:absolute;
-bottom:80px;
-left:50%;
+position:absolute;bottom:80px;left:50%;
 transform:translateX(-50%) translateY(10px);
-width:88%;
-background:rgba(255,255,255,0.25);
-backdrop-filter:blur(20px);
-border-radius:20px;
-padding:10px 12px;
-font-size:14px;
-line-height:1.5;
-text-align:center;
-z-index:5;
-max-height:160px;
-overflow:auto;
-opacity:0;
-transition:all 0.4s ease;
+width:88%;background:rgba(255,255,255,0.25);
+backdrop-filter:blur(20px);border-radius:20px;
+padding:10px;font-size:14px;text-align:center;
+z-index:5;opacity:0;transition:0.3s;
 }
+#bubble.show{opacity:1;transform:translateX(-50%)}
 
-#bubble.show{
-opacity:1;
-transform:translateX(-50%) translateY(0);
-}
-
-/* ===== 下バー ===== */
 #bottomBar{
-position:fixed;
-bottom:10px;
-left:50%;
+position:fixed;bottom:10px;left:50%;
 transform:translateX(-50%);
-width:95%;
-display:flex;
-align-items:center;
-gap:6px;
+width:95%;display:flex;gap:6px;
 background:rgba(255,255,255,0.9);
-border-radius:20px;
-padding:6px;
-z-index:10;
-backdrop-filter:blur(10px);
+border-radius:20px;padding:6px;
 }
 
 #bottomBar button{
-height:36px;
-width:36px;
-border:none;
-border-radius:50%;
-display:flex;
-align-items:center;
-justify-content:center;
-background:#fff;
+height:36px;width:36px;border:none;border-radius:50%;
 }
-
 #send{
-border-radius:18px !important;
-width:auto !important;
-padding:0 10px;
-background:#4da6ff !important;
-color:#fff;
+width:auto;padding:0 10px;border-radius:18px;
+background:#4da6ff;color:#fff;
 }
-
 #input{
-flex:1;
-height:36px;
-border:none;
-border-radius:18px;
+flex:1;height:36px;border:none;border-radius:18px;
 padding:0 10px;
-min-width:0;
 }
 </style>
 </head>
@@ -108,18 +52,18 @@ min-width:0;
 <body>
 
 <div class="avatar">
-  <img id="character" src="normal.png" class="base-face">
-  <img id="blinkEye" src="blink.png" class="eye-layer">
+<img id="character" src="normal.png" class="base-face">
+<img id="blinkEye" src="blink.png" class="eye-layer">
 </div>
 
 <div id="bubble" class="show">どうしたのかな？😊</div>
 
 <div id="bottomBar">
-  <button id="mic">🎤</button>
-  <input id="input" placeholder="話しかけて">
-  <button id="send">送信</button>
-  <button id="settingsBtn">⚙️</button>
-  <button id="appBtn">📱</button>
+<button id="mic">🎤</button>
+<input id="input" placeholder="話しかけて">
+<button id="send">送信</button>
+<button id="settingsBtn">⚙️</button>
+<button id="appBtn">📱</button>
 </div>
 
 <script>
@@ -137,47 +81,12 @@ const settingsBtn = document.getElementById("settingsBtn");
 let isSpeaking = false;
 let blinkRunning = false;
 
+/* 🔥 追加：音声ON/OFF */
+let voiceEnabled = localStorage.getItem("voiceEnabled");
+voiceEnabled = voiceEnabled === null ? true : voiceEnabled === "true";
+
 /* ===== 音声解析 ===== */
-let audioCtx, analyser, dataArray;
-
-/* ===== 音量 ===== */
-function getVolume(){
-if(!analyser) return 0;
-analyser.getByteTimeDomainData(dataArray);
-let sum = 0;
-for(let i=0;i<dataArray.length;i++){
-  const v = (dataArray[i]-128)/128;
-  sum += v*v;
-}
-return Math.sqrt(sum/dataArray.length);
-}
-
-/* ===== 口パク ===== */
-function startLipSyncFromAudio(){
-function loop(){
-if(!isSpeaking) return;
-const vol = getVolume();
-
-if(vol < 0.02){
-  character.src = "normal.png";
-}else if(vol < 0.05){
-  character.src = "mouth1.png";
-}else if(vol < 0.1){
-  character.src = "mouth2.png";
-}else{
-  character.src = "mouth3.png";
-}
-requestAnimationFrame(loop);
-}
-loop();
-}
-
-/* ===== 停止 ===== */
-function stopLipSync(){
-isSpeaking = false;
-character.src = "normal.png";
-setTimeout(()=>blink(),120);
-}
+let audioCtx;
 
 /* ===== 瞬き ===== */
 function blink(){
@@ -189,7 +98,6 @@ blinkEye.style.opacity = 0;
 blinkRunning = false;
 },90);
 }
-
 function autoBlink(){
 setTimeout(()=>{
 if(!isSpeaking) blink();
@@ -212,54 +120,27 @@ let API_KEY = localStorage.getItem("apiKey") || "";
 
 async function speak(text){
 
-if(!audioCtx){
-audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-}
-
-if(!API_KEY){
-const uttr = new SpeechSynthesisUtterance(text);
-uttr.lang="ja-JP";
-uttr.onstart=()=>{ isSpeaking = true; };
-uttr.onend=()=>{ stopLipSync(); };
-speechSynthesis.speak(uttr);
+/* 🔥 音声OFFなら完全停止 */
+if(!voiceEnabled){
+isSpeaking = false;
 return;
 }
 
-try{
-const res = await fetch("https://api.openai.com/v1/audio/speech",{
-method:"POST",
-headers:{
-"Authorization":"Bearer "+API_KEY,
-"Content-Type":"application/json"
-},
-body:JSON.stringify({
-model:"gpt-4o-mini-tts",
-voice:"aria",
-input:text
-})
-});
-
-const blob = await res.blob();
-const url = URL.createObjectURL(blob);
-const audio = new Audio(url);
-
-audio.onplay = ()=>{
-const src = audioCtx.createMediaElementSource(audio);
-analyser = audioCtx.createAnalyser();
-analyser.fftSize = 256;
-dataArray = new Uint8Array(analyser.frequencyBinCount);
-src.connect(analyser);
-analyser.connect(audioCtx.destination);
-isSpeaking = true;
-startLipSyncFromAudio();
-};
-
-audio.onended = stopLipSync;
-await audio.play();
-
-}catch(e){
-console.log("音声エラー", e);
+if(!audioCtx){
+audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+await audioCtx.resume();
 }
+
+const uttr = new SpeechSynthesisUtterance(text);
+uttr.lang="ja-JP";
+uttr.pitch=1.2;
+uttr.rate=0.95;
+
+uttr.onstart=()=>{isSpeaking=true;};
+uttr.onend=()=>{isSpeaking=false; blink();};
+
+speechSynthesis.cancel();
+speechSynthesis.speak(uttr);
 }
 
 /* ===== AI ===== */
@@ -275,12 +156,11 @@ headers:{
 body:JSON.stringify({
 model:"gpt-4o-mini",
 messages:[
-{role:"system",content:"優しい女性。短く自然に。間を大切に話す"},
+{role:"system",content:"優しい女性。短く自然に"},
 {role:"user",content:msg}
 ]
 })
 });
-
 const d=await r.json();
 return d.choices?.[0]?.message?.content || "うまく話せない…";
 }
@@ -288,38 +168,23 @@ return d.choices?.[0]?.message?.content || "うまく話せない…";
 /* ===== 送信 ===== */
 async function send(){
 const text=input.value;
-
-if(!text.trim()){
-showBubble("何か話して😊");
-return;
-}
-
+if(!text.trim()){showBubble("何か話して😊");return;}
 input.value="";
 showBubble("…");
 
-await new Promise(r=>setTimeout(r,300));
-
 let reply = await getAIResponse(text);
-
-reply = reply.replace(/。/g,"。… ").replace(/、/g,"、 ");
-
 showBubble(reply);
 speak(reply);
 }
 
-sendBtn.addEventListener("click", send);
-
-input.addEventListener("keydown", e=>{
-if(e.key==="Enter") send();
-});
+sendBtn.onclick = send;
+input.addEventListener("keydown",e=>{if(e.key==="Enter")send();});
 
 /* ===== マイク ===== */
 if('webkitSpeechRecognition' in window){
 const r=new webkitSpeechRecognition();
 r.lang='ja-JP';
-
 micBtn.onclick=()=>r.start();
-
 r.onresult=e=>{
 input.value=e.results[0][0].transcript;
 send();
@@ -328,22 +193,26 @@ send();
 
 /* ===== 設定 ===== */
 settingsBtn.onclick = ()=>{
+
 const key = prompt("APIキー入力", API_KEY || "");
-if(key){
-API_KEY = key;
-localStorage.setItem("apiKey", key);
-alert("保存したよ");
-}
+if(key){ API_KEY = key; localStorage.setItem("apiKey", key); }
+
+/* 🔥 音声ON/OFF */
+const voice = confirm("音声をONにしますか？\nOK=ON / キャンセル=OFF");
+voiceEnabled = voice;
+localStorage.setItem("voiceEnabled", voice);
+
+alert("設定保存したよ");
 };
 
-/* ===== 起動ボイス ===== */
-window.addEventListener("load", ()=>{
+/* ===== 起動 ===== */
+window.onload=()=>{
 setTimeout(()=>{
-const text = "おかえり。今日もお疲れさま。";
+const text="おかえり。今日もお疲れさま。";
 showBubble(text);
 speak(text);
 },800);
-});
+};
 
 </script>
 
