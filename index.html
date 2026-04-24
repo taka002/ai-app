@@ -11,7 +11,6 @@ body{margin:0;font-family:sans-serif;background:#f5f5f5;height:100dvh;overflow:h
 
 .avatar{
 position:absolute;top:0;left:0;width:100%;height:100%;
-z-index:1;
 }
 
 .base-face{
@@ -133,13 +132,18 @@ const settingsBtn = document.getElementById("settingsBtn");
 /* ===== 状態 ===== */
 let isSpeaking = false;
 let blinkRunning = false;
-let audioUnlocked = false;
-let blinkTimer;
 
 /* ===== 音声解析 ===== */
 let audioCtx, analyser, dataArray;
 
-/* ===== 音量取得 ===== */
+/* 🔥 スマホ対策：クリックで音声許可 */
+document.body.addEventListener("click", ()=>{
+  if(audioCtx){
+    audioCtx.resume();
+  }
+});
+
+/* ===== 音量 ===== */
 function getVolume(){
 if(!analyser) return 0;
 analyser.getByteTimeDomainData(dataArray);
@@ -152,7 +156,7 @@ return Math.sqrt(sum/dataArray.length);
 }
 
 /* ===== 口パク ===== */
-function startLipSync(){
+function startLipSyncFromAudio(){
 function loop(){
 if(!isSpeaking) return;
 
@@ -173,51 +177,31 @@ requestAnimationFrame(loop);
 loop();
 }
 
-/* ===== 停止（★修正） ===== */
+/* ===== 停止 ===== */
 function stopLipSync(){
 isSpeaking = false;
 character.src = "normal.png";
-
-setTimeout(()=>{
-  blink();
-  startAutoBlink(); // ★ここで必ず再開
-},120);
+setTimeout(()=>blink(),120);
 }
 
 /* ===== 瞬き ===== */
 function blink(){
 if(blinkRunning || isSpeaking) return;
-
 blinkRunning = true;
 blinkEye.style.opacity = 1;
-
 setTimeout(()=>{
 blinkEye.style.opacity = 0;
 blinkRunning = false;
 },90);
 }
 
-/* ===== 瞬きループ（★完全修正） ===== */
-function startAutoBlink(){
-
-clearTimeout(blinkTimer);
-
-function loop(){
-  blinkTimer = setTimeout(()=>{
-
-    if(!isSpeaking){
-      blink();
-    }
-
-    loop();
-
-  },2000 + Math.random()*3000);
+function autoBlink(){
+setTimeout(()=>{
+if(!isSpeaking) blink();
+autoBlink();
+},3000 + Math.random()*3000);
 }
-
-loop();
-}
-
-startAutoBlink();
+autoBlink();
 
 /* ===== 吹き出し ===== */
 function showBubble(text){
@@ -228,14 +212,6 @@ bubble.classList.add("show");
 },150);
 }
 
-/* ===== Audio解放 ===== */
-document.body.addEventListener("click", ()=>{
-if(!audioUnlocked){
-audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-audioUnlocked = true;
-}
-},{once:true});
-
 /* ===== 音声 ===== */
 let API_KEY = localStorage.getItem("apiKey") || "";
 
@@ -245,29 +221,27 @@ if(!audioCtx){
 audioCtx = new (window.AudioContext || window.webkitAudioContext)();
 }
 
+/* 🔥 ここ重要 */
+if(audioCtx.state === "suspended"){
+await audioCtx.resume();
+}
+
 if(!API_KEY){
+
+speechSynthesis.cancel(); // 🔥 追加
+
 const uttr = new SpeechSynthesisUtterance(text);
 uttr.lang="ja-JP";
 
-uttr.onstart=()=>{
-isSpeaking = true;
-
-analyser = { getByteTimeDomainData: arr=>{
-for(let i=0;i<arr.length;i++){
-arr[i] = 128 + Math.sin(Date.now()/80)*30;
-}}};
-dataArray = new Uint8Array(128);
-
-startLipSync();
-};
-
-uttr.onend=stopLipSync;
+uttr.onstart=()=>{ isSpeaking = true; };
+uttr.onend=()=>{ stopLipSync(); };
 
 speechSynthesis.speak(uttr);
 return;
 }
 
 try{
+
 const res = await fetch("https://api.openai.com/v1/audio/speech",{
 method:"POST",
 headers:{
@@ -285,17 +259,23 @@ const blob = await res.blob();
 const url = URL.createObjectURL(blob);
 const audio = new Audio(url);
 
-audio.onplay = ()=>{
+audio.onplay = async ()=>{
+
+if(audioCtx.state === "suspended"){
+await audioCtx.resume();
+}
+
 const src = audioCtx.createMediaElementSource(audio);
 analyser = audioCtx.createAnalyser();
 analyser.fftSize = 256;
+
 dataArray = new Uint8Array(analyser.frequencyBinCount);
 
 src.connect(analyser);
 analyser.connect(audioCtx.destination);
 
 isSpeaking = true;
-startLipSync();
+startLipSyncFromAudio();
 };
 
 audio.onended = stopLipSync;
@@ -303,7 +283,7 @@ audio.onended = stopLipSync;
 await audio.play();
 
 }catch(e){
-console.log(e);
+console.log("音声エラー", e);
 }
 }
 
@@ -381,10 +361,12 @@ alert("保存したよ");
 }
 };
 
-/* ===== 起動メッセージ ===== */
+/* ===== 起動ボイス ===== */
 window.addEventListener("load", ()=>{
 setTimeout(()=>{
-showBubble("おかえり。今日もお疲れさま。");
+const text = "おかえり。今日もお疲れさま。";
+showBubble(text);
+speak(text);
 },800);
 });
 
