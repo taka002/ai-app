@@ -7,7 +7,7 @@
 
 <style>
 *{box-sizing:border-box;}
-body{margin:0;font-family:sans-serif;background:#f5f5f5;height:100dvh;overflow:hidden;}
+body{margin:0;font-family:sans-serif;background:#f5f5f5;height:100dvh;overflow:hidden;color:#222;}
 
 .avatar{
 position:absolute;top:0;left:0;width:100%;height:100%;
@@ -109,6 +109,114 @@ backdrop-filter:blur(10px);
 -webkit-backdrop-filter:blur(10px);
 box-shadow:0 4px 14px rgba(0,0,0,.06);
 }
+
+#settingsOverlay{
+position:fixed;
+inset:0;
+background:rgba(0,0,0,.24);
+z-index:29;
+display:none;
+}
+
+#settingsSheet{
+position:fixed;
+left:0;
+right:0;
+bottom:0;
+z-index:30;
+background:rgba(255,255,255,0.98);
+border-radius:22px 22px 0 0;
+padding:14px 14px calc(14px + env(safe-area-inset-bottom));
+box-shadow:0 -10px 30px rgba(0,0,0,.12);
+transform:translateY(105%);
+transition:transform .25s ease;
+max-height:78dvh;
+overflow:auto;
+}
+
+#settingsSheet.show{
+transform:translateY(0);
+}
+
+.sheetHeader{
+display:flex;
+justify-content:space-between;
+align-items:center;
+margin-bottom:12px;
+}
+
+.sheetTitle{
+font-size:16px;
+font-weight:700;
+}
+
+.sheetClose{
+border:none;
+background:#f2f2f2;
+border-radius:50%;
+width:34px;
+height:34px;
+font-size:18px;
+}
+
+.group{
+margin-bottom:12px;
+}
+
+.group label{
+display:block;
+font-size:12px;
+font-weight:700;
+margin-bottom:6px;
+color:#555;
+}
+
+.group input,
+.group select{
+width:100%;
+height:42px;
+border:none;
+border-radius:14px;
+background:#f5f6f8;
+padding:0 12px;
+font-size:14px;
+}
+
+.help{
+font-size:11px;
+line-height:1.4;
+color:#777;
+margin-top:5px;
+}
+
+.sheetActions{
+display:flex;
+gap:8px;
+margin-top:12px;
+}
+
+.sheetActions button{
+flex:1;
+height:44px;
+border:none;
+border-radius:14px;
+font-size:15px;
+font-weight:700;
+}
+
+#cancelSettings{
+background:#eef1f4;
+color:#444;
+}
+
+#saveSettings{
+background:#4da6ff;
+color:#fff;
+}
+
+.hidden{
+display:none !important;
+}
 </style>
 </head>
 
@@ -130,6 +238,44 @@ box-shadow:0 4px 14px rgba(0,0,0,.06);
   <button id="appBtn">📱</button>
 </div>
 
+<div id="settingsOverlay" class="hidden"></div>
+
+<div id="settingsSheet">
+  <div class="sheetHeader">
+    <div class="sheetTitle">設定</div>
+    <button id="closeSettings" class="sheetClose">×</button>
+  </div>
+
+  <div class="group">
+    abel for="apiKeyInput">OpenAI APIキー</label>
+    <input id="apiKeyInput" type="password" placeholder="sk-...">
+    <div class="help">会話と音声応答に使います。</div>
+  </div>
+
+  <div class="group">
+    abel for="personaSelect">人格プリセット</label>
+    <select id="personaSelect">
+      <option value="gentle">やさしい</option>
+      <option value="sister">お姉さん</option>
+      <option value="counselor">相談役</option>
+    </select>
+  </div>
+
+  <div class="group">
+    abel for="voiceModeSelect">音声応答</label>
+    <select id="voiceModeSelect">
+      <option value="on">オン</option>
+      <option value="off">オフ</option>
+    </select>
+    <div class="help">OpenAI TTSが失敗した時はブラウザ音声に切り替えます。</div>
+  </div>
+
+  <div class="sheetActions">
+    <button id="cancelSettings">閉じる</button>
+    <button id="saveSettings">保存</button>
+  </div>
+</div>
+
 <script>
 const bubble = document.getElementById("bubble");
 const input = document.getElementById("input");
@@ -140,9 +286,17 @@ const settingsBtn = document.getElementById("settingsBtn");
 const appBtn = document.getElementById("appBtn");
 const statusEl = document.getElementById("status");
 
+const settingsOverlay = document.getElementById("settingsOverlay");
+const settingsSheet = document.getElementById("settingsSheet");
+const closeSettingsBtn = document.getElementById("closeSettings");
+const cancelSettingsBtn = document.getElementById("cancelSettings");
+const saveSettingsBtn = document.getElementById("saveSettings");
+
+const apiKeyInput = document.getElementById("apiKeyInput");
+const personaSelect = document.getElementById("personaSelect");
+const voiceModeSelect = document.getElementById("voiceModeSelect");
+
 let isSpeaking = false;
-let API_KEY = "";
-let personaKey = "gentle";
 
 const PERSONAS = {
   gentle: {
@@ -159,16 +313,31 @@ const PERSONAS = {
   }
 };
 
-let conversation = [];
+const state = {
+  apiKey: "",
+  personaKey: "gentle",
+  voiceMode: "on"
+};
 
-function updateStatus(){
-  statusEl.textContent = "OpenAI / " + PERSONAS[personaKey].label;
-}
+let draftState = {...state};
+let conversation = [];
 
 function resetConversation(){
   conversation = [
-    {role:"system", content:PERSONAS[personaKey].prompt}
+    {role:"system", content:PERSONAS[state.personaKey].prompt}
   ];
+}
+
+function updateStatus(){
+  statusEl.textContent = "OpenAI / " + PERSONAS[state.personaKey].label;
+}
+
+function showBubble(text){
+  bubble.classList.remove("show");
+  setTimeout(()=>{
+    bubble.innerText = text;
+    bubble.classList.add("show");
+  },150);
 }
 
 function startLipSync(){
@@ -189,14 +358,6 @@ function stopLipSync(){
   character.src = "normal.png";
 }
 
-function showBubble(text){
-  bubble.classList.remove("show");
-  setTimeout(()=>{
-    bubble.innerText = text;
-    bubble.classList.add("show");
-  },150);
-}
-
 async function speakWithBrowser(text){
   if(!("speechSynthesis" in window)) return;
   const uttr = new SpeechSynthesisUtterance(text);
@@ -209,12 +370,12 @@ async function speakWithBrowser(text){
 }
 
 async function speakWithOpenAI(text){
-  if(!API_KEY) throw new Error("APIキー未設定");
+  if(!state.apiKey) throw new Error("APIキー未設定");
 
   const res = await fetch("https://api.openai.com/v1/audio/speech",{
     method:"POST",
     headers:{
-      "Authorization":"Bearer " + API_KEY,
+      "Authorization":"Bearer " + state.apiKey,
       "Content-Type":"application/json"
     },
     body:JSON.stringify({
@@ -246,6 +407,8 @@ async function speakWithOpenAI(text){
 }
 
 async function speak(text){
+  if(state.voiceMode === "off") return;
+
   try{
     await speakWithOpenAI(text);
   }catch(e){
@@ -255,7 +418,7 @@ async function speak(text){
 }
 
 async function getAIResponse(msg){
-  if(!API_KEY){
+  if(!state.apiKey){
     return "設定からOpenAIのAPIキーを入れてね。";
   }
 
@@ -269,7 +432,7 @@ async function getAIResponse(msg){
     method:"POST",
     headers:{
       "Content-Type":"application/json",
-      "Authorization":"Bearer " + API_KEY
+      "Authorization":"Bearer " + state.apiKey
     },
     body:JSON.stringify({
       model:"gpt-4o-mini",
@@ -313,6 +476,34 @@ async function send(){
   }
 }
 
+function openSettings(){
+  draftState = {...state};
+  apiKeyInput.value = draftState.apiKey;
+  personaSelect.value = draftState.personaKey;
+  voiceModeSelect.value = draftState.voiceMode;
+
+  settingsOverlay.classList.remove("hidden");
+  settingsOverlay.style.display = "block";
+  settingsSheet.classList.add("show");
+}
+
+function closeSettings(){
+  settingsSheet.classList.remove("show");
+  settingsOverlay.style.display = "none";
+  settingsOverlay.classList.add("hidden");
+}
+
+function saveSettings(){
+  state.apiKey = apiKeyInput.value.trim();
+  state.personaKey = personaSelect.value;
+  state.voiceMode = voiceModeSelect.value;
+
+  resetConversation();
+  updateStatus();
+  closeSettings();
+  showBubble("設定を保存したよ😊");
+}
+
 sendBtn.onclick = send;
 
 input.addEventListener("keydown", e=>{
@@ -352,39 +543,11 @@ if("webkitSpeechRecognition" in window){
   };
 }
 
-settingsBtn.onclick = ()=>{
-  const menu = prompt(
-`設定を選んでね
-1: OpenAI APIキー
-2: 人格を切り替え
-`,
-"1"
-  );
-
-  if(menu === "1"){
-    const key = prompt("OpenAI APIキーを入力", API_KEY || "");
-    if(key !== null){
-      API_KEY = key.trim();
-      showBubble(API_KEY ? "APIキーを入れたよ。" : "APIキーを空にしたよ。");
-    }
-  }else if(menu === "2"){
-    const p = prompt(
-`人格を選んでね
-1: やさしい
-2: お姉さん
-3: 相談役`,
-"1"
-    );
-
-    if(p === "1") personaKey = "gentle";
-    if(p === "2") personaKey = "sister";
-    if(p === "3") personaKey = "counselor";
-
-    resetConversation();
-    updateStatus();
-    showBubble("人格を切り替えたよ。");
-  }
-};
+settingsBtn.onclick = openSettings;
+closeSettingsBtn.onclick = closeSettings;
+cancelSettingsBtn.onclick = closeSettings;
+saveSettingsBtn.onclick = saveSettings;
+settingsOverlay.onclick = closeSettings;
 
 appBtn.onclick = ()=>{
   showBubble("今はここを予備ボタンにしてあるよ。");
