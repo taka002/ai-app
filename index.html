@@ -6,22 +6,25 @@
 <title>美咲AI</title>
 
 <style>
-*{box-sizing:border-box;}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+html,body{margin:0;padding:0;height:100%;}
 body{
-  margin:0;
   font-family:sans-serif;
   background:#f5f5f5;
-  height:100dvh;
+  min-height:100dvh;
   overflow:hidden;
+  position:relative;
   color:#222;
 }
 
+/* 背景キャラ */
 .avatar{
   position:absolute;
-  top:0;
-  left:0;
+  inset:0;
   width:100%;
   height:100%;
+  overflow:hidden;
+  z-index:1;
   pointer-events:none;
 }
 
@@ -32,8 +35,20 @@ body{
   object-fit:cover;
   object-position:center 28%;
   transform:scale(1.08);
+  pointer-events:none;
+  will-change:transform;
+  animation:idleFloat 4.6s ease-in-out infinite;
 }
 
+@keyframes idleFloat{
+  0%{transform:scale(1.08) translateY(0);}
+  25%{transform:scale(1.082) translateY(-2px);}
+  50%{transform:scale(1.085) translateY(-4px);}
+  75%{transform:scale(1.082) translateY(-2px);}
+  100%{transform:scale(1.08) translateY(0);}
+}
+
+/* 吹き出し */
 #bubble{
   position:absolute;
   bottom:80px;
@@ -52,7 +67,8 @@ body{
   max-height:160px;
   overflow:auto;
   opacity:0;
-  transition:all 0.4s ease;
+  transition:all 0.35s ease;
+  pointer-events:none;
 }
 
 #bubble.show{
@@ -60,6 +76,7 @@ body{
   transform:translateX(-50%) translateY(0);
 }
 
+/* 下バー */
 #bottomBar{
   position:fixed;
   bottom:10px;
@@ -72,7 +89,7 @@ body{
   background:rgba(255,255,255,0.9);
   border-radius:20px;
   padding:6px;
-  z-index:10;
+  z-index:20;
   backdrop-filter:blur(10px);
   -webkit-backdrop-filter:blur(10px);
 }
@@ -87,6 +104,7 @@ body{
   justify-content:center;
   background:#fff;
   font-size:16px;
+  flex:0 0 auto;
 }
 
 #send{
@@ -106,8 +124,15 @@ body{
   padding:0 10px;
   min-width:0;
   font-size:16px;
+  background:#fff;
+  color:#222;
 }
 
+#input:focus{
+  outline:none;
+}
+
+/* 設定 */
 #settingsOverlay{
   position:fixed;
   inset:0;
@@ -178,6 +203,7 @@ body{
   background:#f5f6f8;
   padding:0 12px;
   font-size:14px;
+  color:#222;
 }
 
 .help{
@@ -221,25 +247,25 @@ body{
 <body>
 
 <div class="avatar">
-  <img id="character" src="normal.png" class="base-face">
+  <img id="character" src="normal.png" class="base-face" alt="">
 </div>
 
 <div id="bubble" class="show">どうしたのかな？😊</div>
 
 <div id="bottomBar">
-  <button id="mic">🎤</button>
+  <button id="mic" type="button" aria-label="マイク">🎤</button>
   <input id="input" placeholder="話しかけて">
-  <button id="send">送信</button>
-  <button id="settingsBtn">⚙️</button>
-  <button id="appBtn">📱</button>
+  <button id="send" type="button">送信</button>
+  <button id="settingsBtn" type="button" aria-label="設定">⚙️</button>
+  <button id="appBtn" type="button" aria-label="アプリ">📱</button>
 </div>
 
 <div id="settingsOverlay" class="hidden"></div>
 
-<div id="settingsSheet">
+<div id="settingsSheet" aria-hidden="true">
   <div class="sheetHeader">
     <div class="sheetTitle">設定</div>
-    <button id="closeSettings" class="sheetClose">×</button>
+    <button id="closeSettings" class="sheetClose" type="button">×</button>
   </div>
 
   <div class="group">
@@ -267,8 +293,8 @@ body{
   </div>
 
   <div class="sheetActions">
-    <button id="cancelSettings">閉じる</button>
-    <button id="saveSettings">保存</button>
+    <button id="cancelSettings" type="button">閉じる</button>
+    <button id="saveSettings" type="button">保存</button>
   </div>
 </div>
 
@@ -290,8 +316,6 @@ const saveSettingsBtn = document.getElementById("saveSettings");
 const apiKeyInput = document.getElementById("apiKeyInput");
 const personaSelect = document.getElementById("personaSelect");
 const voiceModeSelect = document.getElementById("voiceModeSelect");
-
-let isSpeaking = false;
 
 const PERSONAS = {
   gentle: {
@@ -315,29 +339,39 @@ const state = {
 };
 
 let conversation = [];
+let isSpeaking = false;
+let recognition = null;
+let isSettingsOpen = false;
+
+function safeSetCharacter(src){
+  if(character.getAttribute("src") !== src){
+    character.setAttribute("src", src);
+  }
+}
 
 function resetConversation(){
   conversation = [
-    {role:"system", content:PERSONAS[state.personaKey].prompt}
+    { role:"system", content: PERSONAS[state.personaKey].prompt }
   ];
 }
 
 function showBubble(text){
   bubble.classList.remove("show");
-  setTimeout(()=>{
+  setTimeout(() => {
     bubble.innerText = text;
     bubble.classList.add("show");
-  },150);
+  }, 120);
 }
 
 function startLipSync(){
+  if(isSpeaking) return;
   isSpeaking = true;
   let i = 0;
   const frames = ["mouth1.png","mouth2.png","mouth3.png"];
 
   function loop(){
     if(!isSpeaking) return;
-    character.src = frames[i % frames.length];
+    safeSetCharacter(frames[i % frames.length]);
     i++;
     setTimeout(loop, 90);
   }
@@ -347,31 +381,37 @@ function startLipSync(){
 
 function stopLipSync(){
   isSpeaking = false;
-  character.src = "normal.png";
+  safeSetCharacter("normal.png");
 }
 
 async function speakWithBrowser(text){
   if(!("speechSynthesis" in window)) return;
 
-  speechSynthesis.cancel();
-  speechSynthesis.getVoices();
+  try{
+    speechSynthesis.cancel();
+    speechSynthesis.getVoices();
 
-  const uttr = new SpeechSynthesisUtterance(text);
-  uttr.lang = "ja-JP";
-  uttr.rate = 1.0;
-  uttr.pitch = 1.0;
-  uttr.volume = 1.0;
-  uttr.onstart = ()=> startLipSync();
-  uttr.onend = ()=> stopLipSync();
-  uttr.onerror = ()=> stopLipSync();
+    const uttr = new SpeechSynthesisUtterance(text);
+    uttr.lang = "ja-JP";
+    uttr.rate = 1.0;
+    uttr.pitch = 1.0;
+    uttr.volume = 1.0;
 
-  speechSynthesis.speak(uttr);
+    uttr.onstart = () => startLipSync();
+    uttr.onend = () => stopLipSync();
+    uttr.onerror = () => stopLipSync();
+
+    speechSynthesis.speak(uttr);
+  }catch(e){
+    stopLipSync();
+    console.log("ブラウザ音声エラー", e);
+  }
 }
 
 async function speakWithOpenAI(text){
   if(!state.apiKey) throw new Error("APIキー未設定");
 
-  const res = await fetch("https://api.openai.com/v1/audio/speech",{
+  const res = await fetch("https://api.openai.com/v1/audio/speech", {
     method:"POST",
     headers:{
       "Authorization":"Bearer " + state.apiKey,
@@ -392,12 +432,12 @@ async function speakWithOpenAI(text){
   const url = URL.createObjectURL(blob);
   const audio = new Audio(url);
 
-  audio.onplay = ()=> startLipSync();
-  audio.onended = ()=>{
+  audio.onplay = () => startLipSync();
+  audio.onended = () => {
     URL.revokeObjectURL(url);
     stopLipSync();
   };
-  audio.onerror = ()=>{
+  audio.onerror = () => {
     URL.revokeObjectURL(url);
     stopLipSync();
   };
@@ -406,7 +446,7 @@ async function speakWithOpenAI(text){
 }
 
 async function speak(text){
-  if(state.voiceMode === "off") return;
+  if(state.voiceMode !== "on") return;
 
   try{
     await speakWithOpenAI(text);
@@ -421,13 +461,13 @@ async function getAIResponse(msg){
     return "設定からOpenAIのAPIキーを入れてね。";
   }
 
-  conversation.push({role:"user", content:msg});
+  conversation.push({ role:"user", content:msg });
 
   if(conversation.length > 10){
     conversation = [conversation[0], ...conversation.slice(-9)];
   }
 
-  const r = await fetch("https://api.openai.com/v1/chat/completions",{
+  const r = await fetch("https://api.openai.com/v1/chat/completions", {
     method:"POST",
     headers:{
       "Content-Type":"application/json",
@@ -436,8 +476,8 @@ async function getAIResponse(msg){
     body:JSON.stringify({
       model:"gpt-4o-mini",
       messages:conversation,
-      max_tokens: 60,
-      temperature: 0.7
+      max_tokens:60,
+      temperature:0.7
     })
   });
 
@@ -447,7 +487,7 @@ async function getAIResponse(msg){
 
   const d = await r.json();
   const reply = d.choices?.[0]?.message?.content || "うまく話せない…";
-  conversation.push({role:"assistant", content:reply});
+  conversation.push({ role:"assistant", content:reply });
   return reply;
 }
 
@@ -462,22 +502,20 @@ async function send(){
   input.value = "";
   showBubble("…");
 
-  await new Promise(r=>setTimeout(r,300));
-
   try{
-    let reply = await getAIResponse(text);
-    reply = reply.replace(/
+    const reply = (await getAIResponse(text)).replace(/
 +/g, " ").trim();
     showBubble(reply);
-    speak(reply);
+    await speak(reply);
   }catch(e){
-    console.log("会話エラー", e);
     stopLipSync();
+    console.log("会話エラー", e);
     showBubble("ごめんね、今ちょっと通信が不安定みたい…。");
   }
 }
 
 function openSettings(){
+  isSettingsOpen = true;
   apiKeyInput.value = state.apiKey;
   personaSelect.value = state.personaKey;
   voiceModeSelect.value = state.voiceMode;
@@ -485,10 +523,13 @@ function openSettings(){
   settingsOverlay.classList.remove("hidden");
   settingsOverlay.style.display = "block";
   settingsSheet.classList.add("show");
+  settingsSheet.setAttribute("aria-hidden", "false");
 }
 
 function closeSettings(){
+  isSettingsOpen = false;
   settingsSheet.classList.remove("show");
+  settingsSheet.setAttribute("aria-hidden", "true");
   settingsOverlay.style.display = "none";
   settingsOverlay.classList.add("hidden");
 }
@@ -503,53 +544,73 @@ function saveSettings(){
   showBubble("設定を保存したよ😊");
 }
 
-sendBtn.onclick = send;
+function setupSpeechRecognition(){
+  if(!("webkitSpeechRecognition" in window)) return;
 
-input.addEventListener("keydown", e=>{
-  if(e.key === "Enter") send();
-});
+  recognition = new webkitSpeechRecognition();
+  recognition.lang = "ja-JP";
+  recognition.interimResults = false;
+  recognition.continuous = false;
 
-if("webkitSpeechRecognition" in window){
-  const r = new webkitSpeechRecognition();
-  r.lang = "ja-JP";
-  r.interimResults = false;
-  r.continuous = false;
-
-  micBtn.onclick = ()=> r.start();
-
-  r.onstart = ()=>{
+  recognition.onstart = () => {
     showBubble("聞いてるよ…");
   };
 
-  r.onresult = e=>{
-    input.value = e.results[0][0].transcript;
+  recognition.onresult = (e) => {
+    input.value = e.results[0][0].transcript || "";
     send();
   };
 
-  r.onerror = ()=>{
+  recognition.onerror = () => {
     showBubble("うまく聞き取れなかったみたい…");
-  };
-}else{
-  micBtn.onclick = ()=>{
-    showBubble("この端末では音声入力に対応していないみたい。");
   };
 }
 
-settingsBtn.onclick = openSettings;
-closeSettingsBtn.onclick = closeSettings;
-cancelSettingsBtn.onclick = closeSettings;
-saveSettingsBtn.onclick = saveSettings;
-settingsOverlay.onclick = closeSettings;
+sendBtn.addEventListener("click", send);
 
-appBtn.onclick = ()=>{
+input.addEventListener("keydown", (e) => {
+  if(e.key === "Enter"){
+    e.preventDefault();
+    send();
+  }
+});
+
+micBtn.addEventListener("click", () => {
+  if(isSettingsOpen) return;
+
+  if(recognition){
+    try{
+      recognition.start();
+    }catch(e){
+      console.log("音声認識開始エラー", e);
+      showBubble("マイクを開始できなかったみたい。");
+    }
+  }else{
+    showBubble("この端末では音声入力に対応していないみたい。");
+  }
+});
+
+settingsBtn.addEventListener("click", openSettings);
+closeSettingsBtn.addEventListener("click", closeSettings);
+cancelSettingsBtn.addEventListener("click", closeSettings);
+saveSettingsBtn.addEventListener("click", saveSettings);
+settingsOverlay.addEventListener("click", closeSettings);
+
+appBtn.addEventListener("click", () => {
   showBubble("ここは今は使わないよ。");
-};
+});
 
-window.addEventListener("load", ()=>{
+window.addEventListener("load", () => {
   resetConversation();
   stopLipSync();
-  if ("speechSynthesis" in window) {
-    speechSynthesis.getVoices();
+  setupSpeechRecognition();
+
+  if("speechSynthesis" in window){
+    try{
+      speechSynthesis.getVoices();
+    }catch(e){
+      console.log("voices初期化エラー", e);
+    }
   }
 });
 </script>
