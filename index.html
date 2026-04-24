@@ -13,7 +13,6 @@ background:#f5f5f5;
 min-height:100dvh;
 overflow:hidden;
 position:relative;
-color:#222;
 }
 
 .avatar{
@@ -25,27 +24,39 @@ overflow:hidden;
 background:#f6f3f1;
 }
 
-.base-face{
+.face-layer{
 position:absolute;
 width:100%;
 height:100%;
 object-fit:cover;
 object-position:center 38%;
 transform:scale(0.96);
-transition:transform .22s ease, filter .22s ease, opacity .18s ease;
-will-change:transform, filter;
+transition:transform .22s ease, filter .22s ease, opacity .14s ease;
+will-change:transform, filter, opacity;
+pointer-events:none;
+backface-visibility:hidden;
 }
 
-.avatar.idle .base-face{
+#baseFace{
+z-index:1;
+opacity:1;
+}
+
+#blinkFace{
+z-index:2;
+opacity:0;
+}
+
+.avatar.idle .face-layer{
 animation:idleFloat 4.8s ease-in-out infinite;
 }
 
-.avatar.speaking .base-face{
+.avatar.speaking .face-layer{
 filter:brightness(1.04);
 transform:scale(0.985) translateY(-2px);
 }
 
-.avatar.thinking .base-face{
+.avatar.thinking .face-layer{
 filter:brightness(1.02);
 transform:scale(0.97) translateY(-1px);
 }
@@ -65,7 +76,7 @@ left:50%;
 transform:translateX(-50%) translateY(10px);
 width:84%;
 max-width:420px;
-background:rgba(255,255,255,0.30);
+background:rgba(255,255,255,0.28);
 backdrop-filter:blur(18px);
 -webkit-backdrop-filter:blur(18px);
 border-radius:20px;
@@ -74,7 +85,7 @@ font-size:14px;
 line-height:1.5;
 text-align:center;
 z-index:5;
-max-height:96px;
+max-height:84px;
 overflow:auto;
 opacity:0;
 color:#2a2a2a;
@@ -143,126 +154,50 @@ background:#fff;
 outline:none;
 }
 
-#settingsPanel{
-position:fixed;
-right:10px;
-top:10px;
-width:min(94vw, 380px);
-max-height:78dvh;
-overflow:auto;
-background:rgba(255,255,255,0.96);
-backdrop-filter:blur(18px);
--webkit-backdrop-filter:blur(18px);
-border-radius:20px;
-padding:14px;
-z-index:30;
-box-shadow:0 18px 40px rgba(0,0,0,.16);
-display:none;
-}
-
-#settingsPanel.show{
-display:block;
-}
-
-.panelTitle{
-font-size:16px;
-font-weight:700;
-margin-bottom:10px;
-}
-
-.group{
-margin-bottom:12px;
-}
-
-.group label{
-display:block;
-font-size:12px;
-font-weight:700;
-margin:0 0 6px;
-color:#555;
-}
-
-.group input,
-.group select,
-.group textarea{
-width:100%;
-border:none;
-outline:none;
-background:#f5f6f8;
-border-radius:14px;
-padding:10px 12px;
-font-size:14px;
-color:#222;
-}
-
-.group textarea{
-min-height:88px;
-resize:vertical;
-}
-
-.row{
-display:grid;
-grid-template-columns:1fr 1fr;
-gap:8px;
-}
-
-.panelActions{
-display:flex;
-gap:8px;
-margin-top:8px;
-}
-
-.panelBtn{
-flex:1;
-height:40px;
-border:none;
-border-radius:14px;
-background:#e9eef5;
-font-weight:700;
-}
-
-.panelBtn.primary{
-background:#4da6ff;
-color:#fff;
-}
-
-.mini{
-font-size:11px;
-color:#666;
-line-height:1.45;
-margin-top:4px;
-}
-
-.statusLine{
-position:absolute;
-top:10px;
-left:10px;
-z-index:8;
-background:rgba(255,255,255,0.82);
-backdrop-filter:blur(10px);
--webkit-backdrop-filter:blur(10px);
-padding:6px 10px;
-border-radius:999px;
-font-size:12px;
-box-shadow:0 4px 14px rgba(0,0,0,.06);
+#input::placeholder{
+color:#8d8d8d;
 }
 
 @media (max-width:390px){
-#bubble{width:86%;bottom:70px;max-height:92px;}
-#bottomBar{width:calc(100% - 12px);gap:6px;}
-#bottomBar button{width:38px;height:38px;font-size:16px;}
-#send{height:38px;padding:0 12px;}
-#input{height:40px;}
-.row{grid-template-columns:1fr;}
+#bubble{
+width:86%;
+bottom:70px;
+max-height:80px;
+}
+#bottomBar{
+width:calc(100% - 12px);
+gap:6px;
+}
+#bottomBar button{
+width:38px;
+height:38px;
+font-size:16px;
+}
+#send{
+height:38px;
+padding:0 12px;
+}
+#input{
+height:40px;
+}
+}
+
+@media (prefers-reduced-motion: reduce){
+.avatar.idle .face-layer{
+animation:none;
+}
+.face-layer,
+#bubble{
+transition:none;
+}
 }
 </style>
 </head>
 <body>
 
-<div class="statusLine" id="statusLine">OpenAI / gpt-4o-mini</div>
-
 <div class="avatar idle" id="avatarWrap">
-  <img id="character" src="normal.png" class="base-face" alt="美咲AI">
+  <img id="baseFace" src="normal.png" class="face-layer" alt="美咲AI">
+  <img id="blinkFace" src="blink2.png" class="face-layer" alt="">
 </div>
 
 <div id="bubble" class="show">どうしたのかな？😊</div>
@@ -275,214 +210,42 @@ box-shadow:0 4px 14px rgba(0,0,0,.06);
   <button id="appBtn" aria-label="アプリ">📱</button>
 </div>
 
-<div id="settingsPanel">
-  <div class="panelTitle">設定</div>
-
-  <div class="group">
-    <label for="providerSelect">会話AI</label>
-    <select id="providerSelect">
-      <option value="openai">OpenAI</option>
-      <option value="gemini">Gemini</option>
-    </select>
-  </div>
-
-  <div class="row">
-    <div class="group">
-      <label for="openaiModel">OpenAIモデル</label>
-      <input id="openaiModel" value="gpt-4o-mini">
-    </div>
-    <div class="group">
-      <label for="geminiModel">Geminiモデル</label>
-      <input id="geminiModel" value="gemini-2.0-flash">
-    </div>
-  </div>
-
-  <div class="group">
-    <label for="personaSelect">人格プリセット</label>
-    <select id="personaSelect"></select>
-  </div>
-
-  <div class="group">
-    <label for="extraPrompt">追加プロンプト</label>
-    <textarea id="extraPrompt" placeholder="例：敬語少なめ、短く、安心感重視。福祉相談に寄り添って。"></textarea>
-    <div class="mini">人格プリセットの後ろに追加されます。</div>
-  </div>
-
-  <div class="group">
-    <label for="openaiKey">OpenAI APIキー</label>
-    <input id="openaiKey" type="password" placeholder="sk-...">
-  </div>
-
-  <div class="group">
-    <label for="geminiKey">Gemini APIキー</label>
-    <input id="geminiKey" type="password" placeholder="AIza...">
-  </div>
-
-  <div class="group">
-    <label for="ttsMode">音声応答</label>
-    <select id="ttsMode">
-      <option value="openai">OpenAI TTS優先</option>
-      <option value="browser">ブラウザ音声のみ</option>
-      <option value="off">オフ</option>
-    </select>
-    <div class="mini">OpenAI TTS失敗時は自動でブラウザ音声に切り替えます。</div>
-  </div>
-
-  <div class="group">
-    <label for="ttsVoice">OpenAI音声</label>
-    <select id="ttsVoice">
-      <option value="aria">aria</option>
-      <option value="alloy">alloy</option>
-      <option value="verse">verse</option>
-      <option value="sage">sage</option>
-      <option value="nova">nova</option>
-      <option value="shimmer">shimmer</option>
-    </select>
-  </div>
-
-  <div class="panelActions">
-    <button class="panelBtn" id="closeSettings">閉じる</button>
-    <button class="panelBtn primary" id="saveSettings">保存</button>
-  </div>
-</div>
-
 <script>
-const STORAGE_PREFIX = "misaki-ai-v2:";
-
-/* ===== 要素 ===== */
 const bubble = document.getElementById("bubble");
 const input = document.getElementById("input");
-const character = document.getElementById("character");
+const baseFace = document.getElementById("baseFace");
+const blinkFace = document.getElementById("blinkFace");
 const avatarWrap = document.getElementById("avatarWrap");
 const sendBtn = document.getElementById("send");
 const micBtn = document.getElementById("mic");
 const settingsBtn = document.getElementById("settingsBtn");
 const appBtn = document.getElementById("appBtn");
-const statusLine = document.getElementById("statusLine");
+const STORAGE_PREFIX = "misaki-ai-mobile:";
 
-const settingsPanel = document.getElementById("settingsPanel");
-const closeSettings = document.getElementById("closeSettings");
-const saveSettings = document.getElementById("saveSettings");
-
-const providerSelect = document.getElementById("providerSelect");
-const openaiModelInput = document.getElementById("openaiModel");
-const geminiModelInput = document.getElementById("geminiModel");
-const personaSelect = document.getElementById("personaSelect");
-const extraPromptInput = document.getElementById("extraPrompt");
-const openaiKeyInput = document.getElementById("openaiKey");
-const geminiKeyInput = document.getElementById("geminiKey");
-const ttsModeSelect = document.getElementById("ttsMode");
-const ttsVoiceSelect = document.getElementById("ttsVoice");
-
-/* ===== 状態 ===== */
 let isSpeaking = false;
 let isThinking = false;
+let isBlinking = false;
+let blinkTimer = null;
 let recognition = null;
 
-/* ===== 人格プリセット ===== */
-const PERSONAS = {
-  gentle: "優しい女性。共感重視。短く自然に話す。安心感を大切にする。",
-  sister: "少しお姉さんっぽい女性。やさしく包み込む。押しつけず、近い距離感で話す。",
-  counselor: "傾聴重視の相談役。まず気持ちを受け止め、整理し、穏やかに提案する。",
-  welfare: "福祉や生活支援に理解がある聞き役。制度っぽくなりすぎず、やさしく実用的に話す。",
-  cheerful: "明るく親しみやすい女性。前向きでやわらかく、元気づける話し方をする。"
+const FACE = {
+  normal: "normal.png",
+  blink: "blink.png",
+  blink2: "blink2.png",
+  smile: "smile.png",
+  curious: "curious.png",
+  typing: "typing.png"
 };
 
-Object.entries({
-  gentle:"やさしい",
-  sister:"お姉さん",
-  counselor:"相談役",
-  welfare:"福祉寄り",
-  cheerful:"明るめ"
-}).forEach(([value,label])=>{
-  const op = document.createElement("option");
-  op.value = value;
-  op.textContent = label;
-  personaSelect.appendChild(op);
+const MOUTHS = ["mouth1.png","mouth2.png","mouth3.png"];
+
+[FACE.normal, FACE.blink, FACE.blink2, FACE.smile, FACE.curious, FACE.typing, ...MOUTHS].forEach(src=>{
+  const img = new Image();
+  img.src = src;
 });
 
-/* ===== 設定 ===== */
-const settings = {
-  provider: load("provider", "openai"),
-  openaiKey: load("openaiKey", ""),
-  geminiKey: load("geminiKey", ""),
-  openaiModel: load("openaiModel", "gpt-4o-mini"),
-  geminiModel: load("geminiModel", "gemini-2.0-flash"),
-  persona: load("persona", "gentle"),
-  extraPrompt: load("extraPrompt", ""),
-  ttsMode: load("ttsMode", "openai"),
-  ttsVoice: load("ttsVoice", "aria")
-};
-
-function load(key, fallback){
-  try{
-    const v = localStorage.getItem(STORAGE_PREFIX + key);
-    return v ?? fallback;
-  }catch{
-    return fallback;
-  }
-}
-
-function save(key, value){
-  try{
-    localStorage.setItem(STORAGE_PREFIX + key, value);
-  }catch(e){
-    console.log("保存失敗", e);
-  }
-}
-
-function reflectSettingsToUI(){
-  providerSelect.value = settings.provider;
-  openaiKeyInput.value = settings.openaiKey;
-  geminiKeyInput.value = settings.geminiKey;
-  openaiModelInput.value = settings.openaiModel;
-  geminiModelInput.value = settings.geminiModel;
-  personaSelect.value = settings.persona;
-  extraPromptInput.value = settings.extraPrompt;
-  ttsModeSelect.value = settings.ttsMode;
-  ttsVoiceSelect.value = settings.ttsVoice;
-  updateStatusLine();
-}
-
-function applySettingsFromUI(){
-  settings.provider = providerSelect.value;
-  settings.openaiKey = openaiKeyInput.value.trim();
-  settings.geminiKey = geminiKeyInput.value.trim();
-  settings.openaiModel = openaiModelInput.value.trim() || "gpt-4o-mini";
-  settings.geminiModel = geminiModelInput.value.trim() || "gemini-2.0-flash";
-  settings.persona = personaSelect.value;
-  settings.extraPrompt = extraPromptInput.value.trim();
-  settings.ttsMode = ttsModeSelect.value;
-  settings.ttsVoice = ttsVoiceSelect.value;
-
-  save("provider", settings.provider);
-  save("openaiKey", settings.openaiKey);
-  save("geminiKey", settings.geminiKey);
-  save("openaiModel", settings.openaiModel);
-  save("geminiModel", settings.geminiModel);
-  save("persona", settings.persona);
-  save("extraPrompt", settings.extraPrompt);
-  save("ttsMode", settings.ttsMode);
-  save("ttsVoice", settings.ttsVoice);
-
-  updateStatusLine();
-}
-
-function updateStatusLine(){
-  const model = settings.provider === "openai" ? settings.openaiModel : settings.geminiModel;
-  statusLine.textContent = (settings.provider === "openai" ? "OpenAI" : "Gemini") + " / " + model;
-}
-
-function buildSystemPrompt(){
-  const personaText = PERSONAS[settings.persona] || PERSONAS.gentle;
-  const extra = settings.extraPrompt ? "
-追加指示:" + settings.extraPrompt : "";
-  return personaText + extra;
-}
-
-/* ===== 会話履歴 ===== */
 let conversation = [
-  {role:"system", content:buildSystemPrompt()}
+  {role:"system", content:"優しい女性。共感重視。短く自然に話す"}
 ];
 
 let memory = [];
@@ -493,6 +256,26 @@ try{
   memory = [];
 }
 
+function setAvatarMode(mode){
+  avatarWrap.classList.remove("idle","speaking","thinking");
+  avatarWrap.classList.add(mode);
+}
+
+function setBaseFace(src){
+  baseFace.src = src;
+}
+
+function hideBlinkLayer(){
+  blinkFace.style.opacity = "0";
+}
+
+function showBlinkLayer(src){
+  blinkFace.src = src;
+  requestAnimationFrame(()=>{
+    blinkFace.style.opacity = "1";
+  });
+}
+
 function saveMemory(text){
   memory.push(text);
   if(memory.length > 20) memory = memory.slice(-20);
@@ -501,21 +284,6 @@ function saveMemory(text){
   }catch(e){
     console.log("記憶保存失敗", e);
   }
-}
-
-function resetConversationSystem(){
-  const memoryText = memory.join(" / ");
-  conversation[0] = {
-    role:"system",
-    content:buildSystemPrompt() + (memoryText ? "
-ユーザー情報:" + memoryText : "")
-  };
-}
-
-/* ===== 表情 ===== */
-function setAvatarMode(mode){
-  avatarWrap.classList.remove("idle","speaking","thinking");
-  avatarWrap.classList.add(mode);
 }
 
 function showBubble(text){
@@ -529,191 +297,197 @@ function showBubble(text){
 function stopLipSync(){
   isSpeaking = false;
   setAvatarMode("idle");
-  character.src = "normal.png";
+  setBaseFace(FACE.normal);
+  hideBlinkLayer();
+  startBlinkLoop();
 }
 
 function startLipSync(){
+  stopBlinkLoop();
+  hideBlinkLayer();
   isSpeaking = true;
   setAvatarMode("speaking");
+
   let i = 0;
-  const frames = ["mouth1.png","mouth2.png","mouth3.png"];
   function loop(){
     if(!isSpeaking) return;
-    character.src = frames[i % frames.length];
+    setBaseFace(MOUTHS[i % MOUTHS.length]);
     i++;
-    setTimeout(loop, 95);
+    setTimeout(loop, 110);
   }
   loop();
 }
 
-/* ===== 音声 ===== */
+function stopBlinkLoop(){
+  if(blinkTimer){
+    clearTimeout(blinkTimer);
+    blinkTimer = null;
+  }
+}
+
+function scheduleBlink(){
+  stopBlinkLoop();
+  const delay = 3800 + Math.random() * 4200;
+  blinkTimer = setTimeout(async ()=>{
+    await doBlink();
+    scheduleBlink();
+  }, delay);
+}
+
+async function doBlink(){
+  if(isSpeaking || isThinking || isBlinking) return;
+  isBlinking = true;
+
+  const deepBlink = Math.random() < 0.18;
+
+  showBlinkLayer(FACE.blink2);
+  await sleep(120);
+
+  if(deepBlink){
+    showBlinkLayer(FACE.blink);
+    await sleep(120);
+  }
+
+  hideBlinkLayer();
+  await sleep(120);
+
+  isBlinking = false;
+}
+
+function startBlinkLoop(){
+  if(isSpeaking || isThinking) return;
+  setAvatarMode("idle");
+  scheduleBlink();
+}
+
+function sleep(ms){
+  return new Promise(r=>setTimeout(r, ms));
+}
+
+let API_KEY = "";
+try{
+  API_KEY = localStorage.getItem(STORAGE_PREFIX + "apiKey") || "";
+}catch{
+  API_KEY = "";
+}
+
 async function speakWithBrowser(text){
-  if(!("speechSynthesis" in window)) return;
   const uttr = new SpeechSynthesisUtterance(text);
   uttr.lang = "ja-JP";
-  uttr.onstart = ()=> startLipSync();
-  uttr.onend = ()=> stopLipSync();
-  uttr.onerror = ()=> stopLipSync();
+
+  uttr.onstart = ()=>{
+    startLipSync();
+  };
+
+  uttr.onend = ()=>{
+    stopLipSync();
+  };
+
+  uttr.onerror = ()=>{
+    stopLipSync();
+  };
+
   speechSynthesis.cancel();
   speechSynthesis.speak(uttr);
 }
 
-async function speakWithOpenAI(text){
-  const key = settings.openaiKey;
-  if(!key) throw new Error("OpenAI APIキー未設定");
-
-  const res = await fetch("https://api.openai.com/v1/audio/speech",{
-    method:"POST",
-    headers:{
-      "Authorization":"Bearer " + key,
-      "Content-Type":"application/json"
-    },
-    body:JSON.stringify({
-      model:"gpt-4o-mini-tts",
-      voice:settings.ttsVoice || "aria",
-      input:text
-    })
-  });
-
-  if(!res.ok){
-    throw new Error(await res.text());
-  }
-
-  const blob = await res.blob();
-  const url = URL.createObjectURL(blob);
-  const audio = new Audio(url);
-
-  audio.onplay = ()=> startLipSync();
-  audio.onended = ()=>{
-    URL.revokeObjectURL(url);
-    stopLipSync();
-  };
-  audio.onerror = ()=>{
-    URL.revokeObjectURL(url);
-    stopLipSync();
-  };
-
-  await audio.play();
-}
-
 async function speak(text){
-  if(settings.ttsMode === "off") return;
-  if(settings.ttsMode === "browser"){
+  if(!API_KEY){
     return speakWithBrowser(text);
   }
 
   try{
-    await speakWithOpenAI(text);
+    const res = await fetch("https://api.openai.com/v1/audio/speech",{
+      method:"POST",
+      headers:{
+        "Authorization":"Bearer " + API_KEY,
+        "Content-Type":"application/json"
+      },
+      body:JSON.stringify({
+        model:"gpt-4o-mini-tts",
+        voice:"aria",
+        input:text
+      })
+    });
+
+    if(!res.ok){
+      throw new Error(await res.text());
+    }
+
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const audio = new Audio(url);
+
+    audio.onplay = ()=>{
+      startLipSync();
+    };
+
+    audio.onended = ()=>{
+      URL.revokeObjectURL(url);
+      stopLipSync();
+    };
+
+    audio.onerror = ()=>{
+      URL.revokeObjectURL(url);
+      stopLipSync();
+      speakWithBrowser(text);
+    };
+
+    await audio.play();
   }catch(e){
-    console.log("OpenAI TTS失敗", e);
-    await speakWithBrowser(text);
+    console.log("音声エラー", e);
+    speakWithBrowser(text);
   }
 }
 
-/* ===== OpenAI ===== */
-async function getOpenAIResponse(msg){
-  resetConversationSystem();
-  conversation.push({role:"user", content:msg});
-
-  if(conversation.length > 9){
-    conversation = [conversation[0], ...conversation.slice(-8)];
-  }
-
-  const key = settings.openaiKey;
-  if(!key){
-    return "OpenAIのAPIキーがまだ入っていないみたい。設定から入れてね。";
-  }
-
-  const r = await fetch("https://api.openai.com/v1/chat/completions",{
-    method:"POST",
-    headers:{
-      "Content-Type":"application/json",
-      "Authorization":"Bearer " + key
-    },
-    body:JSON.stringify({
-      model:settings.openaiModel,
-      messages:conversation
-    })
-  });
-
-  if(!r.ok){
-    throw new Error(await r.text());
-  }
-
-  const d = await r.json();
-  const reply = d.choices?.[0]?.message?.content || "うまく話せない…";
-  conversation.push({role:"assistant", content:reply});
-  return reply;
-}
-
-/* ===== Gemini ===== */
-function toGeminiContents(history){
-  return history
-    .filter(x => x.role !== "system")
-    .map(x => ({
-      role: x.role === "assistant" ? "model" : "user",
-      parts: [{text: x.content}]
-    }));
-}
-
-async function getGeminiResponse(msg){
-  resetConversationSystem();
-  conversation.push({role:"user", content:msg});
-
-  if(conversation.length > 9){
-    conversation = [conversation[0], ...conversation.slice(-8)];
-  }
-
-  const key = settings.geminiKey;
-  if(!key){
-    return "GeminiのAPIキーがまだ入っていないみたい。設定から入れてね。";
-  }
-
-  const endpoint = "https://generativelanguage.googleapis.com/v1beta/models/" +
-    encodeURIComponent(settings.geminiModel) +
-    ":generateContent?key=" + encodeURIComponent(key);
-
-  const body = {
-    system_instruction: {
-      parts: [{ text: conversation[0].content }]
-    },
-    contents: toGeminiContents(conversation)
-  };
-
-  const r = await fetch(endpoint,{
-    method:"POST",
-    headers:{
-      "Content-Type":"application/json"
-    },
-    body:JSON.stringify(body)
-  });
-
-  if(!r.ok){
-    throw new Error(await r.text());
-  }
-
-  const d = await r.json();
-  const reply =
-    d.candidates?.[0]?.content?.parts?.map(p => p.text || "").join("") ||
-    "うまく話せない…";
-
-  conversation.push({role:"assistant", content:reply});
-  return reply;
-}
-
-/* ===== 共通応答 ===== */
 async function getAIResponse(msg){
   if(msg.includes("好き") || msg.includes("疲れ") || msg.includes("仕事")){
     saveMemory(msg);
   }
 
-  if(settings.provider === "gemini"){
-    return getGeminiResponse(msg);
+  const memoryText = memory.join(" / ");
+  conversation[0] = {
+    role:"system",
+    content:"優しい女性。共感重視。短く自然に話す。ユーザー情報:" + memoryText
+  };
+
+  conversation.push({role:"user", content:msg});
+
+  if(conversation.length > 9){
+    conversation = [conversation[0], ...conversation.slice(-8)];
   }
-  return getOpenAIResponse(msg);
+
+  if(!API_KEY){
+    return "今はAPIキーが入っていないみたい。設定から入れてくれると、もっと自然にお話しできるよ。";
+  }
+
+  try{
+    const r = await fetch("https://api.openai.com/v1/chat/completions",{
+      method:"POST",
+      headers:{
+        "Content-Type":"application/json",
+        "Authorization":"Bearer " + API_KEY
+      },
+      body:JSON.stringify({
+        model:"gpt-4o-mini",
+        messages:conversation
+      })
+    });
+
+    if(!r.ok){
+      throw new Error(await r.text());
+    }
+
+    const d = await r.json();
+    const reply = d.choices?.[0]?.message?.content || "うまく話せない…";
+    conversation.push({role:"assistant", content:reply});
+    return reply;
+  }catch(e){
+    console.log("会話エラー", e);
+    return "ごめんね、今ちょっと通信が不安定みたい…。少ししてからもう一度話しかけて。";
+  }
 }
 
-/* ===== 送信 ===== */
 async function send(){
   const text = input.value.trim();
 
@@ -724,67 +498,70 @@ async function send(){
 
   input.value = "";
   isThinking = true;
+  stopBlinkLoop();
+  hideBlinkLayer();
   setAvatarMode("thinking");
-  character.src = "typing.png";
+  setBaseFace(FACE.typing);
   showBubble("…");
 
-  await new Promise(r=>setTimeout(r,300));
+  await sleep(300);
 
-  try{
-    let reply = await getAIResponse(text);
-    reply = reply.replace(/。/g,"。… ").replace(/、/g,"、 ");
-    isThinking = false;
-    showBubble(reply);
-    speak(reply);
-  }catch(e){
-    console.log("会話エラー", e);
-    isThinking = false;
-    setAvatarMode("idle");
-    character.src = "normal.png";
-    showBubble("ごめんね、今ちょっと通信が不安定みたい…。");
-  }
+  let reply = await getAIResponse(text);
+  reply = reply.replace(/。/g,"。… ").replace(/、/g,"、 ");
+
+  isThinking = false;
+  showBubble(reply);
+  speak(reply);
 }
 
 sendBtn.addEventListener("click", send);
+
 input.addEventListener("keydown", e=>{
   if(e.key === "Enter") send();
 });
 
-/* ===== マイク ===== */
 if("webkitSpeechRecognition" in window){
   recognition = new webkitSpeechRecognition();
   recognition.lang = "ja-JP";
   recognition.interimResults = false;
   recognition.continuous = false;
 
-  micBtn.onclick = ()=> recognition.start();
+  micBtn.onclick = ()=>{
+    recognition.start();
+  };
 
   recognition.onstart = ()=>{
     isThinking = true;
+    stopBlinkLoop();
+    hideBlinkLayer();
     setAvatarMode("thinking");
-    character.src = "curious.png";
+    setBaseFace(FACE.curious);
     showBubble("聞いてるよ…");
   };
 
   recognition.onresult = e=>{
     input.value = e.results[0][0].transcript;
     isThinking = false;
-    character.src = "normal.png";
+    setBaseFace(FACE.normal);
     setAvatarMode("idle");
     send();
   };
 
   recognition.onerror = ()=>{
     isThinking = false;
-    character.src = "normal.png";
+    setBaseFace(FACE.normal);
     setAvatarMode("idle");
-    showBubble("うまく聞き取れなかったみたい…");
+    hideBlinkLayer();
+    startBlinkLoop();
+    showBubble("うまく聞き取れなかったみたい…もう一度話してみて。");
   };
 
   recognition.onend = ()=>{
     if(!isSpeaking && !isThinking){
-      character.src = "normal.png";
+      setBaseFace(FACE.normal);
       setAvatarMode("idle");
+      hideBlinkLayer();
+      startBlinkLoop();
     }
   };
 }else{
@@ -792,32 +569,28 @@ if("webkitSpeechRecognition" in window){
   micBtn.style.opacity = 0.45;
 }
 
-/* ===== 設定UI ===== */
 settingsBtn.onclick = ()=>{
-  reflectSettingsToUI();
-  settingsPanel.classList.add("show");
+  const key = prompt("APIキー入力", API_KEY || "");
+  if(key !== null){
+    API_KEY = key.trim();
+    try{
+      localStorage.setItem(STORAGE_PREFIX + "apiKey", API_KEY);
+    }catch(e){
+      console.log("APIキー保存失敗", e);
+    }
+    alert(API_KEY ? "保存したよ" : "APIキーを空にしたよ");
+  }
 };
 
-closeSettings.onclick = ()=>{
-  settingsPanel.classList.remove("show");
-};
-
-saveSettings.onclick = ()=>{
-  applySettingsFromUI();
-  resetConversationSystem();
-  settingsPanel.classList.remove("show");
-  showBubble("設定を保存したよ😊");
-};
-
-/* ===== その他 ===== */
 appBtn.onclick = ()=>{
   showBubble("ここに生活アプリ呼び出しを増やしていけるよ。🌷");
 };
 
 window.addEventListener("load", ()=>{
-  reflectSettingsToUI();
   setAvatarMode("idle");
-  character.src = "normal.png";
+  setBaseFace(FACE.normal);
+  hideBlinkLayer();
+  startBlinkLoop();
 
   setTimeout(()=>{
     const text = "おかえり。今日もお疲れさま。";
