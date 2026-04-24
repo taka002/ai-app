@@ -29,55 +29,36 @@ position:absolute;
 width:100%;
 height:100%;
 object-fit:cover;
-object-position:center 38%;
-transform:scale(0.96);
-transition:transform .22s ease, filter .22s ease, opacity .18s ease;
-will-change:transform, filter;
-}
-
-.avatar.idle .base-face{
-animation:idleFloat 4.8s ease-in-out infinite;
+object-position:center 22%;
+transform:scale(1);
+transition:transform .25s ease, filter .25s ease;
 }
 
 .avatar.speaking .base-face{
-filter:brightness(1.04);
-transform:scale(0.985) translateY(-2px);
-}
-
-.avatar.thinking .base-face{
 filter:brightness(1.02);
-transform:scale(0.97) translateY(-1px);
-}
-
-@keyframes idleFloat{
-0%{transform:scale(0.96) translateY(0);}
-25%{transform:scale(0.965) translateY(-2px);}
-50%{transform:scale(0.968) translateY(-4px);}
-75%{transform:scale(0.963) translateY(-2px);}
-100%{transform:scale(0.96) translateY(0);}
 }
 
 #bubble{
 position:absolute;
-bottom:72px;
+bottom:112px;
 left:50%;
 transform:translateX(-50%) translateY(10px);
 width:84%;
 max-width:420px;
-background:rgba(255,255,255,0.28);
-backdrop-filter:blur(18px);
--webkit-backdrop-filter:blur(18px);
-border-radius:20px;
-padding:10px 12px;
-font-size:14px;
-line-height:1.5;
+background:rgba(255,255,255,0.45);
+backdrop-filter:blur(20px);
+-webkit-backdrop-filter:blur(20px);
+border-radius:22px;
+padding:12px 14px;
+font-size:15px;
+line-height:1.6;
 text-align:center;
 z-index:5;
-max-height:84px;
+max-height:140px;
 overflow:auto;
 opacity:0;
 color:#2a2a2a;
-box-shadow:0 6px 24px rgba(0,0,0,.06);
+box-shadow:0 8px 30px rgba(0,0,0,.08);
 transition:all .35s ease;
 }
 
@@ -90,7 +71,7 @@ transform:translateX(-50%) translateY(0);
 position:fixed;
 left:50%;
 transform:translateX(-50%);
-bottom:calc(10px + env(safe-area-inset-bottom, 0px));
+bottom:calc(12px + env(safe-area-inset-bottom, 0px));
 width:calc(100% - 16px);
 max-width:430px;
 display:flex;
@@ -98,7 +79,7 @@ align-items:center;
 gap:8px;
 background:rgba(255,255,255,0.92);
 border-radius:24px;
-padding:6px;
+padding:8px;
 z-index:10;
 backdrop-filter:blur(14px);
 -webkit-backdrop-filter:blur(14px);
@@ -106,8 +87,8 @@ box-shadow:0 10px 26px rgba(0,0,0,.10);
 }
 
 #bottomBar button{
-height:40px;
-width:40px;
+height:42px;
+width:42px;
 border:none;
 border-radius:50%;
 display:flex;
@@ -120,9 +101,9 @@ box-shadow:0 2px 8px rgba(0,0,0,.06);
 }
 
 #send{
-border-radius:20px !important;
+border-radius:21px !important;
 width:auto !important;
-height:40px;
+height:42px;
 padding:0 14px;
 background:#4da6ff !important;
 color:#fff;
@@ -132,9 +113,9 @@ font-weight:700;
 
 #input{
 flex:1;
-height:42px;
+height:44px;
 border:none;
-border-radius:21px;
+border-radius:22px;
 padding:0 14px;
 min-width:0;
 font-size:16px;
@@ -149,43 +130,26 @@ color:#8d8d8d;
 @media (max-width:390px){
 #bubble{
 width:86%;
-bottom:70px;
-max-height:80px;
+bottom:108px;
 }
 #bottomBar{
 width:calc(100% - 12px);
 gap:6px;
 }
 #bottomBar button{
-width:38px;
-height:38px;
-font-size:16px;
+width:40px;
+height:40px;
+font-size:17px;
 }
 #send{
-height:38px;
 padding:0 12px;
-}
-#input{
-height:40px;
-}
-}
-
-@media (prefers-reduced-motion: reduce){
-.avatar.idle .base-face{
-animation:none;
-}
-.base-face{
-transition:none;
-}
-#bubble{
-transition:none;
 }
 }
 </style>
 </head>
 <body>
 
-<div class="avatar idle" id="avatarWrap">
+<div class="avatar" id="avatarWrap">
   <img id="character" src="normal.png" class="base-face" alt="美咲AI">
 </div>
 
@@ -211,21 +175,7 @@ const appBtn = document.getElementById("appBtn");
 const STORAGE_PREFIX = "misaki-ai-mobile:";
 
 let isSpeaking = false;
-let isThinking = false;
-let isBlinking = false;
-let blinkTimer = null;
 let recognition = null;
-
-const FACE = {
-  normal: "normal.png",
-  blink: "blink.png",
-  blink2: "blink2.png",
-  smile: "smile.png",
-  curious: "curious.png",
-  typing: "typing.png"
-};
-
-const MOUTHS = ["mouth1.png","mouth2.png","mouth3.png"];
 
 let conversation = [
   {role:"system", content:"優しい女性。共感重視。短く自然に話す"}
@@ -239,15 +189,6 @@ try{
   memory = [];
 }
 
-function setAvatarMode(mode){
-  avatarWrap.classList.remove("idle","speaking","thinking");
-  avatarWrap.classList.add(mode);
-}
-
-function setFace(src){
-  character.src = src;
-}
-
 function saveMemory(text){
   memory.push(text);
   if(memory.length > 20) memory = memory.slice(-20);
@@ -258,78 +199,31 @@ function saveMemory(text){
   }
 }
 
-function showBubble(text){
-  bubble.classList.remove("show");
-  setTimeout(()=>{
-    bubble.innerText = text;
-    bubble.classList.add("show");
-  },150);
-}
-
-function stopLipSync(){
-  isSpeaking = false;
-  setAvatarMode("idle");
-  setFace(FACE.normal);
-  startBlinkLoop();
-}
-
 function startLipSync(){
-  stopBlinkLoop();
-  isSpeaking = true;
-  setAvatarMode("speaking");
-
   let i = 0;
+  const frames = ["mouth1.png","mouth2.png","mouth3.png"];
+  avatarWrap.classList.add("speaking");
   function loop(){
     if(!isSpeaking) return;
-    setFace(MOUTHS[i % MOUTHS.length]);
+    character.src = frames[i % frames.length];
     i++;
     setTimeout(loop, 90);
   }
   loop();
 }
 
-function stopBlinkLoop(){
-  if(blinkTimer){
-    clearTimeout(blinkTimer);
-    blinkTimer = null;
-  }
+function stopLipSync(){
+  isSpeaking = false;
+  avatarWrap.classList.remove("speaking");
+  character.src = "normal.png";
 }
 
-function scheduleBlink(){
-  stopBlinkLoop();
-  const delay = 2800 + Math.random() * 3700;
-  blinkTimer = setTimeout(async ()=>{
-    await doBlink();
-    scheduleBlink();
-  }, delay);
-}
-
-async function doBlink(){
-  if(isSpeaking || isThinking || isBlinking) return;
-  isBlinking = true;
-
-  const deepBlink = Math.random() < 0.28;
-
-  setFace(FACE.blink2);
-  await sleep(90);
-
-  if(deepBlink){
-    setFace(FACE.blink);
-    await sleep(80);
-  }
-
-  setFace(FACE.normal);
-  isBlinking = false;
-}
-
-function startBlinkLoop(){
-  if(isSpeaking || isThinking) return;
-  setAvatarMode("idle");
-  scheduleBlink();
-}
-
-function sleep(ms){
-  return new Promise(r=>setTimeout(r, ms));
+function showBubble(text){
+  bubble.classList.remove("show");
+  setTimeout(()=>{
+    bubble.innerText = text;
+    bubble.classList.add("show");
+  },150);
 }
 
 let API_KEY = "";
@@ -342,19 +236,11 @@ try{
 async function speakWithBrowser(text){
   const uttr = new SpeechSynthesisUtterance(text);
   uttr.lang = "ja-JP";
-
   uttr.onstart = ()=>{
+    isSpeaking = true;
     startLipSync();
   };
-
-  uttr.onend = ()=>{
-    stopLipSync();
-  };
-
-  uttr.onerror = ()=>{
-    stopLipSync();
-  };
-
+  uttr.onend = ()=> stopLipSync();
   speechSynthesis.cancel();
   speechSynthesis.speak(uttr);
 }
@@ -387,18 +273,13 @@ async function speak(text){
     const audio = new Audio(url);
 
     audio.onplay = ()=>{
+      isSpeaking = true;
       startLipSync();
     };
 
     audio.onended = ()=>{
-      URL.revokeObjectURL(url);
       stopLipSync();
-    };
-
-    audio.onerror = ()=>{
       URL.revokeObjectURL(url);
-      stopLipSync();
-      speakWithBrowser(text);
     };
 
     await audio.play();
@@ -426,7 +307,9 @@ async function getAIResponse(msg){
   }
 
   if(!API_KEY){
-    return "今はAPIキーが入っていないみたい。設定から入れてくれると、もっと自然にお話しできるよ。";
+    const fallback = "今はAPIキーが入っていないみたい。設定から入れてくれると、もっと自然にお話しできるよ。";
+    conversation.push({role:"assistant", content:fallback});
+    return fallback;
   }
 
   try{
@@ -452,7 +335,9 @@ async function getAIResponse(msg){
     return reply;
   }catch(e){
     console.log("会話エラー", e);
-    return "ごめんね、今ちょっと通信が不安定みたい…。少ししてからもう一度話しかけて。";
+    const fallback = "ごめんね、今ちょっと通信が不安定みたい…。少ししてからもう一度話しかけて。";
+    conversation.push({role:"assistant", content:fallback});
+    return fallback;
   }
 }
 
@@ -465,18 +350,13 @@ async function send(){
   }
 
   input.value = "";
-  isThinking = true;
-  stopBlinkLoop();
-  setAvatarMode("thinking");
-  setFace(FACE.typing);
   showBubble("…");
 
-  await sleep(300);
+  await new Promise(r=>setTimeout(r,300));
 
   let reply = await getAIResponse(text);
   reply = reply.replace(/。/g,"。… ").replace(/、/g,"、 ");
 
-  isThinking = false;
   showBubble(reply);
   speak(reply);
 }
@@ -493,40 +373,15 @@ if("webkitSpeechRecognition" in window){
   recognition.interimResults = false;
   recognition.continuous = false;
 
-  micBtn.onclick = ()=>{
-    recognition.start();
-  };
-
-  recognition.onstart = ()=>{
-    isThinking = true;
-    stopBlinkLoop();
-    setAvatarMode("thinking");
-    setFace(FACE.curious);
-    showBubble("聞いてるよ…");
-  };
+  micBtn.onclick = ()=> recognition.start();
 
   recognition.onresult = e=>{
     input.value = e.results[0][0].transcript;
-    isThinking = false;
-    setFace(FACE.normal);
-    setAvatarMode("idle");
     send();
   };
 
   recognition.onerror = ()=>{
-    isThinking = false;
-    setFace(FACE.normal);
-    setAvatarMode("idle");
-    startBlinkLoop();
     showBubble("うまく聞き取れなかったみたい…もう一度話してみて。");
-  };
-
-  recognition.onend = ()=>{
-    if(!isSpeaking && !isThinking){
-      setFace(FACE.normal);
-      setAvatarMode("idle");
-      startBlinkLoop();
-    }
   };
 }else{
   micBtn.disabled = true;
@@ -551,10 +406,6 @@ appBtn.onclick = ()=>{
 };
 
 window.addEventListener("load", ()=>{
-  setAvatarMode("idle");
-  setFace(FACE.normal);
-  startBlinkLoop();
-
   setTimeout(()=>{
     const text = "おかえり。今日もお疲れさま。";
     showBubble(text);
